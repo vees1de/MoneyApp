@@ -1,27 +1,17 @@
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 
 import type { AuthProvider } from '@/entities/user/model/types'
-import { removeStorage, readStorage, writeStorage } from '@/shared/lib/storage'
-import { useUserStore } from './user'
+import { useDashboardStore } from '@/app/stores/dashboard'
+import { useFinanceStore } from '@/app/stores/finance'
+import { useReviewStore } from '@/app/stores/review'
+import { useSavingsStore } from '@/app/stores/savings'
+import { useUserStore } from '@/app/stores/user'
+import { mapApiUser } from '@/shared/api/mappers'
+import { clearSession, readSession, writeSession } from '@/shared/api/session'
+import { fetchMe, loginWithTelegram, loginWithYandex, logout as apiLogout } from '@/shared/api/services/auth'
 
 type AuthStatus = 'unknown' | 'guest' | 'authenticated'
-
-interface StoredSession {
-  status: AuthStatus
-  provider: AuthProvider | null
-  accessToken: string | null
-  expiresAt: string | null
-}
-
-const AUTH_STORAGE_KEY = 'plos-auth-session'
-
-const defaultSession: StoredSession = {
-  status: 'guest',
-  provider: null,
-  accessToken: null,
-  expiresAt: null,
-}
 
 export const useAuthStore = defineStore('auth', () => {
   const status = ref<AuthStatus>('unknown')
@@ -30,63 +20,104 @@ export const useAuthStore = defineStore('auth', () => {
   const expiresAt = ref<string | null>(null)
   const bootstrapped = ref(false)
 
-  function bootstrap() {
-    const saved = readStorage<StoredSession>(AUTH_STORAGE_KEY, defaultSession)
+  function setSession(input: {
+    accessToken: string
+    expiresAt: string
+    provider: AuthProvider | null
+    refreshToken: string
+  }) {
+    status.value = 'authenticated'
+    provider.value = input.provider
+    accessToken.value = input.accessToken
+    expiresAt.value = input.expiresAt
 
-    status.value = saved.status
-    provider.value = saved.provider
-    accessToken.value = saved.accessToken
-    expiresAt.value = saved.expiresAt
+    writeSession({
+      accessToken: input.accessToken,
+      expiresAt: input.expiresAt,
+      provider: input.provider,
+      refreshToken: input.refreshToken,
+    })
+  }
 
-    if (saved.status === 'authenticated' && saved.provider) {
-      useUserStore().setAuthProvider(saved.provider)
+  async function bootstrap() {
+    const session = readSession()
+
+    if (!session) {
+      status.value = 'guest'
+      accessToken.value = null
+      expiresAt.value = null
+      provider.value = null
+      bootstrapped.value = true
+      return
     }
 
-    bootstrapped.value = true
-  }
-
-  function login(nextProvider: AuthProvider) {
-    const userStore = useUserStore()
-
+    accessToken.value = session.accessToken
+    expiresAt.value = session.expiresAt
+    provider.value = session.provider
     status.value = 'authenticated'
-    provider.value = nextProvider
-    accessToken.value = `demo-${nextProvider}-token`
-    expiresAt.value = new Date(Date.now() + 1000 * 60 * 45).toISOString()
 
-    userStore.setAuthProvider(nextProvider)
+    try {
+      const response = await fetchMe()
+      useUserStore().setProfile({
+        ...mapApiUser(response.user),
+        provider: session.provider,
+      })
+    } catch {
+      clearSession()
+      status.value = 'guest'
+      accessToken.value = null
+      expiresAt.value = null
+      provider.value = null
+    } finally {
+      bootstrapped.value = true
+    }
   }
 
-  function logout() {
+  async function login(nextProvider: AuthProvider) {
+    const response =
+      nextProvider === 'telegram'
+        ? await loginWithTelegram(`tg_${Date.now()}`)
+        : await loginWithYandex(`yandex_${Date.now()}`)
+
+    const nextExpiresAt = new Date(Date.now() + response.tokens.expires_in * 1000).toISOString()
+
+    setSession({
+      accessToken: response.tokens.access_token,
+      expiresAt: nextExpiresAt,
+      provider: nextProvider,
+      refreshToken: response.tokens.refresh_token,
+    })
+
+    useUserStore().setProfile({
+      ...mapApiUser(response.user),
+      provider: nextProvider,
+    })
+  }
+
+  async function logout() {
+    const session = readSession()
+
+    if (session?.refreshToken) {
+      try {
+        await apiLogout(session.refreshToken)
+      } catch {
+        // Ignore logout failures and clear local session regardless.
+      }
+    }
+
     status.value = 'guest'
     provider.value = null
     accessToken.value = null
     expiresAt.value = null
-
-    removeStorage(AUTH_STORAGE_KEY)
+    clearSession()
+    useFinanceStore().reset()
+    useSavingsStore().reset()
+    useReviewStore().reset()
+    useDashboardStore().reset()
+    useUserStore().reset()
   }
 
   const isAuthenticated = computed(() => status.value === 'authenticated')
-
-  watch(
-    [status, provider, accessToken, expiresAt],
-    () => {
-      if (status.value === 'guest') {
-        removeStorage(AUTH_STORAGE_KEY)
-        return
-      }
-
-      if (status.value === 'unknown') {
-        return
-      }
-
-      writeStorage(AUTH_STORAGE_KEY, {
-        status: status.value,
-        provider: provider.value,
-        accessToken: accessToken.value,
-        expiresAt: expiresAt.value,
-      } satisfies StoredSession)
-    },
-  )
 
   return {
     accessToken,

@@ -10,6 +10,30 @@ export default defineConfig({
     vue(),
     vueDevTools(),
   ],
+  server: {
+    proxy: {
+      '/api': {
+        target: process.env.VITE_BACKEND_ORIGIN ?? 'http://localhost:8080',
+        changeOrigin: true,
+      },
+      '/healthz': {
+        target: process.env.VITE_BACKEND_ORIGIN ?? 'http://localhost:8080',
+        changeOrigin: true,
+      },
+      '/readyz': {
+        target: process.env.VITE_BACKEND_ORIGIN ?? 'http://localhost:8080',
+        changeOrigin: true,
+      },
+      '/openapi.yaml': {
+        target: process.env.VITE_BACKEND_ORIGIN ?? 'http://localhost:8080',
+        changeOrigin: true,
+      },
+      '/swagger': {
+        target: process.env.VITE_BACKEND_ORIGIN ?? 'http://localhost:8080',
+        changeOrigin: true,
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))

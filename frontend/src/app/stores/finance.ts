@@ -4,13 +4,20 @@ import { defineStore } from 'pinia'
 import type { Account, AccountType } from '@/entities/account/model/types'
 import type { Category, CategoryKind } from '@/entities/category/model/types'
 import type { Transaction } from '@/entities/transaction/model/types'
-import { createId } from '@/shared/lib/id'
-import { demoAccounts, demoCategories, demoTransactions } from '@/shared/mocks/demo'
+import { mapApiAccount, mapApiCategory, mapApiTransaction } from '@/shared/api/mappers'
+import {
+  createAccount,
+  createCategory,
+  createTransaction,
+  deleteCategory,
+  listAccounts,
+  listCategories,
+  listTransactions,
+  updateAccount,
+} from '@/shared/api/services/finance'
+import { minorToMoneyString } from '@/shared/lib/money'
 import { readStorage, writeStorage } from '@/shared/lib/storage'
 
-const ACCOUNTS_STORAGE_KEY = 'plos-finance-accounts'
-const CATEGORIES_STORAGE_KEY = 'plos-finance-categories'
-const TRANSACTIONS_STORAGE_KEY = 'plos-finance-transactions'
 const FILTER_STORAGE_KEY = 'plos-finance-filters'
 
 interface FinanceFilters {
@@ -18,34 +25,31 @@ interface FinanceFilters {
   transactionKind: CategoryKind | 'all'
 }
 
-function cloneAccounts() {
-  return demoAccounts.map((account) => ({ ...account }))
-}
-
-function cloneCategories() {
-  return demoCategories.map((category) => ({ ...category }))
-}
-
-function cloneTransactions() {
-  return demoTransactions.map((transaction) => ({ ...transaction }))
-}
-
 const defaultFilters: FinanceFilters = {
-  selectedAccountId: demoAccounts[0]?.id ?? null,
+  selectedAccountId: null,
   transactionKind: 'all',
 }
 
+function mapAccountTypeToApi(type: AccountType) {
+  switch (type) {
+    case 'cash':
+      return 'cash'
+    case 'savings':
+      return 'savings'
+    default:
+      return 'bank_card'
+  }
+}
+
 export const useFinanceStore = defineStore('finance', () => {
-  const accounts = ref<Account[]>(cloneAccounts())
-  const categories = ref<Category[]>(cloneCategories())
-  const transactions = ref<Transaction[]>(cloneTransactions())
+  const accounts = ref<Account[]>([])
+  const categories = ref<Category[]>([])
+  const transactions = ref<Transaction[]>([])
   const filters = ref<FinanceFilters>({ ...defaultFilters })
+  const loading = ref(false)
   const hydrated = ref(false)
 
   function bootstrap() {
-    accounts.value = readStorage<Account[]>(ACCOUNTS_STORAGE_KEY, cloneAccounts())
-    categories.value = readStorage<Category[]>(CATEGORIES_STORAGE_KEY, cloneCategories())
-    transactions.value = readStorage<Transaction[]>(TRANSACTIONS_STORAGE_KEY, cloneTransactions())
     filters.value = readStorage<FinanceFilters>(FILTER_STORAGE_KEY, { ...defaultFilters })
     hydrated.value = true
   }
@@ -79,43 +83,79 @@ export const useFinanceStore = defineStore('finance', () => {
     accounts.value.reduce((sum, account) => sum + account.balanceMinor, 0),
   )
 
-  function addAccount(input: {
+  async function fetchAccounts() {
+    const response = await listAccounts()
+    accounts.value = response.items.filter((item) => !item.is_archived).map(mapApiAccount)
+
+    if (!filters.value.selectedAccountId && accounts.value[0]) {
+      filters.value.selectedAccountId = accounts.value[0].id
+    }
+
+    return accounts.value
+  }
+
+  async function fetchCategories() {
+    const response = await listCategories()
+    categories.value = response.items.filter((item) => !item.is_archived).map(mapApiCategory)
+    return categories.value
+  }
+
+  async function fetchTransactions(overrides?: {
+    accountId?: string | null
+    type?: CategoryKind | 'all'
+  }) {
+    const response = await listTransactions({
+      accountId: overrides?.accountId !== undefined ? overrides.accountId : filters.value.selectedAccountId,
+      type: overrides?.type ?? filters.value.transactionKind,
+    })
+    transactions.value = response.items.map(mapApiTransaction)
+    return transactions.value
+  }
+
+  async function hydrateFinance() {
+    loading.value = true
+
+    try {
+      await Promise.all([fetchAccounts(), fetchCategories(), fetchTransactions({ accountId: null, type: 'all' })])
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function addAccount(input: {
     name: string
     type: AccountType
     balanceMinor: number
     currency: string
   }) {
-    const account: Account = {
-      id: createId('acc'),
+    const account = await createAccount({
       name: input.name.trim(),
-      type: input.type,
-      balanceMinor: input.balanceMinor,
+      kind: mapAccountTypeToApi(input.type),
       currency: input.currency,
-      isPrimary: accounts.value.length === 0,
-      updatedAt: new Date().toISOString(),
-    }
+      openingBalance: minorToMoneyString(input.balanceMinor),
+    })
 
-    accounts.value = [...accounts.value, account]
+    const mapped = mapApiAccount(account)
+    accounts.value = [...accounts.value, mapped]
 
     if (!filters.value.selectedAccountId) {
-      filters.value.selectedAccountId = account.id
+      filters.value.selectedAccountId = mapped.id
     }
 
-    return account
+    return mapped
   }
 
-  function updateAccount(input: { id: string; name: string }) {
-    const account = accounts.value.find((item) => item.id === input.id)
+  async function updateAccountName(input: { id: string; name: string }) {
+    const account = await updateAccount(input.id, {
+      name: input.name.trim(),
+    })
 
-    if (!account) {
-      return
-    }
-
-    account.name = input.name.trim()
-    account.updatedAt = new Date().toISOString()
+    const mapped = mapApiAccount(account)
+    accounts.value = accounts.value.map((item) => (item.id === mapped.id ? mapped : item))
+    return mapped
   }
 
-  function addTransaction(input: {
+  async function addTransaction(input: {
     accountId: string
     amountMinor: number
     categoryId: string
@@ -123,52 +163,38 @@ export const useFinanceStore = defineStore('finance', () => {
     note: string
     occurredAt: string
   }) {
-    const transaction: Transaction = {
-      id: createId('txn'),
-      accountId: input.accountId,
-      amountMinor: input.amountMinor,
-      categoryId: input.categoryId,
-      kind: input.kind,
-      note: input.note.trim(),
-      occurredAt: input.occurredAt,
-      currency: 'RUB',
-    }
-
-    transactions.value = [transaction, ...transactions.value]
-
     const account = accounts.value.find((item) => item.id === input.accountId)
+    const transaction = await createTransaction({
+      accountId: input.accountId,
+      amount: minorToMoneyString(input.amountMinor),
+      categoryId: input.categoryId,
+      type: input.kind,
+      currency: account?.currency ?? 'RUB',
+      note: input.note,
+      occurredAt: new Date(input.occurredAt).toISOString(),
+    })
 
-    if (account) {
-      account.balanceMinor += input.kind === 'income' ? input.amountMinor : -input.amountMinor
-      account.updatedAt = new Date().toISOString()
-    }
-
-    return transaction
+    const mapped = mapApiTransaction(transaction)
+    transactions.value = [mapped, ...transactions.value]
+    await fetchAccounts()
+    return mapped
   }
 
-  function addCategory(input: { name: string; kind: CategoryKind; color: string }) {
-    const category: Category = {
-      id: createId('cat'),
-      name: input.name.trim(),
-      kind: input.kind,
-      scope: 'custom',
+  async function addCategory(input: { name: string; kind: CategoryKind; color: string }) {
+    const category = await createCategory({
       color: input.color,
-    }
+      kind: input.kind,
+      name: input.name,
+    })
 
-    categories.value = [category, ...categories.value]
-
-    return category
+    const mapped = mapApiCategory(category)
+    categories.value = [mapped, ...categories.value]
+    return mapped
   }
 
-  function deleteCategory(categoryId: string) {
-    const hasTransactions = transactions.value.some((transaction) => transaction.categoryId === categoryId)
-
-    if (hasTransactions) {
-      return false
-    }
-
+  async function removeCategory(categoryId: string) {
+    await deleteCategory(categoryId)
     categories.value = categories.value.filter((category) => category.id !== categoryId)
-    return true
   }
 
   function setSelectedAccount(accountId: string | null) {
@@ -180,39 +206,12 @@ export const useFinanceStore = defineStore('finance', () => {
   }
 
   function reset() {
-    accounts.value = cloneAccounts()
-    categories.value = cloneCategories()
-    transactions.value = cloneTransactions()
+    accounts.value = []
+    categories.value = []
+    transactions.value = []
     filters.value = { ...defaultFilters }
   }
 
-  watch(
-    accounts,
-    (nextAccounts) => {
-      if (hydrated.value) {
-        writeStorage(ACCOUNTS_STORAGE_KEY, nextAccounts)
-      }
-    },
-    { deep: true },
-  )
-  watch(
-    categories,
-    (nextCategories) => {
-      if (hydrated.value) {
-        writeStorage(CATEGORIES_STORAGE_KEY, nextCategories)
-      }
-    },
-    { deep: true },
-  )
-  watch(
-    transactions,
-    (nextTransactions) => {
-      if (hydrated.value) {
-        writeStorage(TRANSACTIONS_STORAGE_KEY, nextTransactions)
-      }
-    },
-    { deep: true },
-  )
   watch(
     filters,
     (nextFilters) => {
@@ -230,17 +229,22 @@ export const useFinanceStore = defineStore('finance', () => {
     addTransaction,
     bootstrap,
     categories,
-    deleteCategory,
     expenseCategories,
+    fetchAccounts,
+    fetchCategories,
+    fetchTransactions,
     filteredTransactions,
     filters,
+    hydrateFinance,
     incomeCategories,
+    loading,
+    removeCategory,
     reset,
     setSelectedAccount,
     setTransactionKindFilter,
     sortedTransactions,
     totalBalanceMinor,
     transactions,
-    updateAccount,
+    updateAccountName,
   }
 })

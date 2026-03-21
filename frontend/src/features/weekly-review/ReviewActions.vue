@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+
+import { useI18n } from '@/shared/i18n'
+
 defineProps<{
   canResolve: boolean
   deltaMinor: number | null
@@ -8,43 +12,53 @@ const emit = defineEmits<{
   resolve: []
   skip: []
 }>()
+
+const props = defineProps<{
+  canResolve: boolean
+  deltaMinor: number | null
+}>()
+
+const { t } = useI18n()
+
+const expenseReviewRoute = computed(() => `/transactions/new?kind=expense&note=${encodeURIComponent(t('review.adjustmentNote'))}`)
+const incomeReviewRoute = computed(() => `/transactions/new?kind=income&note=${encodeURIComponent(t('review.adjustmentNote'))}`)
 </script>
 
 <template>
   <div class="surface-card stack">
     <div class="page-header">
-      <h3>Resolution actions</h3>
-      <p class="muted">Jump straight into the most likely fix instead of hunting around the app.</p>
+      <h3>{{ t('review.actionsTitle') }}</h3>
+      <p class="muted">{{ t('review.actionsBody') }}</p>
     </div>
 
     <div class="cta-list">
-      <RouterLink class="button button--secondary" :to="`/transactions/new?kind=expense&note=Review adjustment`">
-        Add expense
+      <RouterLink class="button button--secondary" :to="expenseReviewRoute">
+        {{ t('review.addExpense') }}
       </RouterLink>
-      <RouterLink class="button button--secondary" :to="`/transactions/new?kind=income&note=Review adjustment`">
-        Add income
+      <RouterLink class="button button--secondary" :to="incomeReviewRoute">
+        {{ t('review.addIncome') }}
       </RouterLink>
-      <button class="button button--secondary" type="button" @click="emit('skip')">Skip this week</button>
+      <button class="button button--secondary" type="button" @click="emit('skip')">{{ t('review.skipWeek') }}</button>
     </div>
 
     <div class="divider" />
 
     <div class="stack">
-      <div class="tiny" v-if="deltaMinor === null">
-        Enter the actual balance first. The app will explain whether the gap points to missing income or missing spending.
+      <div class="tiny" v-if="props.deltaMinor === null">
+        {{ t('review.deltaMissing') }}
       </div>
-      <div class="tiny" v-else-if="deltaMinor < 0">
-        Negative delta: most likely an expense was not captured.
+      <div class="tiny" v-else-if="props.deltaMinor < 0">
+        {{ t('review.deltaNegative') }}
       </div>
-      <div class="tiny" v-else-if="deltaMinor > 0">
-        Positive delta: most likely a missed income or a cancelled expense.
+      <div class="tiny" v-else-if="props.deltaMinor > 0">
+        {{ t('review.deltaPositive') }}
       </div>
       <div class="tiny" v-else>
-        Delta is zero. You can confirm the week now.
+        {{ t('review.deltaZero') }}
       </div>
 
-      <button class="button button--primary button--block" :disabled="!canResolve" @click="emit('resolve')">
-        Mark review complete
+      <button class="button button--primary button--block" :disabled="!props.canResolve" @click="emit('resolve')">
+        {{ t('review.resolve') }}
       </button>
     </div>
   </div>

@@ -9,6 +9,9 @@ import (
 //go:embed openapi.yaml
 var openAPISpec []byte
 
+//go:embed swagger.json
+var swaggerJSON []byte
+
 var swaggerTemplate = template.Must(template.New("swagger").Parse(`<!doctype html>
 <html lang="en">
   <head>
@@ -31,7 +34,7 @@ var swaggerTemplate = template.Must(template.New("swagger").Parse(`<!doctype htm
     <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
     <script>
       window.ui = SwaggerUIBundle({
-        url: {{ printf "%q" .SpecURL }},
+        spec: {{ .SpecJSON }},
         dom_id: "#swagger-ui",
         deepLinking: true,
         displayRequestDuration: true,
@@ -51,11 +54,16 @@ func OpenAPI(w http.ResponseWriter, _ *http.Request) {
 	_, _ = w.Write(openAPISpec)
 }
 
-func SwaggerUI(specURL string) http.HandlerFunc {
+func SwaggerJSON(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_, _ = w.Write(swaggerJSON)
+}
+
+func SwaggerUI(_ string) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_ = swaggerTemplate.Execute(w, map[string]string{
-			"SpecURL": specURL,
+		_ = swaggerTemplate.Execute(w, map[string]any{
+			"SpecJSON": template.JS(swaggerJSON),
 		})
 	}
 }

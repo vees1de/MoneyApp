@@ -1,124 +1,94 @@
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 
 import type { WeeklyReview } from '@/entities/review/model/types'
-import { useFinanceStore } from '@/app/stores/finance'
-import { demoWeeklyReview } from '@/shared/mocks/demo'
-import { isDateWithinRange } from '@/shared/lib/date'
-import { readStorage, writeStorage } from '@/shared/lib/storage'
+import { mapApiWeeklyReview } from '@/shared/api/mappers'
+import {
+  fetchCurrentWeeklyReview,
+  resolveWeeklyReview,
+  skipWeeklyReview,
+  submitWeeklyReviewBalance,
+} from '@/shared/api/services/review'
+import { translate } from '@/shared/i18n'
+import { minorToMoneyString } from '@/shared/lib/money'
 
-const REVIEW_STORAGE_KEY = 'plos-review-current'
-
-function cloneReview(): WeeklyReview {
-  return { ...demoWeeklyReview }
+function createEmptyReview(): WeeklyReview {
+  return {
+    id: '',
+    periodStart: '',
+    periodEnd: '',
+    expectedBalanceMinor: 0,
+    actualBalanceMinor: null,
+    deltaMinor: null,
+    resolutionNote: null,
+    status: 'pending',
+    resolvedAt: null,
+  }
 }
 
 export const useReviewStore = defineStore('review', () => {
-  const review = ref<WeeklyReview>(cloneReview())
-  const resolutionReason = ref<string | null>(null)
-  const hydrated = ref(false)
-
-  function bootstrap() {
-    review.value = readStorage<WeeklyReview>(REVIEW_STORAGE_KEY, cloneReview())
-    hydrated.value = true
-  }
-
-  const financeStore = useFinanceStore()
-
-  const periodTransactions = computed(() =>
-    financeStore.transactions.filter((transaction) =>
-      isDateWithinRange(transaction.occurredAt, review.value.periodStart, review.value.periodEnd),
-    ),
-  )
-
-  const incomeMinor = computed(() =>
-    periodTransactions.value
-      .filter((transaction) => transaction.kind === 'income')
-      .reduce((sum, transaction) => sum + transaction.amountMinor, 0),
-  )
-
-  const expenseMinor = computed(() =>
-    periodTransactions.value
-      .filter((transaction) => transaction.kind === 'expense')
-      .reduce((sum, transaction) => sum + transaction.amountMinor, 0),
-  )
-
-  const expectedBalanceMinor = computed(
-    () => review.value.openingBalanceMinor + incomeMinor.value - expenseMinor.value,
-  )
-
-  const deltaMinor = computed(() => {
-    if (review.value.actualBalanceMinor === null) {
-      return null
-    }
-
-    return review.value.actualBalanceMinor - expectedBalanceMinor.value
-  })
+  const review = ref<WeeklyReview>(createEmptyReview())
+  const loading = ref(false)
 
   const deltaHint = computed(() => {
-    if (deltaMinor.value === null) {
-      return 'Enter the real balance to compare it with recorded transactions.'
+    if (!review.value.id) {
+      return translate('review.hintNoFetch')
     }
 
-    if (deltaMinor.value === 0) {
-      return 'Everything matches. You can complete the weekly review.'
+    if (review.value.deltaMinor === null) {
+      return translate('review.hintEnterBalance')
     }
 
-    if (deltaMinor.value < 0) {
-      return 'Negative delta usually means a missing expense or a wrong account.'
+    if (review.value.deltaMinor === 0) {
+      return translate('review.hintMatched')
     }
 
-    return 'Positive delta often means a missed income or an expense that never happened.'
+    if (review.value.deltaMinor < 0) {
+      return translate('review.hintNegative')
+    }
+
+    return translate('review.hintPositive')
   })
 
-  function submitActualBalance(value: number) {
-    review.value.actualBalanceMinor = value
-    review.value.status = 'pending'
+  async function fetchCurrent() {
+    loading.value = true
+    try {
+      const response = await fetchCurrentWeeklyReview()
+      review.value = mapApiWeeklyReview(response)
+      return review.value
+    } finally {
+      loading.value = false
+    }
   }
 
-  function resolve(reason = 'confirmed') {
-    resolutionReason.value = reason
-    review.value.status = 'completed'
-    review.value.resolvedAt = new Date().toISOString()
+  async function submitActualBalance(valueMinor: number) {
+    const response = await submitWeeklyReviewBalance(review.value.id, minorToMoneyString(valueMinor))
+    review.value = mapApiWeeklyReview(response)
+    return review.value
   }
 
-  function skip() {
-    review.value.status = 'skipped'
-    review.value.resolvedAt = new Date().toISOString()
+  async function resolve(reason = 'Resolved from frontend') {
+    const response = await resolveWeeklyReview(review.value.id, reason)
+    review.value = mapApiWeeklyReview(response)
+    return review.value
   }
 
-  function reopen() {
-    review.value.status = 'pending'
-    review.value.resolvedAt = null
+  async function skip() {
+    const response = await skipWeeklyReview(review.value.id)
+    review.value = mapApiWeeklyReview(response)
+    return review.value
   }
 
   function reset() {
-    review.value = cloneReview()
-    resolutionReason.value = null
+    review.value = createEmptyReview()
   }
 
-  watch(
-    review,
-    (nextReview) => {
-      if (hydrated.value) {
-        writeStorage(REVIEW_STORAGE_KEY, nextReview)
-      }
-    },
-    { deep: true },
-  )
-
   return {
-    bootstrap,
     deltaHint,
-    deltaMinor,
-    expectedBalanceMinor,
-    expenseMinor,
-    incomeMinor,
-    periodTransactions,
-    reopen,
-    resolutionReason,
-    resolve,
+    fetchCurrent,
+    loading,
     reset,
+    resolve,
     review,
     skip,
     submitActualBalance,

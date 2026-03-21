@@ -1,3 +1,5 @@
+import { getLocaleTag } from '@/shared/i18n'
+
 const MS_IN_DAY = 24 * 60 * 60 * 1000
 
 export function toIsoDate(value: Date | string) {
@@ -35,14 +37,14 @@ export function addDays(value: Date, days: number) {
   return new Date(value.getTime() + days * MS_IN_DAY)
 }
 
-export function formatDate(value: string, locale = 'ru-RU') {
+export function formatDate(value: string, locale = getLocaleTag()) {
   return new Intl.DateTimeFormat(locale, {
     day: 'numeric',
     month: 'short',
   }).format(new Date(value))
 }
 
-export function formatDateTime(value: string, locale = 'ru-RU') {
+export function formatDateTime(value: string, locale = getLocaleTag()) {
   return new Intl.DateTimeFormat(locale, {
     day: 'numeric',
     month: 'short',
@@ -51,6 +53,6 @@ export function formatDateTime(value: string, locale = 'ru-RU') {
   }).format(new Date(value))
 }
 
-export function formatWeekRange(start: string, end: string, locale = 'ru-RU') {
+export function formatWeekRange(start: string, end: string, locale = getLocaleTag()) {
   return `${formatDate(start, locale)} - ${formatDate(end, locale)}`
 }

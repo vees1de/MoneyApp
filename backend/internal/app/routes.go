@@ -5,7 +5,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"moneyapp/backend/internal/core/health"
 	"moneyapp/backend/internal/docs"
 	"moneyapp/backend/internal/middleware"
 )
@@ -17,11 +16,10 @@ func NewRouter(container *Container) http.Handler {
 	router.Use(middleware.Recovery(container.Logger))
 	router.Use(middleware.Logging(container.Logger))
 
-	healthHandler := health.NewHandler()
-
-	router.Get("/healthz", healthHandler.Ready)
-	router.Get("/readyz", healthHandler.Ready)
+	router.Get("/healthz", container.HealthHandler.Live)
+	router.Get("/readyz", container.HealthHandler.Ready)
 	router.Get("/openapi.yaml", docs.OpenAPI)
+	router.Get("/swagger.json", docs.SwaggerJSON)
 	router.Get("/swagger", docs.SwaggerUI("/openapi.yaml"))
 	router.Get("/swagger/", docs.SwaggerUI("/openapi.yaml"))
 
@@ -88,6 +86,10 @@ func NewRouter(container *Container) http.Handler {
 			})
 		})
 	})
+
+	if frontend := newFrontendHandler(container.Config.HTTP.FrontendDistDir); frontend != nil {
+		router.NotFound(frontend.ServeHTTP)
+	}
 
 	return router
 }

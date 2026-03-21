@@ -1,57 +1,88 @@
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 
 import type { SavingsGoal } from '@/entities/savings-goal/model/types'
-import { createId } from '@/shared/lib/id'
-import { demoSavingsGoals } from '@/shared/mocks/demo'
-import { readStorage, writeStorage } from '@/shared/lib/storage'
+import { useUserStore } from '@/app/stores/user'
+import { mapApiSavingsGoal } from '@/shared/api/mappers'
+import { createSavingsGoal, fetchSavingsSummary, listSavingsGoals } from '@/shared/api/services/savings'
+import { minorToMoneyString } from '@/shared/lib/money'
 
-const SAVINGS_STORAGE_KEY = 'plos-savings-goals'
-const SAVINGS_FILTERS_STORAGE_KEY = 'plos-savings-filters'
+interface SavingsSummaryState {
+  reservedThisMonthMinor: number
+  safeToSpendMinor: number
+  totalCurrentMinor: number
+  totalTargetMinor: number
+}
 
-function cloneGoals() {
-  return demoSavingsGoals.map((goal) => ({ ...goal }))
+function createEmptySummary(): SavingsSummaryState {
+  return {
+    reservedThisMonthMinor: 0,
+    safeToSpendMinor: 0,
+    totalCurrentMinor: 0,
+    totalTargetMinor: 0,
+  }
 }
 
 export const useSavingsStore = defineStore('savings', () => {
-  const goals = ref<SavingsGoal[]>(cloneGoals())
+  const goals = ref<SavingsGoal[]>([])
   const showCompleted = ref(false)
-  const hydrated = ref(false)
-
-  function bootstrap() {
-    goals.value = readStorage<SavingsGoal[]>(SAVINGS_STORAGE_KEY, cloneGoals())
-    showCompleted.value = readStorage<boolean>(SAVINGS_FILTERS_STORAGE_KEY, false)
-    hydrated.value = true
-  }
+  const summary = ref<SavingsSummaryState>(createEmptySummary())
+  const loading = ref(false)
+  const userStore = useUserStore()
 
   const visibleGoals = computed(() =>
     goals.value.filter((goal) => showCompleted.value || !goal.isCompleted),
   )
 
   const progressRatio = computed(() => {
-    const target = goals.value.reduce((sum, goal) => sum + goal.targetMinor, 0)
-    const saved = goals.value.reduce((sum, goal) => sum + goal.savedMinor, 0)
-
-    if (!target) {
+    if (!summary.value.totalTargetMinor) {
       return 0
     }
 
-    return saved / target
+    return summary.value.totalCurrentMinor / summary.value.totalTargetMinor
   })
 
-  function addGoal(input: { name: string; targetMinor: number; targetDate: string | null }) {
-    const goal: SavingsGoal = {
-      id: createId('goal'),
-      name: input.name.trim(),
-      targetMinor: input.targetMinor,
-      savedMinor: 0,
-      currency: 'RUB',
-      targetDate: input.targetDate,
-      isCompleted: false,
-    }
+  async function fetchGoals() {
+    const response = await listSavingsGoals()
+    goals.value = response.items.map(mapApiSavingsGoal)
+    return goals.value
+  }
 
-    goals.value = [goal, ...goals.value]
-    return goal
+  async function fetchSummary() {
+    const response = await fetchSavingsSummary()
+    summary.value = {
+      totalTargetMinor: Math.round(Number(response.total_target) * 100),
+      totalCurrentMinor: Math.round(Number(response.total_current) * 100),
+      reservedThisMonthMinor: Math.round(Number(response.reserved_this_month) * 100),
+      safeToSpendMinor: Math.round(Number(response.safe_to_spend) * 100),
+    }
+    return summary.value
+  }
+
+  async function hydrateSavings() {
+    loading.value = true
+
+    try {
+      await Promise.all([fetchGoals(), fetchSummary()])
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function addGoal(input: { name: string; targetMinor: number; targetDate: string | null }) {
+    const goal = await createSavingsGoal({
+      title: input.name.trim(),
+      targetAmount: minorToMoneyString(input.targetMinor),
+      currentAmount: '0.00',
+      currency: userStore.profile.currency || 'RUB',
+      targetDate: input.targetDate ? new Date(input.targetDate).toISOString() : null,
+      priority: 'medium',
+    })
+
+    const mapped = mapApiSavingsGoal(goal)
+    goals.value = [mapped, ...goals.value]
+    await fetchSummary()
+    return mapped
   }
 
   function toggleShowCompleted() {
@@ -59,34 +90,22 @@ export const useSavingsStore = defineStore('savings', () => {
   }
 
   function reset() {
-    goals.value = cloneGoals()
+    goals.value = []
     showCompleted.value = false
+    summary.value = createEmptySummary()
   }
-
-  watch(
-    goals,
-    (nextGoals) => {
-      if (hydrated.value) {
-        writeStorage(SAVINGS_STORAGE_KEY, nextGoals)
-      }
-    },
-    {
-      deep: true,
-    },
-  )
-  watch(showCompleted, (value) => {
-    if (hydrated.value) {
-      writeStorage(SAVINGS_FILTERS_STORAGE_KEY, value)
-    }
-  })
 
   return {
     addGoal,
-    bootstrap,
+    fetchGoals,
+    fetchSummary,
     goals,
+    hydrateSavings,
+    loading,
     progressRatio,
     reset,
     showCompleted,
+    summary,
     toggleShowCompleted,
     visibleGoals,
   }

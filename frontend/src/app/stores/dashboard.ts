@@ -1,97 +1,63 @@
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 import { defineStore } from 'pinia'
 
 import type { TopCategorySummary } from '@/entities/dashboard/model/types'
-import { useFinanceStore } from '@/app/stores/finance'
-import { useReviewStore } from '@/app/stores/review'
-import { useSavingsStore } from '@/app/stores/savings'
-import { addDays, endOfCurrentWeek, isDateWithinRange, startOfCurrentWeek, toIsoDate } from '@/shared/lib/date'
+import { mapApiTopCategory, mapApiWeeklyReview } from '@/shared/api/mappers'
+import { fetchFinanceDashboard } from '@/shared/api/services/dashboard'
 
-type DashboardPeriod = 'week' | 'month'
+interface DashboardSnapshot {
+  currentBalanceMinor: number
+  inflowMinor: number
+  outflowMinor: number
+  reviewStatus: string
+  safeToSpendMinor: number
+  savedThisMonthMinor: number
+  topCategories: TopCategorySummary[]
+  insights: string[]
+}
+
+function createEmptyDashboard(): DashboardSnapshot {
+  return {
+    currentBalanceMinor: 0,
+    inflowMinor: 0,
+    outflowMinor: 0,
+    reviewStatus: 'pending',
+    safeToSpendMinor: 0,
+    savedThisMonthMinor: 0,
+    topCategories: [],
+    insights: [],
+  }
+}
 
 export const useDashboardStore = defineStore('dashboard', () => {
-  const period = ref<DashboardPeriod>('week')
+  const period = ref<'week' | 'month'>('month')
   const dismissedCtas = ref<string[]>([])
+  const snapshot = ref<DashboardSnapshot>(createEmptyDashboard())
+  const loading = ref(false)
 
-  const financeStore = useFinanceStore()
-  const reviewStore = useReviewStore()
-  const savingsStore = useSavingsStore()
+  async function fetchSnapshot() {
+    loading.value = true
 
-  const range = computed(() => {
-    if (period.value === 'week') {
-      return {
-        start: toIsoDate(startOfCurrentWeek()),
-        end: toIsoDate(endOfCurrentWeek()),
+    try {
+      const response = await fetchFinanceDashboard()
+      snapshot.value = {
+        currentBalanceMinor: Math.round(Number(response.current_balance) * 100),
+        inflowMinor: Math.round(Number(response.monthly_income) * 100),
+        outflowMinor: Math.round(Number(response.monthly_expense) * 100),
+        reviewStatus: mapApiWeeklyReview(response.weekly_review).status,
+        safeToSpendMinor: Math.round(Number(response.safe_to_spend) * 100),
+        savedThisMonthMinor: Math.round(Number(response.saved_this_month) * 100),
+        topCategories: response.top_categories.map(mapApiTopCategory),
+        insights: response.insights,
       }
+
+      return snapshot.value
+    } finally {
+      loading.value = false
     }
+  }
 
-    return {
-      start: toIsoDate(addDays(new Date(), -29)),
-      end: toIsoDate(new Date()),
-    }
-  })
-
-  const periodTransactions = computed(() =>
-    financeStore.transactions.filter((transaction) =>
-      isDateWithinRange(transaction.occurredAt, range.value.start, range.value.end),
-    ),
-  )
-
-  const inflowMinor = computed(() =>
-    periodTransactions.value
-      .filter((transaction) => transaction.kind === 'income')
-      .reduce((sum, transaction) => sum + transaction.amountMinor, 0),
-  )
-
-  const outflowMinor = computed(() =>
-    periodTransactions.value
-      .filter((transaction) => transaction.kind === 'expense')
-      .reduce((sum, transaction) => sum + transaction.amountMinor, 0),
-  )
-
-  const safeToSpendMinor = computed(() => {
-    const reserveMinor = 45_000
-    return Math.max(financeStore.totalBalanceMinor - reserveMinor, 0)
-  })
-
-  const topCategories = computed<TopCategorySummary[]>(() => {
-    const groups = new Map<string, TopCategorySummary>()
-
-    periodTransactions.value
-      .filter((transaction) => transaction.kind === 'expense')
-      .forEach((transaction) => {
-        const category = financeStore.categories.find((item) => item.id === transaction.categoryId)
-
-        if (!category) {
-          return
-        }
-
-        const current = groups.get(category.id)
-
-        if (current) {
-          current.amountMinor += transaction.amountMinor
-          return
-        }
-
-        groups.set(category.id, {
-          categoryId: category.id,
-          label: category.name,
-          amountMinor: transaction.amountMinor,
-        })
-      })
-
-    return [...groups.values()]
-      .sort((left, right) => right.amountMinor - left.amountMinor)
-      .slice(0, 4)
-  })
-
-  const reviewState = computed(() => reviewStore.review.status)
-  const goalsSummary = computed(() => ({
-    total: savingsStore.goals.length,
-    active: savingsStore.goals.filter((goal) => !goal.isCompleted).length,
-  }))
-
-  function setPeriod(nextPeriod: DashboardPeriod) {
+  function setPeriod(nextPeriod: 'week' | 'month') {
     period.value = nextPeriod
   }
 
@@ -101,16 +67,18 @@ export const useDashboardStore = defineStore('dashboard', () => {
     }
   }
 
+  function reset() {
+    snapshot.value = createEmptyDashboard()
+  }
+
   return {
     dismissCta,
     dismissedCtas,
-    goalsSummary,
-    inflowMinor,
-    outflowMinor,
+    fetchSnapshot,
+    loading,
     period,
-    reviewState,
-    safeToSpendMinor,
+    reset,
     setPeriod,
-    topCategories,
+    snapshot,
   }
 })

@@ -21,7 +21,7 @@ export function createAppRouter(pinia: Pinia) {
             component: () => import('@/pages/auth/LoginPage.vue'),
             meta: {
               guestOnly: true,
-              title: 'Sign in',
+              titleKey: 'route.login',
             },
           },
         ],
@@ -36,7 +36,7 @@ export function createAppRouter(pinia: Pinia) {
             component: () => import('@/pages/onboarding/OnboardingPage.vue'),
             meta: {
               requiresAuth: true,
-              title: 'Onboarding',
+              titleKey: 'route.onboarding',
             },
           },
         ],
@@ -52,7 +52,7 @@ export function createAppRouter(pinia: Pinia) {
             meta: {
               navKey: 'dashboard',
               requiresAuth: true,
-              title: 'Dashboard',
+              titleKey: 'route.dashboard',
             },
           },
           {
@@ -62,7 +62,7 @@ export function createAppRouter(pinia: Pinia) {
             meta: {
               navKey: 'accounts',
               requiresAuth: true,
-              title: 'Accounts',
+              titleKey: 'route.accounts',
             },
           },
           {
@@ -72,7 +72,7 @@ export function createAppRouter(pinia: Pinia) {
             meta: {
               navKey: 'transactions',
               requiresAuth: true,
-              title: 'Transactions',
+              titleKey: 'route.transactions',
             },
           },
           {
@@ -81,7 +81,7 @@ export function createAppRouter(pinia: Pinia) {
             component: () => import('@/pages/transactions/TransactionEditorPage.vue'),
             meta: {
               requiresAuth: true,
-              title: 'Add transaction',
+              titleKey: 'route.transactionNew',
             },
           },
           {
@@ -90,7 +90,7 @@ export function createAppRouter(pinia: Pinia) {
             component: () => import('@/pages/categories/CategoriesPage.vue'),
             meta: {
               requiresAuth: true,
-              title: 'Categories',
+              titleKey: 'route.categories',
             },
           },
           {
@@ -100,7 +100,7 @@ export function createAppRouter(pinia: Pinia) {
             meta: {
               navKey: 'savings',
               requiresAuth: true,
-              title: 'Savings',
+              titleKey: 'route.savings',
             },
           },
           {
@@ -110,7 +110,7 @@ export function createAppRouter(pinia: Pinia) {
             meta: {
               navKey: 'review',
               requiresAuth: true,
-              title: 'Weekly review',
+              titleKey: 'route.review',
             },
           },
           {
@@ -120,7 +120,7 @@ export function createAppRouter(pinia: Pinia) {
             meta: {
               navKey: 'settings',
               requiresAuth: true,
-              title: 'Settings',
+              titleKey: 'route.settings',
             },
           },
         ],
@@ -130,7 +130,7 @@ export function createAppRouter(pinia: Pinia) {
         name: 'not-found',
         component: () => import('@/pages/common/NotFoundPage.vue'),
         meta: {
-          title: 'Not found',
+          titleKey: 'route.notFound',
         },
       },
     ],

@@ -13,6 +13,8 @@ Personal Life OS finance MVP in monorepo format.
 - Go
 - `net/http` + `chi`
 - PostgreSQL
+- Redis
+- Kafka
 - JWT auth
 - modular monolith architecture
 

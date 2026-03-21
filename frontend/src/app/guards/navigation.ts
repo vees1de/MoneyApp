@@ -1,8 +1,12 @@
+import { watch } from 'vue'
 import type { Pinia } from 'pinia'
 import type { Router } from 'vue-router'
 
 import { useAuthStore } from '@/app/stores/auth'
 import { useUserStore } from '@/app/stores/user'
+import { env } from '@/shared/config/env'
+import { currentLocale, translate } from '@/shared/i18n'
+import type { MessageKey } from '@/shared/i18n/messages'
 
 export function resolveHomeRoute(pinia: Pinia) {
   const userStore = useUserStore(pinia)
@@ -10,12 +14,16 @@ export function resolveHomeRoute(pinia: Pinia) {
 }
 
 export function applyNavigationGuards(router: Router, pinia: Pinia) {
-  router.beforeEach((to) => {
+  const syncDocumentTitle = (titleKey?: MessageKey) => {
+    document.title = titleKey ? `${translate(titleKey)} | ${env.appName}` : env.appName
+  }
+
+  router.beforeEach(async (to) => {
     const authStore = useAuthStore(pinia)
     const userStore = useUserStore(pinia)
 
     if (!authStore.bootstrapped) {
-      authStore.bootstrap()
+      await authStore.bootstrap()
     }
 
     if (to.meta.requiresAuth && !authStore.isAuthenticated) {
@@ -42,7 +50,10 @@ export function applyNavigationGuards(router: Router, pinia: Pinia) {
   })
 
   router.afterEach((to) => {
-    const pageTitle = to.meta.title ? `${to.meta.title} | Personal Life OS` : 'Personal Life OS'
-    document.title = pageTitle
+    syncDocumentTitle(to.meta.titleKey)
+  })
+
+  watch(currentLocale, () => {
+    syncDocumentTitle(router.currentRoute.value.meta.titleKey)
   })
 }

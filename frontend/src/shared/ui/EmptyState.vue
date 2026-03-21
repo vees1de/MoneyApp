@@ -2,12 +2,14 @@
 defineProps<{
   description: string
   title: string
+  icon?: string
 }>()
 </script>
 
 <template>
-  <div class="empty-state surface-card">
-    <h3>{{ title }}</h3>
-    <p class="muted">{{ description }}</p>
+  <div class="empty-state section-card">
+    <div class="empty-state__icon">{{ icon ?? '✦' }}</div>
+    <p class="empty-state__title">{{ title }}</p>
+    <p class="empty-state__desc">{{ description }}</p>
   </div>
 </template>

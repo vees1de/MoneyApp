@@ -20,10 +20,11 @@ type Config struct {
 }
 
 type HTTPConfig struct {
-	Address      string
-	ReadTimeout  time.Duration
-	WriteTimeout time.Duration
-	IdleTimeout  time.Duration
+	Address         string
+	FrontendDistDir string
+	ReadTimeout     time.Duration
+	WriteTimeout    time.Duration
+	IdleTimeout     time.Duration
 }
 
 type DatabaseConfig struct {
@@ -34,13 +35,17 @@ type DatabaseConfig struct {
 }
 
 type RedisConfig struct {
-	Addr     string
-	Password string
-	DB       int
+	Addr         string
+	Password     string
+	DB           int
+	DashboardTTL time.Duration
 }
 
 type KafkaConfig struct {
-	Brokers []string
+	Brokers      []string
+	ClientID     string
+	AuditTopic   string
+	WriteTimeout time.Duration
 }
 
 type AuthConfig struct {
@@ -83,10 +88,11 @@ func Load() (*Config, error) {
 		AppName:     getEnv("APP_NAME", "moneyapp-backend"),
 		Environment: getEnv("APP_ENV", "development"),
 		HTTP: HTTPConfig{
-			Address:      getEnv("HTTP_ADDR", ":8080"),
-			ReadTimeout:  getDurationEnv("HTTP_READ_TIMEOUT", 10*time.Second),
-			WriteTimeout: getDurationEnv("HTTP_WRITE_TIMEOUT", 15*time.Second),
-			IdleTimeout:  getDurationEnv("HTTP_IDLE_TIMEOUT", 60*time.Second),
+			Address:         getEnv("HTTP_ADDR", ":8080"),
+			FrontendDistDir: getEnv("FRONTEND_DIST_DIR", ""),
+			ReadTimeout:     getDurationEnv("HTTP_READ_TIMEOUT", 10*time.Second),
+			WriteTimeout:    getDurationEnv("HTTP_WRITE_TIMEOUT", 15*time.Second),
+			IdleTimeout:     getDurationEnv("HTTP_IDLE_TIMEOUT", 60*time.Second),
 		},
 		Database: DatabaseConfig{
 			DSN:             getEnv("DATABASE_DSN", "postgres://postgres:postgres@localhost:5432/moneyapp?sslmode=disable"),
@@ -95,12 +101,16 @@ func Load() (*Config, error) {
 			ConnMaxLifetime: getDurationEnv("DATABASE_CONN_MAX_LIFETIME", 30*time.Minute),
 		},
 		Redis: RedisConfig{
-			Addr:     getEnv("REDIS_ADDR", "localhost:6379"),
-			Password: getEnv("REDIS_PASSWORD", ""),
-			DB:       getIntEnv("REDIS_DB", 0),
+			Addr:         getEnv("REDIS_ADDR", "localhost:6379"),
+			Password:     getEnv("REDIS_PASSWORD", ""),
+			DB:           getIntEnv("REDIS_DB", 0),
+			DashboardTTL: getDurationEnv("REDIS_DASHBOARD_TTL", 30*time.Second),
 		},
 		Kafka: KafkaConfig{
-			Brokers: getSliceEnv("KAFKA_BROKERS", []string{"localhost:9092"}),
+			Brokers:      getSliceEnv("KAFKA_BROKERS", []string{"localhost:9092"}),
+			ClientID:     getEnv("KAFKA_CLIENT_ID", "moneyapp-backend"),
+			AuditTopic:   getEnv("KAFKA_AUDIT_TOPIC", "moneyapp.audit"),
+			WriteTimeout: getDurationEnv("KAFKA_WRITE_TIMEOUT", 5*time.Second),
 		},
 		Auth: AuthConfig{
 			JWTSecret:               getEnv("AUTH_JWT_SECRET", "change-me"),

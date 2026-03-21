@@ -8,6 +8,7 @@ import (
 	"moneyapp/backend/internal/config"
 	coreaudit "moneyapp/backend/internal/core/audit"
 	coreauth "moneyapp/backend/internal/core/auth"
+	corehealth "moneyapp/backend/internal/core/health"
 	corejobs "moneyapp/backend/internal/core/jobs"
 	corelinks "moneyapp/backend/internal/core/links"
 	coresessions "moneyapp/backend/internal/core/sessions"
@@ -22,8 +23,10 @@ import (
 	reviewmodule "moneyapp/backend/internal/modules/review"
 	savingsmodule "moneyapp/backend/internal/modules/savings"
 	platformauth "moneyapp/backend/internal/platform/auth"
+	platformcache "moneyapp/backend/internal/platform/cache"
 	"moneyapp/backend/internal/platform/clock"
 	"moneyapp/backend/internal/platform/db"
+	platformevents "moneyapp/backend/internal/platform/events"
 	"moneyapp/backend/internal/platform/jobs"
 	"moneyapp/backend/internal/platform/logger"
 	"moneyapp/backend/internal/platform/validation"
@@ -38,6 +41,19 @@ func New(cfg *config.Config) (*App, error) {
 	log := logger.New(cfg.Environment)
 	database, err := db.Open(context.Background(), cfg.Database)
 	if err != nil {
+		return nil, err
+	}
+
+	redisStore, err := platformcache.NewRedisStore(context.Background(), cfg.Redis)
+	if err != nil {
+		_ = database.Close()
+		return nil, err
+	}
+
+	kafkaPublisher, err := platformevents.NewKafkaPublisher(context.Background(), cfg.Kafka)
+	if err != nil {
+		_ = redisStore.Close()
+		_ = database.Close()
 		return nil, err
 	}
 
@@ -60,7 +76,7 @@ func New(cfg *config.Config) (*App, error) {
 	reviewRepo := reviewmodule.NewRepository(database)
 	dashboardRepo := dashboardmodule.NewRepository(database)
 
-	auditService := coreaudit.NewService(auditRepo, appClock)
+	auditService := coreaudit.NewService(auditRepo, appClock, log, kafkaPublisher, cfg.Kafka.AuditTopic)
 	userService := coreusers.NewService(database, userRepo)
 	sessionService := coresessions.NewService(database, sessionRepo, jwtManager, appClock, cfg.Auth.AccessTokenTTL, cfg.Auth.RefreshTokenTTL)
 	authService := coreauth.NewService(
@@ -81,18 +97,26 @@ func New(cfg *config.Config) (*App, error) {
 	summaryService := financesummary.NewService(summaryRepo)
 	savingsService := savingsmodule.NewService(savingsRepo, summaryRepo, auditService, appClock)
 	reviewService := reviewmodule.NewService(reviewRepo, accountRepo, transactionRepo, auditService, appClock)
-	dashboardService := dashboardmodule.NewService(dashboardRepo, summaryService, savingsService, reviewService, appClock)
+	dashboardService := dashboardmodule.NewService(dashboardRepo, summaryService, savingsService, reviewService, appClock, redisStore, cfg.Redis.DashboardTTL)
 	jobService := corejobs.NewService(scheduler)
+	healthService := corehealth.NewService(map[string]corehealth.CheckFunc{
+		"postgres": database.PingContext,
+		"redis":    redisStore.Ping,
+		"kafka":    kafkaPublisher.Ping,
+	})
 
 	container := &Container{
 		Config:             cfg,
 		Logger:             log,
 		DB:                 database,
+		Cache:              redisStore,
+		Events:             kafkaPublisher,
 		Clock:              appClock,
 		JWT:                jwtManager,
 		Dispatcher:         dispatcher,
 		Scheduler:          scheduler,
 		Validator:          validate,
+		HealthService:      healthService,
 		UserService:        userService,
 		AuthService:        authService,
 		AuditService:       auditService,
@@ -105,6 +129,7 @@ func New(cfg *config.Config) (*App, error) {
 		SavingsService:     savingsService,
 		ReviewService:      reviewService,
 		DashboardService:   dashboardService,
+		HealthHandler:      corehealth.NewHandler(healthService),
 		AuthHandler:        coreauth.NewHandler(authService, validate),
 		UserHandler:        coreusers.NewHandler(userService, validate),
 		LinksHandler:       corelinks.NewHandler(linksService, validate),
@@ -143,6 +168,9 @@ func (a *App) Run(ctx context.Context) error {
 	case <-ctx.Done():
 	case err := <-serverErr:
 		if err != nil && err != http.ErrServerClosed {
+			_ = a.container.Events.Close()
+			_ = a.container.Cache.Close()
+			_ = a.container.DB.Close()
 			return err
 		}
 	}
@@ -152,6 +180,15 @@ func (a *App) Run(ctx context.Context) error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	if err := a.server.Shutdown(shutdownCtx); err != nil {
+		_ = a.container.Events.Close()
+		_ = a.container.Cache.Close()
+		_ = a.container.DB.Close()
+		return err
+	}
+
+	_ = a.container.Events.Close()
+	_ = a.container.Cache.Close()
 	_ = a.container.DB.Close()
-	return a.server.Shutdown(shutdownCtx)
+	return nil
 }

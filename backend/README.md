@@ -7,6 +7,8 @@ Go backend for the Personal Life OS finance MVP.
 - Go 1.26
 - `net/http` + `chi`
 - PostgreSQL
+- Redis
+- Kafka
 - `pgx` stdlib driver
 - `slog`
 - `validator`
@@ -14,10 +16,10 @@ Go backend for the Personal Life OS finance MVP.
 
 ## Run
 
-1. Start PostgreSQL locally. The simplest option is from the repo root:
+1. Start infrastructure locally. The simplest option is from the repo root:
 
 ```bash
-docker compose up -d postgres
+docker compose up -d postgres redis kafka kafka-ui
 ```
 
 2. Apply SQL files from [migrations](/Users/vees1de/repos/MoneyApp/backend/migrations).
@@ -27,7 +29,16 @@ docker compose up -d postgres
 ```bash
 export APP_ENV=development
 export HTTP_ADDR=:8080
+export FRONTEND_DIST_DIR='../frontend/dist'
 export DATABASE_DSN='postgres://postgres:postgres@localhost:5432/moneyapp?sslmode=disable'
+export REDIS_ADDR='localhost:6379'
+export REDIS_PASSWORD='redis'
+export REDIS_DB='0'
+export REDIS_DASHBOARD_TTL='30s'
+export KAFKA_BROKERS='localhost:9094'
+export KAFKA_CLIENT_ID='moneyapp-backend'
+export KAFKA_AUDIT_TOPIC='moneyapp.audit'
+export KAFKA_WRITE_TIMEOUT='5s'
 export AUTH_JWT_SECRET='local-dev-secret'
 export AUTH_JWT_ISSUER='moneyapp'
 export AUTH_ACCESS_TOKEN_TTL='15m'
@@ -41,10 +52,25 @@ export AUTH_ALLOW_INSECURE_DEV_AUTH='true'
 go run ./cmd/api
 ```
 
+Optional frontend integration:
+
+```bash
+cd ../frontend
+npm install
+npm run build
+cd ../backend
+export FRONTEND_DIST_DIR='../frontend/dist'
+go run ./cmd/api
+```
+
+With `FRONTEND_DIST_DIR` set, the backend serves the built SPA and falls back to `index.html` for non-API routes.
+
 Server health checks:
 
 - `GET /healthz`
 - `GET /readyz`
+
+`/readyz` now checks PostgreSQL, Redis, and Kafka connectivity.
 
 Main API base path:
 
@@ -53,7 +79,20 @@ Main API base path:
 Swagger:
 
 - `GET /swagger`
+- `GET /swagger.json`
 - raw spec: `GET /openapi.yaml`
+
+Swagger generation:
+
+```bash
+go generate ./internal/docs
+```
+
+Or for the whole backend:
+
+```bash
+go generate ./...
+```
 
 ## Quick API test
 
@@ -92,3 +131,8 @@ Bearer <access_token>
 - `internal/modules/review`, `internal/modules/savings`, and `internal/modules/dashboard` contain product workflows.
 - `internal/platform` contains infrastructure helpers.
 - `internal/app` is the composition root.
+
+## Infra usage
+
+- Redis is used as a short-lived cache for `GET /api/v1/dashboard/finance`.
+- Kafka publishes audit/domain events for critical user actions into `KAFKA_AUDIT_TOPIC`.

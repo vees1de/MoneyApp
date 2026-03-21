@@ -5,7 +5,8 @@ Mobile-first Vue 3 + Pinia frontend for the MVP Finance Core of Personal Life OS
 Current state:
 - foundation app shell is implemented
 - auth, onboarding, dashboard, accounts, transactions, categories, savings, review, and settings pages exist
-- data is currently backed by local demo state so the product flow can be exercised before backend wiring
+- frontend is wired to the Go backend API and uses dev-auth for local login
+- Vite dev server proxies `/api`, `/healthz`, `/readyz`, `/openapi.yaml`, and `/swagger` to the backend
 
 ## Structure
 
@@ -30,7 +31,7 @@ npm run test:unit
 
 ## Next implementation stages
 
-1. Replace local demo state with typed HTTP client + query layer.
-2. Wire Telegram/Yandex auth to the Go backend.
-3. Add real PWA setup, runtime caching, and offline outbox.
-4. Expand dashboard and weekly review with backend-driven summaries.
+1. Add unit/integration coverage around the API-backed stores.
+2. Replace local token storage with a more secure cookie-based refresh flow when backend supports it.
+3. Add real PWA runtime caching and offline outbox.
+4. Expand dashboard and weekly review UX with richer backend payloads.

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive } from 'vue'
+import { onMounted, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { useAppUiStore } from '@/app/stores/app-ui'
@@ -23,29 +23,38 @@ const form = reactive({
 })
 
 async function submit() {
-  userStore.completeOnboarding({
-    fullName: form.fullName,
-    currency: form.currency,
-    timezone: form.timezone,
-  })
-
-  if (financeStore.accounts[0]) {
-    financeStore.updateAccount({
-      id: financeStore.accounts[0].id,
-      name: form.primaryAccountName,
-    })
-  } else {
-    financeStore.addAccount({
-      name: form.primaryAccountName,
-      type: 'bank',
-      balanceMinor: parseAmountToMinor(form.openingBalance),
+  try {
+    await userStore.completeOnboarding({
+      fullName: form.fullName,
       currency: form.currency,
+      timezone: form.timezone,
     })
-  }
 
-  appUiStore.pushToast('Onboarding completed.', 'success')
-  await router.push('/dashboard')
+    if (financeStore.accounts[0]) {
+      await financeStore.updateAccountName({
+        id: financeStore.accounts[0].id,
+        name: form.primaryAccountName,
+      })
+    } else {
+      await financeStore.addAccount({
+        name: form.primaryAccountName,
+        type: 'bank',
+        balanceMinor: parseAmountToMinor(form.openingBalance),
+        currency: form.currency,
+      })
+    }
+
+    appUiStore.pushToast('Onboarding completed.', 'success')
+    await router.push('/dashboard')
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Onboarding failed.'
+    appUiStore.pushToast(message, 'warning')
+  }
 }
+
+onMounted(async () => {
+  await financeStore.fetchAccounts()
+})
 </script>
 
 <template>

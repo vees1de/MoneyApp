@@ -1,69 +1,95 @@
-import { ref, watch } from 'vue'
+import { ref } from 'vue'
 import { defineStore } from 'pinia'
 
-import type { AuthProvider, UserProfile } from '@/entities/user/model/types'
-import { demoProfile } from '@/shared/mocks/demo'
-import { readStorage, writeStorage } from '@/shared/lib/storage'
+import type { UserProfile } from '@/entities/user/model/types'
+import { mapApiUser } from '@/shared/api/mappers'
+import { fetchMe } from '@/shared/api/services/auth'
+import { updateUserPreferences } from '@/shared/api/services/users'
 
-const USER_STORAGE_KEY = 'plos-user-profile'
-
-function createDefaultProfile(): UserProfile {
-  return { ...demoProfile }
+function createEmptyProfile(): UserProfile {
+  return {
+    id: '',
+    fullName: '',
+    handle: '',
+    currency: 'RUB',
+    timezone: 'Asia/Yakutsk',
+    provider: null,
+    onboardingCompleted: false,
+  }
 }
 
 export const useUserStore = defineStore('user', () => {
-  const profile = ref<UserProfile>(createDefaultProfile())
-  const hydrated = ref(false)
+  const profile = ref<UserProfile>(createEmptyProfile())
+  const loading = ref(false)
 
   function bootstrap() {
-    profile.value = readStorage<UserProfile>(USER_STORAGE_KEY, createDefaultProfile())
-    hydrated.value = true
+    profile.value = createEmptyProfile()
   }
 
-  function setAuthProvider(provider: AuthProvider) {
-    profile.value = {
-      ...profile.value,
-      provider,
-      fullName: profile.value.fullName || (provider === 'telegram' ? 'Telegram user' : 'Yandex user'),
-      handle: profile.value.handle || (provider === 'telegram' ? '@telegram' : '@yandex'),
+  function setProfile(nextProfile: UserProfile) {
+    profile.value = nextProfile
+  }
+
+  async function fetchProfile() {
+    loading.value = true
+    try {
+      const response = await fetchMe()
+      profile.value = {
+        ...mapApiUser(response.user),
+        provider: profile.value.provider,
+      }
+      return profile.value
+    } finally {
+      loading.value = false
     }
   }
 
-  function completeOnboarding(payload: {
-    fullName: string
+  async function updatePreferences(input: {
+    baseCurrency?: string
+    onboardingCompleted?: boolean
+    timezone?: string
+    weeklyReviewHour?: number
+    weeklyReviewWeekday?: number
+  }) {
+    const response = await updateUserPreferences(input)
+    profile.value = {
+      ...mapApiUser(response.user),
+      provider: profile.value.provider,
+    }
+    return profile.value
+  }
+
+  async function completeOnboarding(payload: {
     currency: string
+    fullName: string
     timezone: string
   }) {
-    profile.value = {
-      ...profile.value,
-      fullName: payload.fullName.trim(),
-      currency: payload.currency,
-      timezone: payload.timezone,
+    const nextProfile = await updatePreferences({
+      baseCurrency: payload.currency,
       onboardingCompleted: true,
+      timezone: payload.timezone,
+    })
+
+    profile.value = {
+      ...nextProfile,
+      fullName: payload.fullName.trim() || nextProfile.fullName,
     }
+
+    return profile.value
   }
 
   function reset() {
-    profile.value = createDefaultProfile()
+    profile.value = createEmptyProfile()
   }
-
-  watch(
-    profile,
-    (nextProfile) => {
-      if (!hydrated.value) {
-        return
-      }
-
-      writeStorage(USER_STORAGE_KEY, nextProfile)
-    },
-    { deep: true },
-  )
 
   return {
     bootstrap,
     completeOnboarding,
+    fetchProfile,
+    loading,
     profile,
     reset,
-    setAuthProvider,
+    setProfile,
+    updatePreferences,
   }
 })
