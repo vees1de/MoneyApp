@@ -1,0 +1,1674 @@
+openapi: 3.1.0
+info:
+  title: MoneyApp Finance Core API
+  version: 1.0.0
+  summary: Personal Life OS finance MVP backend
+  description: |
+    HTTP API for the MoneyApp finance core.
+
+    Notes for local testing:
+    - All money values are strings, not numbers, to preserve decimal precision.
+    - In development, when `AUTH_ALLOW_INSECURE_DEV_AUTH=true`, Telegram and Yandex auth endpoints work in pass-through mode and do not validate provider signatures.
+    - Protected endpoints use Bearer auth with the access token returned by login.
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+tags:
+  - name: Health
+  - name: Auth
+  - name: Users
+  - name: Accounts
+  - name: Categories
+  - name: Transactions
+  - name: Savings
+  - name: Weekly Review
+  - name: Dashboard
+  - name: Links
+security:
+  - bearerAuth: []
+paths:
+  /healthz:
+    get:
+      tags: [Health]
+      summary: Liveness probe
+      security: []
+      responses:
+        '200':
+          description: Application is alive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+  /readyz:
+    get:
+      tags: [Health]
+      summary: Readiness probe
+      security: []
+      responses:
+        '200':
+          description: Application is ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /api/v1/auth/telegram:
+    post:
+      tags: [Auth]
+      summary: Login with Telegram
+      description: |
+        In development mode, this endpoint accepts a synthetic Telegram identity payload and returns JWT + refresh tokens.
+      operationId: authTelegram
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TelegramLoginRequest'
+            examples:
+              localDev:
+                value:
+                  provider_user_id: tg_10001
+                  username: veeside
+                  first_name: Vee
+                  last_name: Side
+                  photo_url: https://example.com/avatar.png
+                  auth_date: 1711111111
+                  hash: dev-mode
+      responses:
+        '200':
+          description: Authenticated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/auth/yandex:
+    post:
+      tags: [Auth]
+      summary: Login with Yandex
+      description: |
+        In development mode, this endpoint accepts provider identity fields directly.
+      operationId: authYandex
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/YandexLoginRequest'
+            examples:
+              localDev:
+                value:
+                  provider_user_id: yandex_10001
+                  email: dev@example.com
+                  display_name: Dev User
+                  avatar_url: https://example.com/avatar.png
+      responses:
+        '200':
+          description: Authenticated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh access token pair
+      operationId: authRefresh
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: Refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke refresh token session
+      operationId: authLogout
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+      responses:
+        '204':
+          description: Logged out
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/auth/me:
+    get:
+      tags: [Auth]
+      summary: Current authenticated user
+      operationId: authMe
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/users/me:
+    get:
+      tags: [Users]
+      summary: Current user profile
+      operationId: usersMe
+      responses:
+        '200':
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/users/preferences:
+    patch:
+      tags: [Users]
+      summary: Update user preferences
+      operationId: updateUserPreferences
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePreferencesRequest'
+            examples:
+              default:
+                value:
+                  timezone: Asia/Yakutsk
+                  base_currency: RUB
+                  onboarding_completed: true
+                  weekly_review_weekday: 1
+                  weekly_review_hour: 19
+      responses:
+        '200':
+          description: Updated user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/accounts:
+    get:
+      tags: [Accounts]
+      summary: List accounts
+      operationId: listAccounts
+      responses:
+        '200':
+          description: Accounts list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountsListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Accounts]
+      summary: Create account
+      operationId: createAccount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAccountRequest'
+            examples:
+              cash:
+                value:
+                  name: Main Card
+                  kind: bank_card
+                  currency: RUB
+                  opening_balance: '42300.00'
+      responses:
+        '201':
+          description: Created account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/accounts/{id}:
+    get:
+      tags: [Accounts]
+      summary: Get account by ID
+      operationId: getAccount
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      responses:
+        '200':
+          description: Account details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Accounts]
+      summary: Update account
+      operationId: updateAccount
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAccountRequest'
+      responses:
+        '200':
+          description: Updated account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/finance/categories:
+    get:
+      tags: [Categories]
+      summary: List system and user categories
+      operationId: listCategories
+      responses:
+        '200':
+          description: Category list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoriesListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Categories]
+      summary: Create custom category
+      operationId: createCategory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCategoryRequest'
+            examples:
+              expense:
+                value:
+                  kind: expense
+                  name: Pets
+                  color: '#FFB703'
+                  icon: paw-print
+      responses:
+        '201':
+          description: Created category
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/finance/categories/{id}:
+    patch:
+      tags: [Categories]
+      summary: Update category
+      operationId: updateCategory
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCategoryRequest'
+      responses:
+        '200':
+          description: Updated category
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Categories]
+      summary: Archive category
+      operationId: deleteCategory
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      responses:
+        '204':
+          description: Category archived
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/finance/transactions:
+    get:
+      tags: [Transactions]
+      summary: List transactions
+      operationId: listTransactions
+      parameters:
+        - name: account
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: category
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: type
+          in: query
+          schema:
+            $ref: '#/components/schemas/TransactionType'
+        - name: linked_entity_type
+          in: query
+          schema:
+            type: string
+        - name: linked_entity_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: date_from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: date_to
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Transaction list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionsListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Transactions]
+      summary: Create transaction
+      operationId: createTransaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTransactionRequest'
+            examples:
+              expense:
+                value:
+                  account_id: 11111111-1111-1111-1111-111111111111
+                  type: expense
+                  category_id: 0c3518d6-9e34-4ab2-8e5c-4558b2fbf101
+                  amount: '1450.00'
+                  currency: RUB
+                  title: Groceries
+                  note: Weekly supermarket run
+                  occurred_at: '2026-03-22T09:00:00Z'
+              transfer:
+                value:
+                  account_id: 11111111-1111-1111-1111-111111111111
+                  transfer_account_id: 22222222-2222-2222-2222-222222222222
+                  type: transfer
+                  amount: '5000.00'
+                  currency: RUB
+                  occurred_at: '2026-03-22T10:00:00Z'
+      responses:
+        '201':
+          description: Created transaction
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/finance/transactions/{id}:
+    get:
+      tags: [Transactions]
+      summary: Get transaction by ID
+      operationId: getTransaction
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      responses:
+        '200':
+          description: Transaction details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Transactions]
+      summary: Update transaction
+      operationId: updateTransaction
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTransactionRequest'
+      responses:
+        '200':
+          description: Updated transaction
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Transactions]
+      summary: Delete transaction
+      operationId: deleteTransaction
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      responses:
+        '204':
+          description: Deleted transaction
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/savings/goals:
+    get:
+      tags: [Savings]
+      summary: List savings goals
+      operationId: listSavingsGoals
+      responses:
+        '200':
+          description: Savings goals
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavingsGoalsListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Savings]
+      summary: Create savings goal
+      operationId: createSavingsGoal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGoalRequest'
+            examples:
+              goal:
+                value:
+                  title: Emergency Fund
+                  target_amount: '150000.00'
+                  current_amount: '38000.00'
+                  currency: RUB
+                  target_date: '2026-12-31T00:00:00Z'
+                  priority: high
+      responses:
+        '201':
+          description: Created savings goal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavingsGoal'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/savings/goals/{id}:
+    patch:
+      tags: [Savings]
+      summary: Update savings goal
+      operationId: updateSavingsGoal
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateGoalRequest'
+      responses:
+        '200':
+          description: Updated savings goal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavingsGoal'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/savings/summary:
+    get:
+      tags: [Savings]
+      summary: Savings summary and safe-to-spend
+      operationId: getSavingsSummary
+      responses:
+        '200':
+          description: Savings summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavingsSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/reviews/weekly/current:
+    get:
+      tags: [Weekly Review]
+      summary: Get or prepare current weekly review
+      operationId: getCurrentWeeklyReview
+      responses:
+        '200':
+          description: Current weekly review
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WeeklyReview'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/reviews/weekly/{id}/submit-balance:
+    post:
+      tags: [Weekly Review]
+      summary: Submit actual balance for weekly review
+      operationId: submitWeeklyReviewBalance
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitBalanceRequest'
+            examples:
+              discrepancy:
+                value:
+                  actual_balance: '42300.00'
+      responses:
+        '200':
+          description: Updated weekly review
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WeeklyReview'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/reviews/weekly/{id}/resolve:
+    post:
+      tags: [Weekly Review]
+      summary: Mark weekly review as resolved
+      operationId: resolveWeeklyReview
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolveRequest'
+            examples:
+              manual:
+                value:
+                  resolution_note: Manual verification completed after checking latest transactions
+      responses:
+        '200':
+          description: Resolved weekly review
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WeeklyReview'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/reviews/weekly/{id}/skip:
+    post:
+      tags: [Weekly Review]
+      summary: Skip weekly review
+      operationId: skipWeeklyReview
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      responses:
+        '200':
+          description: Skipped weekly review
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WeeklyReview'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/dashboard/finance:
+    get:
+      tags: [Dashboard]
+      summary: Finance dashboard aggregate
+      operationId: getFinanceDashboard
+      responses:
+        '200':
+          description: Finance dashboard snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinanceDashboard'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/links:
+    post:
+      tags: [Links]
+      summary: Create typed entity link
+      operationId: createLink
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLinkRequest'
+            examples:
+              transactionNote:
+                value:
+                  source_type: transaction
+                  source_id: 33333333-3333-3333-3333-333333333333
+                  target_type: note
+                  target_id: 44444444-4444-4444-4444-444444444444
+                  relation: relates_to
+                  meta:
+                    label: Why I bought this
+      responses:
+        '201':
+          description: Link created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntityLink'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/links/by-entity:
+    get:
+      tags: [Links]
+      summary: List links for entity
+      operationId: listLinksByEntity
+      parameters:
+        - name: entity_type
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Entity type, for example `transaction`, `note`, `income`, `expense`
+        - name: entity_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Links for entity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinksListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    EntityID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 50
+    Offset:
+      name: offset
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+
+  responses:
+    BadRequest:
+      description: Invalid request payload or query parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Unauthorized:
+      description: Missing or invalid access token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Forbidden:
+      description: Request is authenticated but not allowed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+
+  schemas:
+    Money:
+      type: string
+      description: Decimal monetary value serialized as string
+      pattern: '^-?\d+(\.\d{2})?$'
+      examples: ['42300.00']
+
+    Meta:
+      type: object
+      additionalProperties: true
+
+    HealthResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          example: ok
+
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: validation_error
+        message:
+          type: string
+          example: account not found
+        details:
+          oneOf:
+            - type: object
+              additionalProperties: true
+            - type: array
+              items: {}
+            - type: string
+            - type: 'null'
+
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          $ref: '#/components/schemas/Error'
+
+    User:
+      type: object
+      required:
+        - id
+        - timezone
+        - base_currency
+        - onboarding_completed
+        - weekly_review_weekday
+        - weekly_review_hour
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+          nullable: true
+        display_name:
+          type: string
+          nullable: true
+        avatar_url:
+          type: string
+          format: uri
+          nullable: true
+        timezone:
+          type: string
+          example: Asia/Yakutsk
+        base_currency:
+          type: string
+          example: RUB
+        onboarding_completed:
+          type: boolean
+        weekly_review_weekday:
+          type: integer
+          minimum: 1
+          maximum: 7
+        weekly_review_hour:
+          type: integer
+          minimum: 0
+          maximum: 23
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    MeResponse:
+      type: object
+      required: [user]
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+
+    UpdatePreferencesRequest:
+      type: object
+      properties:
+        timezone:
+          type: string
+        base_currency:
+          type: string
+        onboarding_completed:
+          type: boolean
+        weekly_review_weekday:
+          type: integer
+          minimum: 1
+          maximum: 7
+        weekly_review_hour:
+          type: integer
+          minimum: 0
+          maximum: 23
+
+    Tokens:
+      type: object
+      required: [access_token, refresh_token, expires_in]
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        expires_in:
+          type: integer
+          format: int64
+          example: 900
+
+    AuthResponse:
+      type: object
+      required: [user, tokens]
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        tokens:
+          $ref: '#/components/schemas/Tokens'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    TelegramLoginRequest:
+      type: object
+      required: [provider_user_id]
+      properties:
+        provider_user_id:
+          type: string
+        username:
+          type: string
+          nullable: true
+        first_name:
+          type: string
+          nullable: true
+        last_name:
+          type: string
+          nullable: true
+        photo_url:
+          type: string
+          format: uri
+          nullable: true
+        auth_date:
+          type: integer
+          format: int64
+          default: 0
+        hash:
+          type: string
+          nullable: true
+
+    YandexLoginRequest:
+      type: object
+      required: [provider_user_id]
+      properties:
+        code:
+          type: string
+          nullable: true
+        id_token:
+          type: string
+          nullable: true
+        provider_user_id:
+          type: string
+          nullable: true
+        email:
+          type: string
+          format: email
+          nullable: true
+        display_name:
+          type: string
+          nullable: true
+        avatar_url:
+          type: string
+          format: uri
+          nullable: true
+
+    RefreshRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+
+    LogoutRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+
+    AccountKind:
+      type: string
+      enum: [cash, bank_card, bank_account, savings, virtual]
+
+    Account:
+      type: object
+      required:
+        - id
+        - user_id
+        - name
+        - kind
+        - currency
+        - opening_balance
+        - current_balance
+        - is_archived
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        kind:
+          $ref: '#/components/schemas/AccountKind'
+        currency:
+          type: string
+        opening_balance:
+          $ref: '#/components/schemas/Money'
+        current_balance:
+          $ref: '#/components/schemas/Money'
+        is_archived:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateAccountRequest:
+      type: object
+      required: [name, kind, currency]
+      properties:
+        name:
+          type: string
+        kind:
+          $ref: '#/components/schemas/AccountKind'
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+        opening_balance:
+          $ref: '#/components/schemas/Money'
+
+    UpdateAccountRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        is_archived:
+          type: boolean
+
+    AccountsListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Account'
+
+    CategoryKind:
+      type: string
+      enum: [income, expense]
+
+    Category:
+      type: object
+      required:
+        - id
+        - kind
+        - name
+        - is_system
+        - is_archived
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+          nullable: true
+        kind:
+          $ref: '#/components/schemas/CategoryKind'
+        name:
+          type: string
+        color:
+          type: string
+          nullable: true
+        icon:
+          type: string
+          nullable: true
+        parent_id:
+          type: string
+          format: uuid
+          nullable: true
+        is_system:
+          type: boolean
+        is_archived:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateCategoryRequest:
+      type: object
+      required: [kind, name]
+      properties:
+        kind:
+          $ref: '#/components/schemas/CategoryKind'
+        name:
+          type: string
+        color:
+          type: string
+          nullable: true
+        icon:
+          type: string
+          nullable: true
+        parent_id:
+          type: string
+          format: uuid
+          nullable: true
+
+    UpdateCategoryRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        color:
+          type: string
+          nullable: true
+        icon:
+          type: string
+          nullable: true
+        parent_id:
+          type: string
+          format: uuid
+          nullable: true
+        is_archived:
+          type: boolean
+
+    CategoriesListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+
+    TransactionType:
+      type: string
+      enum: [income, expense, transfer, correction]
+
+    TransactionDirection:
+      type: string
+      enum: [inflow, outflow, internal]
+
+    Transaction:
+      type: object
+      required:
+        - id
+        - user_id
+        - account_id
+        - type
+        - amount
+        - currency
+        - direction
+        - occurred_at
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        account_id:
+          type: string
+          format: uuid
+        transfer_account_id:
+          type: string
+          format: uuid
+          nullable: true
+        type:
+          $ref: '#/components/schemas/TransactionType'
+        category_id:
+          type: string
+          format: uuid
+          nullable: true
+        amount:
+          $ref: '#/components/schemas/Money'
+        currency:
+          type: string
+        direction:
+          $ref: '#/components/schemas/TransactionDirection'
+        title:
+          type: string
+          nullable: true
+        note:
+          type: string
+          nullable: true
+        occurred_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateTransactionRequest:
+      type: object
+      required: [account_id, type, amount, currency]
+      properties:
+        account_id:
+          type: string
+          format: uuid
+        transfer_account_id:
+          type: string
+          format: uuid
+          nullable: true
+        type:
+          $ref: '#/components/schemas/TransactionType'
+        category_id:
+          type: string
+          format: uuid
+          nullable: true
+        amount:
+          $ref: '#/components/schemas/Money'
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+        direction:
+          $ref: '#/components/schemas/TransactionDirection'
+        title:
+          type: string
+          nullable: true
+        note:
+          type: string
+          nullable: true
+        occurred_at:
+          type: string
+          format: date-time
+
+    UpdateTransactionRequest:
+      type: object
+      properties:
+        account_id:
+          type: string
+          format: uuid
+        transfer_account_id:
+          type: string
+          format: uuid
+          nullable: true
+        type:
+          $ref: '#/components/schemas/TransactionType'
+        category_id:
+          type: string
+          format: uuid
+          nullable: true
+        amount:
+          $ref: '#/components/schemas/Money'
+        currency:
+          type: string
+        direction:
+          $ref: '#/components/schemas/TransactionDirection'
+        title:
+          type: string
+          nullable: true
+        note:
+          type: string
+          nullable: true
+        occurred_at:
+          type: string
+          format: date-time
+
+    TransactionsListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Transaction'
+
+    SavingsGoalPriority:
+      type: string
+      enum: [low, medium, high]
+
+    SavingsGoalStatus:
+      type: string
+      enum: [active, paused, completed, archived]
+
+    SavingsGoal:
+      type: object
+      required:
+        - id
+        - user_id
+        - title
+        - target_amount
+        - current_amount
+        - currency
+        - priority
+        - status
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        target_amount:
+          $ref: '#/components/schemas/Money'
+        current_amount:
+          $ref: '#/components/schemas/Money'
+        currency:
+          type: string
+        target_date:
+          type: string
+          format: date-time
+          nullable: true
+        priority:
+          $ref: '#/components/schemas/SavingsGoalPriority'
+        status:
+          $ref: '#/components/schemas/SavingsGoalStatus'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateGoalRequest:
+      type: object
+      required: [title, currency]
+      properties:
+        title:
+          type: string
+        target_amount:
+          $ref: '#/components/schemas/Money'
+        current_amount:
+          $ref: '#/components/schemas/Money'
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+        target_date:
+          type: string
+          format: date-time
+          nullable: true
+        priority:
+          $ref: '#/components/schemas/SavingsGoalPriority'
+
+    UpdateGoalRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        target_amount:
+          $ref: '#/components/schemas/Money'
+        current_amount:
+          $ref: '#/components/schemas/Money'
+        target_date:
+          type: string
+          format: date-time
+          nullable: true
+        priority:
+          $ref: '#/components/schemas/SavingsGoalPriority'
+        status:
+          $ref: '#/components/schemas/SavingsGoalStatus'
+
+    GoalProgress:
+      type: object
+      required: [goal, progress_percent, recommended_monthly_contribution]
+      properties:
+        goal:
+          $ref: '#/components/schemas/SavingsGoal'
+        progress_percent:
+          type: string
+          example: '38'
+        recommended_monthly_contribution:
+          $ref: '#/components/schemas/Money'
+
+    SavingsSummary:
+      type: object
+      required: [total_target, total_current, reserved_this_month, safe_to_spend, goals]
+      properties:
+        total_target:
+          $ref: '#/components/schemas/Money'
+        total_current:
+          $ref: '#/components/schemas/Money'
+        reserved_this_month:
+          $ref: '#/components/schemas/Money'
+        safe_to_spend:
+          $ref: '#/components/schemas/Money'
+        goals:
+          type: array
+          items:
+            $ref: '#/components/schemas/GoalProgress'
+
+    SavingsGoalsListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SavingsGoal'
+
+    WeeklyReviewStatus:
+      type: string
+      enum: [pending, matched, discrepancy_found, resolved, skipped]
+
+    WeeklyReview:
+      type: object
+      required:
+        - id
+        - user_id
+        - period_start
+        - period_end
+        - expected_balance
+        - status
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        account_id:
+          type: string
+          format: uuid
+          nullable: true
+        period_start:
+          type: string
+          format: date-time
+        period_end:
+          type: string
+          format: date-time
+        expected_balance:
+          $ref: '#/components/schemas/Money'
+        actual_balance:
+          $ref: '#/components/schemas/Money'
+        delta:
+          $ref: '#/components/schemas/Money'
+        status:
+          $ref: '#/components/schemas/WeeklyReviewStatus'
+        resolution_note:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    SubmitBalanceRequest:
+      type: object
+      required: [actual_balance]
+      properties:
+        actual_balance:
+          $ref: '#/components/schemas/Money'
+
+    ResolveRequest:
+      type: object
+      properties:
+        resolution_note:
+          type: string
+          nullable: true
+
+    TopCategory:
+      type: object
+      required: [name, amount]
+      properties:
+        category_id:
+          type: string
+          nullable: true
+        name:
+          type: string
+        amount:
+          $ref: '#/components/schemas/Money'
+
+    FinanceDashboard:
+      type: object
+      required:
+        - current_balance
+        - monthly_income
+        - monthly_expense
+        - saved_this_month
+        - safe_to_spend
+        - top_categories
+        - savings
+        - weekly_review
+        - insights
+      properties:
+        current_balance:
+          $ref: '#/components/schemas/Money'
+        monthly_income:
+          $ref: '#/components/schemas/Money'
+        monthly_expense:
+          $ref: '#/components/schemas/Money'
+        saved_this_month:
+          $ref: '#/components/schemas/Money'
+        safe_to_spend:
+          $ref: '#/components/schemas/Money'
+        top_categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/TopCategory'
+        savings:
+          type: array
+          items:
+            $ref: '#/components/schemas/GoalProgress'
+        weekly_review:
+          $ref: '#/components/schemas/WeeklyReview'
+        insights:
+          type: array
+          items:
+            type: string
+
+    CreateLinkRequest:
+      type: object
+      required: [source_type, source_id, target_type, target_id, relation]
+      properties:
+        source_type:
+          type: string
+        source_id:
+          type: string
+          format: uuid
+        target_type:
+          type: string
+        target_id:
+          type: string
+          format: uuid
+        relation:
+          type: string
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    EntityLink:
+      type: object
+      required:
+        - id
+        - user_id
+        - source_type
+        - source_id
+        - target_type
+        - target_id
+        - relation
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        source_type:
+          type: string
+        source_id:
+          type: string
+          format: uuid
+        target_type:
+          type: string
+        target_id:
+          type: string
+          format: uuid
+        relation:
+          type: string
+        meta:
+          oneOf:
+            - type: object
+              additionalProperties: true
+            - type: string
+        created_at:
+          type: string
+          format: date-time
+
+    LinksListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/EntityLink'

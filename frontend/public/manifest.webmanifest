@@ -1,0 +1,16 @@
+{
+  "name": "Personal Life OS - Finance Core",
+  "short_name": "Finance Core",
+  "description": "Mobile-first finance core for Personal Life OS.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#eef1ed",
+  "theme_color": "#185d43",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48 64x64 128x128",
+      "type": "image/x-icon"
+    }
+  ]
+}
