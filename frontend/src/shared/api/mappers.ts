@@ -46,6 +46,7 @@ export function mapApiAccount(account: ApiAccount): Account {
     type: mapAccountKind(account.kind),
     balanceMinor: moneyStringToMinor(account.current_balance),
     currency: account.currency,
+    isArchived: account.is_archived,
     isPrimary: false,
     updatedAt: account.updated_at,
   }
@@ -65,14 +66,23 @@ export function mapApiTransaction(transaction: ApiTransaction): Transaction {
   return {
     id: transaction.id,
     accountId: transaction.account_id,
-    categoryId: transaction.category_id ?? '',
-    kind: transaction.type === 'income' ? 'income' : 'expense',
+    transferAccountId: transaction.transfer_account_id ?? null,
+    categoryId: transaction.category_id ?? null,
+    kind:
+      transaction.type === 'income'
+        ? 'income'
+        : transaction.type === 'expense'
+          ? 'expense'
+          : null,
     type: transaction.type,
     direction: transaction.direction,
     amountMinor: moneyStringToMinor(transaction.amount),
     currency: transaction.currency,
+    title: transaction.title ?? '',
     occurredAt: transaction.occurred_at,
-    note: transaction.note ?? transaction.title ?? '',
+    createdAt: transaction.created_at,
+    updatedAt: transaction.updated_at,
+    note: transaction.note ?? '',
   }
 }
 

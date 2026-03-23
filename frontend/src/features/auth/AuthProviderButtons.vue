@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { Eye, EyeOff, Mail } from 'lucide-vue-next'
+import { ref } from 'vue'
+
 import type { AuthProvider } from '@/entities/user/model/types'
 import { useI18n } from '@/shared/i18n'
 
@@ -7,21 +10,34 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{
-  select: [provider: AuthProvider]
+  select: [provider: Exclude<AuthProvider, 'email'>]
+  loginEmail: [email: string, password: string]
 }>()
 
+const showEmailForm = ref(false)
+const email = ref('')
+const password = ref('')
+const showPassword = ref(false)
 const { t } = useI18n()
+
+function submitEmail() {
+  if (!email.value || !password.value) return
+  emit('loginEmail', email.value, password.value)
+}
 </script>
 
 <template>
   <div class="auth-providers">
+    <!-- OAuth buttons -->
     <button
       class="auth-btn auth-btn--telegram"
       :disabled="loading"
       @click="emit('select', 'telegram')"
     >
-      <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
-        <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+      <!-- Telegram brand icon -->
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="12" fill="white" fill-opacity="0.25"/>
+        <path d="M5.02 11.64l12.3-4.74c.57-.21 1.07.14.89.99l-2.09 9.84c-.15.71-.57.88-1.15.55l-3.2-2.36-1.54 1.49c-.17.17-.32.31-.65.31l.23-3.27 5.93-5.36c.26-.23-.06-.36-.4-.13L7.08 13.52 3.92 12.54c-.69-.22-.7-.69.13-.98z" fill="white"/>
       </svg>
       {{ t('auth.continueTelegram') }}
     </button>
@@ -31,11 +47,64 @@ const { t } = useI18n()
       :disabled="loading"
       @click="emit('select', 'yandex')"
     >
-      <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
-        <path d="M2.04 12c0-5.523 4.476-10 10-10 5.523 0 10 4.477 10 10s-4.477 10-10 10c-5.524 0-10-4.477-10-10z"/>
-        <path fill="#fff" d="M13.32 7.666h-.924c-1.694 0-2.585.858-2.585 2.123 0 1.43.616 2.1 1.881 2.959l1.045.704-3.003 4.548H7.919l2.739-4.108c-1.55-1.111-2.43-2.18-2.43-4.02 0-2.289 1.595-3.872 4.092-3.872h2.376v12h-1.376V7.666z"/>
+      <!-- Yandex brand icon — explicit fill, no currentColor dependency -->
+      <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="10" fill="white" fill-opacity="0.25"/>
+        <path
+          d="M13.32 7.666h-.924c-1.694 0-2.585.858-2.585 2.123 0 1.43.616 2.1 1.881 2.959l1.045.704-3.003 4.548H7.919l2.739-4.108c-1.55-1.111-2.43-2.18-2.43-4.02 0-2.289 1.595-3.872 4.092-3.872h2.376v12h-1.376V7.666z"
+          fill="white"
+        />
       </svg>
       {{ t('auth.continueYandex') }}
+    </button>
+
+    <div class="auth-divider">
+      <span>{{ t('auth.or') }}</span>
+    </div>
+
+    <!-- Email form -->
+    <template v-if="showEmailForm">
+      <form class="email-form" @submit.prevent="submitEmail">
+        <div class="email-form__field">
+          <Mail :size="16" class="email-form__icon" />
+          <input
+            v-model="email"
+            type="email"
+            class="email-form__input"
+            :placeholder="t('auth.emailPlaceholder')"
+            autocomplete="email"
+            required
+          />
+        </div>
+        <div class="email-form__field">
+          <component :is="showPassword ? EyeOff : Eye" :size="16" class="email-form__icon email-form__icon--password" @click="showPassword = !showPassword" />
+          <input
+            v-model="password"
+            :type="showPassword ? 'text' : 'password'"
+            class="email-form__input"
+            :placeholder="t('auth.passwordPlaceholder')"
+            autocomplete="current-password"
+            required
+          />
+        </div>
+        <button
+          type="submit"
+          class="auth-btn auth-btn--email"
+          :disabled="loading || !email || !password"
+        >
+          {{ t('auth.signInEmail') }}
+        </button>
+      </form>
+    </template>
+
+    <button
+      v-else
+      class="auth-btn auth-btn--ghost"
+      :disabled="loading"
+      @click="showEmailForm = true"
+    >
+      <Mail :size="18" />
+      {{ t('auth.continueEmail') }}
     </button>
   </div>
 </template>
@@ -59,6 +128,7 @@ const { t } = useI18n()
   font-size: 1rem;
   font-weight: 600;
   letter-spacing: -0.01em;
+  cursor: pointer;
   transition: opacity var(--duration-fast) ease, transform var(--duration-fast) ease;
 }
 
@@ -80,5 +150,82 @@ const { t } = useI18n()
 .auth-btn--yandex {
   background: #FC3F1D;
   color: #fff;
+}
+
+.auth-btn--email {
+  background: var(--brand);
+  color: #fff;
+}
+
+.auth-btn--ghost {
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--separator);
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--separator);
+}
+
+.email-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.email-form__field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.email-form__icon {
+  position: absolute;
+  left: 14px;
+  color: var(--text-muted);
+  pointer-events: none;
+  flex-shrink: 0;
+}
+
+.email-form__icon--password {
+  pointer-events: auto;
+  cursor: pointer;
+  left: auto;
+  right: 14px;
+}
+
+.email-form__input {
+  width: 100%;
+  height: 48px;
+  padding: 0 44px 0 40px;
+  border: 1px solid var(--separator);
+  border-radius: var(--radius-md);
+  background: var(--surface-secondary);
+  font-size: 0.9375rem;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color var(--duration-fast) ease;
+}
+
+.email-form__input:focus {
+  border-color: var(--brand);
+  background: var(--surface);
+}
+
+.email-form__input::placeholder {
+  color: var(--text-muted);
 }
 </style>

@@ -20,6 +20,7 @@ tags:
   - name: Accounts
   - name: Categories
   - name: Transactions
+  - name: Transfers
   - name: Savings
   - name: Weekly Review
   - name: Dashboard
@@ -406,6 +407,14 @@ paths:
           in: query
           schema:
             $ref: '#/components/schemas/TransactionType'
+        - name: posting_state
+          in: query
+          schema:
+            $ref: '#/components/schemas/TransactionPostingState'
+        - name: source
+          in: query
+          schema:
+            $ref: '#/components/schemas/TransactionSource'
         - name: linked_entity_type
           in: query
           schema:
@@ -425,6 +434,10 @@ paths:
           schema:
             type: string
             format: date-time
+        - name: include_deleted
+          in: query
+          schema:
+            type: boolean
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Offset'
       responses:
@@ -522,10 +535,14 @@ paths:
           $ref: '#/components/responses/NotFound'
     delete:
       tags: [Transactions]
-      summary: Delete transaction
+      summary: Soft delete transaction
       operationId: deleteTransaction
       parameters:
         - $ref: '#/components/parameters/EntityID'
+        - name: reason
+          in: query
+          schema:
+            type: string
       responses:
         '204':
           description: Deleted transaction
@@ -533,6 +550,114 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v1/finance/transactions/{id}/restore:
+    post:
+      tags: [Transactions]
+      summary: Restore soft deleted transaction
+      operationId: restoreTransaction
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      responses:
+        '200':
+          description: Restored transaction
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/v1/finance/transfers:
+    post:
+      tags: [Transfers]
+      summary: Create account transfer
+      operationId: createTransfer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTransferRequest'
+      responses:
+        '201':
+          description: Created transfer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/finance/transfers/{id}:
+    patch:
+      tags: [Transfers]
+      summary: Update transfer
+      operationId: updateTransfer
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTransferRequest'
+      responses:
+        '200':
+          description: Updated transfer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Transfers]
+      summary: Soft delete transfer
+      operationId: deleteTransfer
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+        - name: reason
+          in: query
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Deleted transfer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/finance/transfers/{id}/restore:
+    post:
+      tags: [Transfers]
+      summary: Restore soft deleted transfer
+      operationId: restoreTransfer
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      responses:
+        '200':
+          description: Restored transfer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   /api/v1/savings/goals:
     get:
@@ -1093,6 +1218,10 @@ components:
           $ref: '#/components/schemas/Money'
         is_archived:
           type: boolean
+        last_recalculated_at:
+          type: string
+          format: date-time
+          nullable: true
         created_at:
           type: string
           format: date-time
@@ -1120,6 +1249,8 @@ components:
       properties:
         name:
           type: string
+        kind:
+          $ref: '#/components/schemas/AccountKind'
         is_archived:
           type: boolean
 
@@ -1233,6 +1364,14 @@ components:
       type: string
       enum: [inflow, outflow, internal]
 
+    TransactionPostingState:
+      type: string
+      enum: [draft, posted]
+
+    TransactionSource:
+      type: string
+      enum: [manual, recurring, review, system]
+
     Transaction:
       type: object
       required:
@@ -1272,11 +1411,30 @@ components:
           type: string
         direction:
           $ref: '#/components/schemas/TransactionDirection'
+        posting_state:
+          $ref: '#/components/schemas/TransactionPostingState'
+        source:
+          $ref: '#/components/schemas/TransactionSource'
         title:
           type: string
           nullable: true
         note:
           type: string
+          nullable: true
+        is_mandatory:
+          type: boolean
+        is_subscription:
+          type: boolean
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
+        delete_reason:
+          type: string
+          nullable: true
+        restored_at:
+          type: string
+          format: date-time
           nullable: true
         occurred_at:
           type: string
@@ -1319,6 +1477,10 @@ components:
         note:
           type: string
           nullable: true
+        is_mandatory:
+          type: boolean
+        is_subscription:
+          type: boolean
         occurred_at:
           type: string
           format: date-time
@@ -1351,6 +1513,10 @@ components:
         note:
           type: string
           nullable: true
+        is_mandatory:
+          type: boolean
+        is_subscription:
+          type: boolean
         occurred_at:
           type: string
           format: date-time
@@ -1363,6 +1529,55 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Transaction'
+
+    CreateTransferRequest:
+      type: object
+      required: [from_account_id, to_account_id, amount, currency]
+      properties:
+        from_account_id:
+          type: string
+          format: uuid
+        to_account_id:
+          type: string
+          format: uuid
+        amount:
+          $ref: '#/components/schemas/Money'
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+        title:
+          type: string
+          nullable: true
+        note:
+          type: string
+          nullable: true
+        occurred_at:
+          type: string
+          format: date-time
+
+    UpdateTransferRequest:
+      type: object
+      properties:
+        from_account_id:
+          type: string
+          format: uuid
+        to_account_id:
+          type: string
+          format: uuid
+        amount:
+          $ref: '#/components/schemas/Money'
+        currency:
+          type: string
+        title:
+          type: string
+          nullable: true
+        note:
+          type: string
+          nullable: true
+        occurred_at:
+          type: string
+          format: date-time
 
     SavingsGoalPriority:
       type: string

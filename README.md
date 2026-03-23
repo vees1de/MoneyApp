@@ -55,3 +55,7 @@ npm run dev
 ## Git
 
 Repository initialized with `main` as the default branch.
+
+## Production deploy
+
+Production deployment files for SSH + host `nginx` live in [deploy](/Users/vees1de/repos/MoneyApp/deploy). See [deploy/README.md](/Users/vees1de/repos/MoneyApp/deploy/README.md).

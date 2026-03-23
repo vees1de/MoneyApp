@@ -795,3 +795,41 @@ a {
     grid-template-columns: 1.3fr 0.7fr;
   }
 }
+
+/* Default: sidebar hidden, mobile chrome visible */
+.desktop-sidebar-wrap {
+  display: none;
+}
+
+.mobile-chrome {
+  display: block;
+}
+
+@media (min-width: 960px) {
+  /* Show desktop sidebar, hide mobile chrome */
+  .desktop-sidebar-wrap {
+    display: block;
+  }
+
+  .mobile-chrome {
+    display: none;
+  }
+
+  /* Full-width shell — sidebar + content side by side */
+  .app-shell {
+    justify-content: flex-start;
+    align-items: stretch;
+  }
+
+  .app-shell__inner {
+    max-width: none;
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* More breathing room, no bottom padding for tab bar */
+  .app-layout__content {
+    padding: 28px 36px 40px;
+    max-width: 860px;
+  }
+}

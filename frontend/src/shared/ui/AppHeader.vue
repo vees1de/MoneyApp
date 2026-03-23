@@ -10,7 +10,6 @@ const route = useRoute()
 const userStore = useUserStore()
 const { t } = useI18n()
 
-const title = computed(() => (route.meta.titleKey ? t(route.meta.titleKey) : env.productName))
 const greeting = computed(() => {
   const name = userStore.profile.fullName?.split(' ')[0]
   return name ? t('header.greeting', { name }) : env.appName
@@ -19,10 +18,7 @@ const greeting = computed(() => {
 
 <template>
   <header class="header">
-    <div class="header__title-block">
-      <span class="header__greeting">{{ greeting }}</span>
-      <span class="header__title">{{ title }}</span>
-    </div>
+    <span class="header__greeting">{{ greeting }}</span>
 
     <RouterLink
       v-if="route.name !== 'settings'"

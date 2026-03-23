@@ -84,6 +84,10 @@ export function translateProvider(provider: AuthProvider | null) {
     return translate('provider.yandex')
   }
 
+  if (provider === 'email') {
+    return translate('provider.email')
+  }
+
   return translate('common.noProvider')
 }
 

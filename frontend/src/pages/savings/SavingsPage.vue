@@ -3,12 +3,14 @@ import { computed, onMounted, reactive } from 'vue'
 
 import { useAppUiStore } from '@/app/stores/app-ui'
 import { useSavingsStore } from '@/app/stores/savings'
+import { useI18n } from '@/shared/i18n'
 import { formatMoney, formatPercent, parseAmountToMinor } from '@/shared/lib/money'
 import EmptyState from '@/shared/ui/EmptyState.vue'
 import PageContainer from '@/shared/ui/PageContainer.vue'
 
 const savingsStore = useSavingsStore()
 const appUiStore = useAppUiStore()
+const { t } = useI18n()
 
 const form = reactive({
   name: '',
@@ -25,13 +27,13 @@ function goalRatio(goal: { savedMinor: number; targetMinor: number }) {
 
 function submit() {
   if (!form.name.trim()) {
-    appUiStore.pushToast('Goal name is required.', 'warning')
+    appUiStore.pushToast(t('savings.goalNameRequired'), 'warning')
     return
   }
 
   const targetMinor = parseAmountToMinor(form.target)
   if (targetMinor <= 0) {
-    appUiStore.pushToast('Target amount must be greater than zero.', 'warning')
+    appUiStore.pushToast(t('savings.targetRequired'), 'warning')
     return
   }
 
@@ -42,12 +44,12 @@ function submit() {
         targetMinor,
         targetDate: form.targetDate || null,
       })
-      appUiStore.pushToast('Savings goal created.', 'success')
+      appUiStore.pushToast(t('savings.created'), 'success')
       form.name = ''
       form.target = ''
       form.targetDate = ''
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Goal creation failed.'
+      const message = error instanceof Error ? error.message : t('savings.createFailed')
       appUiStore.pushToast(message, 'warning')
     }
   })()
@@ -61,13 +63,13 @@ onMounted(async () => {
 <template>
   <PageContainer>
     <div class="page-header">
-      <h1>Savings goals</h1>
-      <p class="muted">Build intentional savings alongside daily spending.</p>
+      <h1>{{ t('savings.title') }}</h1>
+      <p class="muted">{{ t('savings.subtitle') }}</p>
     </div>
 
     <!-- Portfolio summary -->
     <div v-if="savingsStore.visibleGoals.length" class="savings-summary">
-      <div class="savings-summary__label">Overall funded</div>
+      <div class="savings-summary__label">{{ t('savings.overallFunded') }}</div>
       <div class="savings-summary__pct">{{ overallPercent }}</div>
       <div class="savings-summary__track">
         <div
@@ -80,7 +82,7 @@ onMounted(async () => {
         type="button"
         @click="savingsStore.toggleShowCompleted"
       >
-        {{ savingsStore.showCompleted ? 'Hide completed' : 'Show completed' }}
+        {{ savingsStore.showCompleted ? t('savings.hideCompleted') : t('savings.showCompleted') }}
       </button>
     </div>
 
@@ -102,8 +104,8 @@ onMounted(async () => {
           </div>
 
           <div class="goal-row__bottom">
-            <span class="goal-saved">{{ formatMoney(goal.savedMinor, goal.currency) }} saved</span>
-            <span class="goal-target">of {{ formatMoney(goal.targetMinor, goal.currency) }}</span>
+            <span class="goal-saved">{{ formatMoney(goal.savedMinor, goal.currency) }} {{ t('common.saved') }}</span>
+            <span class="goal-target">{{ t('common.of') }} {{ formatMoney(goal.targetMinor, goal.currency) }}</span>
           </div>
         </div>
       </div>
@@ -112,32 +114,32 @@ onMounted(async () => {
     <EmptyState
       v-else
       icon="🎯"
-      title="No goals yet"
-      description="Create your first savings goal to connect spending with real intent."
+      :title="t('savings.emptyTitle')"
+      :description="t('savings.emptyDescription')"
     />
 
     <!-- Create goal form -->
     <section class="section-card">
-      <h2 style="margin:0 0 16px;font-size:1.0625rem;font-weight:600;letter-spacing:-0.01em">New goal</h2>
+      <h2 style="margin:0 0 16px;font-size:1.0625rem;font-weight:600;letter-spacing:-0.01em">{{ t('savings.newGoal') }}</h2>
       <form class="stack" style="gap:14px" @submit.prevent="submit">
         <div class="field">
-          <label for="goalName">Goal name</label>
-          <input id="goalName" v-model="form.name" placeholder="Emergency fund" />
+          <label for="goalName">{{ t('savings.goalName') }}</label>
+          <input id="goalName" v-model="form.name" :placeholder="t('savings.goalPlaceholder')" />
         </div>
 
         <div class="grid grid--two">
           <div class="field">
-            <label for="target">Target amount</label>
-            <input id="target" v-model="form.target" inputmode="decimal" placeholder="0.00" />
+            <label for="target">{{ t('common.targetAmount') }}</label>
+            <input id="target" v-model="form.target" inputmode="decimal" :placeholder="t('transactionForm.placeholderAmount')" />
           </div>
 
           <div class="field">
-            <label for="targetDate">Target date</label>
+            <label for="targetDate">{{ t('common.targetDate') }}</label>
             <input id="targetDate" v-model="form.targetDate" type="date" />
           </div>
         </div>
 
-        <button class="button button--primary button--block" type="submit">Create goal</button>
+        <button class="button button--primary button--block" type="submit">{{ t('savings.create') }}</button>
       </form>
     </section>
   </PageContainer>

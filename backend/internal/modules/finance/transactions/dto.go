@@ -18,6 +18,8 @@ type CreateTransactionRequest struct {
 	Direction         *Direction   `json:"direction"`
 	Title             *string      `json:"title"`
 	Note              *string      `json:"note"`
+	IsMandatory       bool         `json:"is_mandatory"`
+	IsSubscription    bool         `json:"is_subscription"`
 	OccurredAt        time.Time    `json:"occurred_at"`
 }
 
@@ -31,6 +33,8 @@ type UpdateTransactionRequest struct {
 	Direction         *Direction    `json:"direction"`
 	Title             *string       `json:"title"`
 	Note              *string       `json:"note"`
+	IsMandatory       *bool         `json:"is_mandatory"`
+	IsSubscription    *bool         `json:"is_subscription"`
 	OccurredAt        *time.Time    `json:"occurred_at"`
 }
 
@@ -38,9 +42,12 @@ type ListFilters struct {
 	AccountID        *uuid.UUID
 	CategoryID       *uuid.UUID
 	Type             *Type
+	PostingState     *PostingState
+	Source           *Source
 	LinkedEntityType *string
 	LinkedEntityID   *uuid.UUID
 	DateFrom         *time.Time
 	DateTo           *time.Time
+	IncludeDeleted   bool
 	Pagination       common.Pagination
 }

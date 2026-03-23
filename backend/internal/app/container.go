@@ -18,6 +18,7 @@ import (
 	financecategories "moneyapp/backend/internal/modules/finance/categories"
 	financesummary "moneyapp/backend/internal/modules/finance/summary"
 	financetransactions "moneyapp/backend/internal/modules/finance/transactions"
+	financetransfers "moneyapp/backend/internal/modules/finance/transfers"
 	reviewmodule "moneyapp/backend/internal/modules/review"
 	savingsmodule "moneyapp/backend/internal/modules/savings"
 	platformauth "moneyapp/backend/internal/platform/auth"
@@ -48,6 +49,7 @@ type Container struct {
 	AccountService     *financeaccounts.Service
 	CategoryService    *financecategories.Service
 	TransactionService *financetransactions.Service
+	TransferService    *financetransfers.Service
 	SummaryService     *financesummary.Service
 	SavingsService     *savingsmodule.Service
 	ReviewService      *reviewmodule.Service
@@ -60,6 +62,7 @@ type Container struct {
 	AccountHandler     *financeaccounts.Handler
 	CategoryHandler    *financecategories.Handler
 	TransactionHandler *financetransactions.Handler
+	TransferHandler    *financetransfers.Handler
 	SavingsHandler     *savingsmodule.Handler
 	ReviewHandler      *reviewmodule.Handler
 	DashboardHandler   *dashboardmodule.Handler

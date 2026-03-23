@@ -97,6 +97,11 @@
           "kind": {
             "$ref": "#/components/schemas/AccountKind"
           },
+          "last_recalculated_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
           "name": {
             "type": "string"
           },
@@ -382,6 +387,12 @@
           "direction": {
             "$ref": "#/components/schemas/TransactionDirection"
           },
+          "is_mandatory": {
+            "type": "boolean"
+          },
+          "is_subscription": {
+            "type": "boolean"
+          },
           "note": {
             "nullable": true,
             "type": "string"
@@ -406,6 +417,45 @@
         "required": [
           "account_id",
           "type",
+          "amount",
+          "currency"
+        ],
+        "type": "object"
+      },
+      "CreateTransferRequest": {
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "currency": {
+            "maxLength": 3,
+            "minLength": 3,
+            "type": "string"
+          },
+          "from_account_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "note": {
+            "nullable": true,
+            "type": "string"
+          },
+          "occurred_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "title": {
+            "nullable": true,
+            "type": "string"
+          },
+          "to_account_id": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "from_account_id",
+          "to_account_id",
           "amount",
           "currency"
         ],
@@ -890,12 +940,27 @@
           "currency": {
             "type": "string"
           },
+          "delete_reason": {
+            "nullable": true,
+            "type": "string"
+          },
+          "deleted_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
           "direction": {
             "$ref": "#/components/schemas/TransactionDirection"
           },
           "id": {
             "format": "uuid",
             "type": "string"
+          },
+          "is_mandatory": {
+            "type": "boolean"
+          },
+          "is_subscription": {
+            "type": "boolean"
           },
           "note": {
             "nullable": true,
@@ -904,6 +969,17 @@
           "occurred_at": {
             "format": "date-time",
             "type": "string"
+          },
+          "posting_state": {
+            "$ref": "#/components/schemas/TransactionPostingState"
+          },
+          "restored_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/TransactionSource"
           },
           "title": {
             "nullable": true,
@@ -948,6 +1024,22 @@
         ],
         "type": "string"
       },
+      "TransactionPostingState": {
+        "enum": [
+          "draft",
+          "posted"
+        ],
+        "type": "string"
+      },
+      "TransactionSource": {
+        "enum": [
+          "manual",
+          "recurring",
+          "review",
+          "system"
+        ],
+        "type": "string"
+      },
       "TransactionType": {
         "enum": [
           "income",
@@ -975,6 +1067,9 @@
         "properties": {
           "is_archived": {
             "type": "boolean"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/AccountKind"
           },
           "name": {
             "type": "string"
@@ -1075,6 +1170,12 @@
           "direction": {
             "$ref": "#/components/schemas/TransactionDirection"
           },
+          "is_mandatory": {
+            "type": "boolean"
+          },
+          "is_subscription": {
+            "type": "boolean"
+          },
           "note": {
             "nullable": true,
             "type": "string"
@@ -1094,6 +1195,37 @@
           },
           "type": {
             "$ref": "#/components/schemas/TransactionType"
+          }
+        },
+        "type": "object"
+      },
+      "UpdateTransferRequest": {
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "from_account_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "note": {
+            "nullable": true,
+            "type": "string"
+          },
+          "occurred_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "title": {
+            "nullable": true,
+            "type": "string"
+          },
+          "to_account_id": {
+            "format": "uuid",
+            "type": "string"
           }
         },
         "type": "object"
@@ -1797,6 +1929,20 @@
           },
           {
             "in": "query",
+            "name": "posting_state",
+            "schema": {
+              "$ref": "#/components/schemas/TransactionPostingState"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "schema": {
+              "$ref": "#/components/schemas/TransactionSource"
+            }
+          },
+          {
+            "in": "query",
             "name": "linked_entity_type",
             "schema": {
               "type": "string"
@@ -1824,6 +1970,13 @@
             "schema": {
               "format": "date-time",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_deleted",
+            "schema": {
+              "type": "boolean"
             }
           },
           {
@@ -1919,6 +2072,13 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/EntityID"
+          },
+          {
+            "in": "query",
+            "name": "reason",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -1932,7 +2092,7 @@
             "$ref": "#/components/responses/NotFound"
           }
         },
-        "summary": "Delete transaction",
+        "summary": "Soft delete transaction",
         "tags": [
           "Transactions"
         ]
@@ -2008,6 +2168,188 @@
         "summary": "Update transaction",
         "tags": [
           "Transactions"
+        ]
+      }
+    },
+    "/api/v1/finance/transactions/{id}/restore": {
+      "post": {
+        "operationId": "restoreTransaction",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/EntityID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transaction"
+                }
+              }
+            },
+            "description": "Restored transaction"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        },
+        "summary": "Restore soft deleted transaction",
+        "tags": [
+          "Transactions"
+        ]
+      }
+    },
+    "/api/v1/finance/transfers": {
+      "post": {
+        "operationId": "createTransfer",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTransferRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transaction"
+                }
+              }
+            },
+            "description": "Created transfer"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        },
+        "summary": "Create account transfer",
+        "tags": [
+          "Transfers"
+        ]
+      }
+    },
+    "/api/v1/finance/transfers/{id}": {
+      "delete": {
+        "operationId": "deleteTransfer",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/EntityID"
+          },
+          {
+            "in": "query",
+            "name": "reason",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted transfer"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "summary": "Soft delete transfer",
+        "tags": [
+          "Transfers"
+        ]
+      },
+      "patch": {
+        "operationId": "updateTransfer",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/EntityID"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTransferRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transaction"
+                }
+              }
+            },
+            "description": "Updated transfer"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "summary": "Update transfer",
+        "tags": [
+          "Transfers"
+        ]
+      }
+    },
+    "/api/v1/finance/transfers/{id}/restore": {
+      "post": {
+        "operationId": "restoreTransfer",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/EntityID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transaction"
+                }
+              }
+            },
+            "description": "Restored transfer"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        },
+        "summary": "Restore soft deleted transfer",
+        "tags": [
+          "Transfers"
         ]
       }
     },
@@ -2541,6 +2883,9 @@
     },
     {
       "name": "Transactions"
+    },
+    {
+      "name": "Transfers"
     },
     {
       "name": "Savings"

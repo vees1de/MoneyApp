@@ -3,11 +3,13 @@ import { onMounted, reactive } from 'vue'
 
 import { useAppUiStore } from '@/app/stores/app-ui'
 import { useFinanceStore } from '@/app/stores/finance'
+import { translateCategoryKind, translateCategoryScope, useI18n } from '@/shared/i18n'
 import EmptyState from '@/shared/ui/EmptyState.vue'
 import PageContainer from '@/shared/ui/PageContainer.vue'
 
 const financeStore = useFinanceStore()
 const appUiStore = useAppUiStore()
+const { t } = useI18n()
 
 const form = reactive({
   color: '#007AFF',
@@ -17,17 +19,17 @@ const form = reactive({
 
 function submit() {
   if (!form.name.trim()) {
-    appUiStore.pushToast('Category name is required.', 'warning')
+    appUiStore.pushToast(t('categories.nameRequired'), 'warning')
     return
   }
 
   void (async () => {
     try {
       await financeStore.addCategory({ color: form.color, kind: form.kind, name: form.name })
-      appUiStore.pushToast('Category created.', 'success')
+      appUiStore.pushToast(t('categories.created'), 'success')
       form.name = ''
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Category creation failed.'
+      const message = error instanceof Error ? error.message : t('categories.createFailed')
       appUiStore.pushToast(message, 'warning')
     }
   })()
@@ -37,9 +39,9 @@ function remove(categoryId: string) {
   void (async () => {
     try {
       await financeStore.removeCategory(categoryId)
-      appUiStore.pushToast('Category deleted.', 'success')
+      appUiStore.pushToast(t('categories.deleted'), 'success')
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Category still has transactions.'
+      const message = error instanceof Error ? error.message : t('categories.deleteFailed')
       appUiStore.pushToast(message, 'warning')
     }
   })()
@@ -53,8 +55,8 @@ onMounted(async () => {
 <template>
   <PageContainer>
     <div class="page-header">
-      <h1>Categories</h1>
-      <p class="muted">Organize your transactions for cleaner insights and review.</p>
+      <h1>{{ t('categories.title') }}</h1>
+      <p class="muted">{{ t('categories.subtitle') }}</p>
     </div>
 
     <!-- Category list -->
@@ -66,7 +68,7 @@ onMounted(async () => {
           </div>
           <div class="cat-info">
             <span class="cat-name">{{ category.name }}</span>
-            <span class="cat-meta">{{ category.kind }} · {{ category.scope }}</span>
+            <span class="cat-meta">{{ translateCategoryKind(category.kind) }} · {{ translateCategoryScope(category.scope) }}</span>
           </div>
           <button
             v-if="category.scope === 'custom'"
@@ -74,7 +76,7 @@ onMounted(async () => {
             type="button"
             @click="remove(category.id)"
           >
-            Delete
+            {{ t('categories.delete') }}
           </button>
         </div>
       </div>
@@ -83,30 +85,30 @@ onMounted(async () => {
     <EmptyState
       v-else
       icon="🏷"
-      title="No categories yet"
-      description="Create custom categories to organize your transactions."
+      :title="t('categories.emptyTitle')"
+      :description="t('categories.emptyDescription')"
     />
 
     <!-- New category form -->
     <section class="section-card">
-      <h2 style="margin:0 0 16px;font-size:1.0625rem;font-weight:600;letter-spacing:-0.01em">New category</h2>
+      <h2 style="margin:0 0 16px;font-size:1.0625rem;font-weight:600;letter-spacing:-0.01em">{{ t('categories.newTitle') }}</h2>
       <form class="stack" style="gap:14px" @submit.prevent="submit">
         <div class="field">
-          <label for="categoryName">Name</label>
-          <input id="categoryName" v-model="form.name" placeholder="Subscriptions" />
+          <label for="categoryName">{{ t('common.name') }}</label>
+          <input id="categoryName" v-model="form.name" :placeholder="t('categories.namePlaceholder')" />
         </div>
 
         <div class="grid grid--two">
           <div class="field">
-            <label for="categoryKind">Type</label>
+            <label for="categoryKind">{{ t('common.type') }}</label>
             <select id="categoryKind" v-model="form.kind">
-              <option value="expense">Expense</option>
-              <option value="income">Income</option>
+              <option value="expense">{{ t('categoryKind.expense') }}</option>
+              <option value="income">{{ t('categoryKind.income') }}</option>
             </select>
           </div>
 
           <div class="field">
-            <label for="categoryColor">Color</label>
+            <label for="categoryColor">{{ t('common.color') }}</label>
             <div class="color-field">
               <input id="categoryColor" v-model="form.color" type="color" class="color-input" />
               <span class="color-preview" :style="{ background: form.color }" />
@@ -115,15 +117,15 @@ onMounted(async () => {
           </div>
         </div>
 
-        <button class="button button--primary button--block" type="submit">Create category</button>
+        <button class="button button--primary button--block" type="submit">{{ t('categories.create') }}</button>
       </form>
     </section>
 
     <section class="section-card">
-      <p class="muted" style="margin:0 0 12px;font-size:0.875rem">Used in</p>
+      <p class="muted" style="margin:0 0 12px;font-size:0.875rem">{{ t('common.usedIn') }}</p>
       <div class="cta-list">
-        <RouterLink class="button button--secondary" to="/transactions">Transactions</RouterLink>
-        <RouterLink class="button button--secondary" to="/review">Weekly review</RouterLink>
+        <RouterLink class="button button--secondary" to="/transactions">{{ t('route.transactions') }}</RouterLink>
+        <RouterLink class="button button--secondary" to="/review">{{ t('route.review') }}</RouterLink>
       </div>
     </section>
   </PageContainer>

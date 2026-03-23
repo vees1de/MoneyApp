@@ -124,11 +124,34 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, httpx.BadRequest("invalid_transaction_id", "invalid transaction id"))
 		return
 	}
-	if err := h.service.Delete(r.Context(), principal.UserID, transactionID); err != nil {
+	var reason *string
+	if raw := r.URL.Query().Get("reason"); raw != "" {
+		reason = &raw
+	}
+	if err := h.service.Delete(r.Context(), principal.UserID, transactionID, reason); err != nil {
 		httpx.WriteError(w, err)
 		return
 	}
 	httpx.WriteNoContent(w)
+}
+
+func (h *Handler) Restore(w http.ResponseWriter, r *http.Request) {
+	principal, ok := platformauth.PrincipalFromContext(r.Context())
+	if !ok {
+		httpx.WriteError(w, httpx.Unauthorized("unauthorized", "authorization required"))
+		return
+	}
+	transactionID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		httpx.WriteError(w, httpx.BadRequest("invalid_transaction_id", "invalid transaction id"))
+		return
+	}
+	transaction, err := h.service.Restore(r.Context(), principal.UserID, transactionID)
+	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, transaction)
 }
 
 func filtersFromRequest(r *http.Request) (ListFilters, error) {
@@ -155,6 +178,14 @@ func filtersFromRequest(r *http.Request) (ListFilters, error) {
 		txType := Type(raw)
 		filters.Type = &txType
 	}
+	if raw := query.Get("posting_state"); raw != "" {
+		postingState := PostingState(raw)
+		filters.PostingState = &postingState
+	}
+	if raw := query.Get("source"); raw != "" {
+		source := Source(raw)
+		filters.Source = &source
+	}
 	if raw := query.Get("linked_entity_type"); raw != "" {
 		filters.LinkedEntityType = &raw
 	}
@@ -178,6 +209,9 @@ func filtersFromRequest(r *http.Request) (ListFilters, error) {
 			return ListFilters{}, httpx.BadRequest("invalid_date_to", "date_to must be RFC3339")
 		}
 		filters.DateTo = &value
+	}
+	if raw := query.Get("include_deleted"); raw == "true" || raw == "1" {
+		filters.IncludeDeleted = true
 	}
 
 	return filters, nil

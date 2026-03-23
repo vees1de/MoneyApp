@@ -3,6 +3,7 @@ package accounts
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	"moneyapp/backend/internal/core/common"
 	"moneyapp/backend/internal/platform/db"
@@ -29,9 +30,10 @@ func (r *Repository) base(exec ...db.DBTX) db.DBTX {
 func (r *Repository) Create(ctx context.Context, account Account, exec ...db.DBTX) error {
 	query := `
 		insert into accounts (
-			id, user_id, name, kind, currency, opening_balance, current_balance, is_archived, created_at, updated_at
+			id, user_id, name, kind, currency, opening_balance, current_balance,
+			is_archived, last_recalculated_at, created_at, updated_at
 		)
-		values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	`
 	_, err := r.base(exec...).ExecContext(ctx, query,
 		account.ID,
@@ -42,6 +44,7 @@ func (r *Repository) Create(ctx context.Context, account Account, exec ...db.DBT
 		account.OpeningBalance,
 		account.CurrentBalance,
 		account.IsArchived,
+		account.LastRecalculatedAt,
 		account.CreatedAt,
 		account.UpdatedAt,
 	)
@@ -50,7 +53,8 @@ func (r *Repository) Create(ctx context.Context, account Account, exec ...db.DBT
 
 func (r *Repository) GetByID(ctx context.Context, userID, accountID uuid.UUID, exec ...db.DBTX) (Account, error) {
 	query := `
-		select id, user_id, name, kind, currency, opening_balance, current_balance, is_archived, created_at, updated_at
+		select id, user_id, name, kind, currency, opening_balance, current_balance,
+		       is_archived, last_recalculated_at, created_at, updated_at
 		from accounts
 		where id = $1 and user_id = $2
 	`
@@ -59,7 +63,8 @@ func (r *Repository) GetByID(ctx context.Context, userID, accountID uuid.UUID, e
 
 func (r *Repository) ListByUser(ctx context.Context, userID uuid.UUID, exec ...db.DBTX) ([]Account, error) {
 	query := `
-		select id, user_id, name, kind, currency, opening_balance, current_balance, is_archived, created_at, updated_at
+		select id, user_id, name, kind, currency, opening_balance, current_balance,
+		       is_archived, last_recalculated_at, created_at, updated_at
 		from accounts
 		where user_id = $1
 		order by created_at asc
@@ -84,7 +89,8 @@ func (r *Repository) ListByUser(ctx context.Context, userID uuid.UUID, exec ...d
 
 func (r *Repository) ListActiveByUser(ctx context.Context, userID uuid.UUID, exec ...db.DBTX) ([]Account, error) {
 	query := `
-		select id, user_id, name, kind, currency, opening_balance, current_balance, is_archived, created_at, updated_at
+		select id, user_id, name, kind, currency, opening_balance, current_balance,
+		       is_archived, last_recalculated_at, created_at, updated_at
 		from accounts
 		where user_id = $1 and is_archived = false
 		order by created_at asc
@@ -111,11 +117,12 @@ func (r *Repository) Update(ctx context.Context, account Account, exec ...db.DBT
 	query := `
 		update accounts
 		set name = $3,
-		    is_archived = $4,
-		    updated_at = $5
+		    kind = $4,
+		    is_archived = $5,
+		    updated_at = $6
 		where id = $1 and user_id = $2
 	`
-	_, err := r.base(exec...).ExecContext(ctx, query, account.ID, account.UserID, account.Name, account.IsArchived, account.UpdatedAt)
+	_, err := r.base(exec...).ExecContext(ctx, query, account.ID, account.UserID, account.Name, account.Kind, account.IsArchived, account.UpdatedAt)
 	return err
 }
 
@@ -127,6 +134,18 @@ func (r *Repository) AdjustBalance(ctx context.Context, userID, accountID uuid.U
 		where id = $1 and user_id = $2
 	`
 	_, err := r.base(exec...).ExecContext(ctx, query, accountID, userID, delta)
+	return err
+}
+
+func (r *Repository) SetCurrentBalance(ctx context.Context, userID, accountID uuid.UUID, balance common.Money, recalculatedAt time.Time, exec ...db.DBTX) error {
+	query := `
+		update accounts
+		set current_balance = $3,
+		    last_recalculated_at = $4,
+		    updated_at = $4
+		where id = $1 and user_id = $2
+	`
+	_, err := r.base(exec...).ExecContext(ctx, query, accountID, userID, balance, recalculatedAt)
 	return err
 }
 
@@ -164,6 +183,7 @@ func (r *Repository) scanOne(ctx context.Context, query string, arg1, arg2 any, 
 		&account.OpeningBalance,
 		&account.CurrentBalance,
 		&account.IsArchived,
+		&account.LastRecalculatedAt,
 		&account.CreatedAt,
 		&account.UpdatedAt,
 	)
@@ -185,6 +205,7 @@ func scanAccount(scanner rowScanner) (Account, error) {
 		&account.OpeningBalance,
 		&account.CurrentBalance,
 		&account.IsArchived,
+		&account.LastRecalculatedAt,
 		&account.CreatedAt,
 		&account.UpdatedAt,
 	)

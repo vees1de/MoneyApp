@@ -4,12 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 	"time"
 
 	"moneyapp/backend/internal/core/audit"
-	"moneyapp/backend/internal/core/common"
 	"moneyapp/backend/internal/modules/finance/accounts"
 	"moneyapp/backend/internal/modules/finance/categories"
+	"moneyapp/backend/internal/modules/finance/ledger"
 	"moneyapp/backend/internal/platform/clock"
 	platformdb "moneyapp/backend/internal/platform/db"
 	"moneyapp/backend/internal/platform/httpx"
@@ -52,6 +53,17 @@ func (s *Service) Get(ctx context.Context, userID, transactionID uuid.UUID) (Tra
 	return item, nil
 }
 
+func (s *Service) GetIncludingDeleted(ctx context.Context, userID, transactionID uuid.UUID) (Transaction, error) {
+	item, err := s.repo.GetByIDIncludingDeleted(ctx, userID, transactionID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Transaction{}, httpx.NotFound("transaction_not_found", "transaction not found")
+		}
+		return Transaction{}, err
+	}
+	return item, nil
+}
+
 func (s *Service) Create(ctx context.Context, userID uuid.UUID, request CreateTransactionRequest) (Transaction, error) {
 	now := s.clock.Now()
 	transaction := Transaction{
@@ -62,10 +74,15 @@ func (s *Service) Create(ctx context.Context, userID uuid.UUID, request CreateTr
 		Type:              request.Type,
 		CategoryID:        request.CategoryID,
 		Amount:            request.Amount,
-		Currency:          request.Currency,
+		Currency:          strings.ToUpper(request.Currency),
 		Direction:         directionForCreate(request),
+		PostingState:      PostingStatePosted,
+		Source:            SourceManual,
 		Title:             request.Title,
+		TitleNormalized:   normalizeTitle(request.Title),
 		Note:              request.Note,
+		IsMandatory:       request.IsMandatory,
+		IsSubscription:    request.IsSubscription,
 		OccurredAt:        normalizeOccurredAt(request.OccurredAt, now),
 		CreatedAt:         now,
 		UpdatedAt:         now,
@@ -78,15 +95,25 @@ func (s *Service) Create(ctx context.Context, userID uuid.UUID, request CreateTr
 		if err := s.repo.Create(ctx, transaction, tx); err != nil {
 			return err
 		}
-		return s.applyBalanceEffects(ctx, transaction, tx)
+		return s.recalculateAffectedAccounts(ctx, userID, tx, transaction)
 	})
 	if err != nil {
 		return Transaction{}, err
 	}
 
-	if err := s.audit.Record(ctx, userID, "transactions.create", "transaction", &transaction.ID, map[string]any{
-		"type":   transaction.Type,
-		"amount": transaction.Amount.StringFixedBank(2),
+	if err := s.audit.RecordChange(ctx, audit.RecordInput{
+		UserID:     userID,
+		Action:     "transactions.create",
+		EntityType: "transaction",
+		EntityID:   &transaction.ID,
+		Meta: map[string]any{
+			"type":   transaction.Type,
+			"amount": transaction.Amount.StringFixedBank(2),
+			"source": transaction.Source,
+		},
+		ChangeSet: map[string]any{
+			"after": transactionSnapshot(transaction),
+		},
 	}); err != nil {
 		return Transaction{}, err
 	}
@@ -120,7 +147,7 @@ func (s *Service) Update(ctx context.Context, userID, transactionID uuid.UUID, r
 		updated.Amount = *request.Amount
 	}
 	if request.Currency != nil {
-		updated.Currency = *request.Currency
+		updated.Currency = strings.ToUpper(*request.Currency)
 	}
 	if request.Direction != nil {
 		updated.Direction = *request.Direction
@@ -129,9 +156,16 @@ func (s *Service) Update(ctx context.Context, userID, transactionID uuid.UUID, r
 	}
 	if request.Title != nil {
 		updated.Title = request.Title
+		updated.TitleNormalized = normalizeTitle(request.Title)
 	}
 	if request.Note != nil {
 		updated.Note = request.Note
+	}
+	if request.IsMandatory != nil {
+		updated.IsMandatory = *request.IsMandatory
+	}
+	if request.IsSubscription != nil {
+		updated.IsSubscription = *request.IsSubscription
 	}
 	if request.OccurredAt != nil {
 		updated.OccurredAt = *request.OccurredAt
@@ -143,21 +177,31 @@ func (s *Service) Update(ctx context.Context, userID, transactionID uuid.UUID, r
 	}
 
 	err = platformdb.WithTx(ctx, s.db, func(tx *sql.Tx) error {
-		if err := s.revertBalanceEffects(ctx, current, tx); err != nil {
-			return err
-		}
 		if err := s.repo.Update(ctx, updated, tx); err != nil {
 			return err
 		}
-		return s.applyBalanceEffects(ctx, updated, tx)
+		return s.recalculateAffectedAccounts(ctx, userID, tx, current, updated)
 	})
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Transaction{}, httpx.NotFound("transaction_not_found", "transaction not found")
+		}
 		return Transaction{}, err
 	}
 
-	if err := s.audit.Record(ctx, userID, "transactions.update", "transaction", &updated.ID, map[string]any{
-		"type":   updated.Type,
-		"amount": updated.Amount.StringFixedBank(2),
+	if err := s.audit.RecordChange(ctx, audit.RecordInput{
+		UserID:     userID,
+		Action:     "transactions.update",
+		EntityType: "transaction",
+		EntityID:   &updated.ID,
+		Meta: map[string]any{
+			"type":   updated.Type,
+			"amount": updated.Amount.StringFixedBank(2),
+		},
+		ChangeSet: map[string]any{
+			"before": transactionSnapshot(current),
+			"after":  transactionSnapshot(updated),
+		},
 	}); err != nil {
 		return Transaction{}, err
 	}
@@ -165,25 +209,98 @@ func (s *Service) Update(ctx context.Context, userID, transactionID uuid.UUID, r
 	return updated, nil
 }
 
-func (s *Service) Delete(ctx context.Context, userID, transactionID uuid.UUID) error {
+func (s *Service) Delete(ctx context.Context, userID, transactionID uuid.UUID, reason *string) error {
 	current, err := s.Get(ctx, userID, transactionID)
 	if err != nil {
 		return err
 	}
 
+	now := s.clock.Now()
+	deletedBy := userID
 	err = platformdb.WithTx(ctx, s.db, func(tx *sql.Tx) error {
-		if err := s.revertBalanceEffects(ctx, current, tx); err != nil {
+		if err := s.repo.SoftDelete(ctx, userID, transactionID, now, &deletedBy, reason, tx); err != nil {
 			return err
 		}
-		return s.repo.Delete(ctx, userID, transactionID, tx)
+		return s.recalculateAffectedAccounts(ctx, userID, tx, current)
 	})
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return httpx.NotFound("transaction_not_found", "transaction not found")
+		}
 		return err
 	}
 
-	return s.audit.Record(ctx, userID, "transactions.delete", "transaction", &transactionID, map[string]any{
-		"type": current.Type,
+	after := transactionSnapshot(current)
+	after["deleted_at"] = now
+	if reason != nil {
+		after["delete_reason"] = *reason
+	}
+	return s.audit.RecordChange(ctx, audit.RecordInput{
+		UserID:     userID,
+		Action:     "transactions.delete",
+		EntityType: "transaction",
+		EntityID:   &transactionID,
+		Meta: map[string]any{
+			"type": current.Type,
+		},
+		ChangeSet: map[string]any{
+			"before": transactionSnapshot(current),
+			"after":  after,
+		},
 	})
+}
+
+func (s *Service) Restore(ctx context.Context, userID, transactionID uuid.UUID) (Transaction, error) {
+	current, err := s.repo.GetByIDIncludingDeleted(ctx, userID, transactionID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Transaction{}, httpx.NotFound("transaction_not_found", "transaction not found")
+		}
+		return Transaction{}, err
+	}
+	if current.DeletedAt == nil {
+		return Transaction{}, httpx.Conflict("transaction_not_deleted", "transaction is not deleted")
+	}
+	if err := s.validateTransaction(ctx, userID, current); err != nil {
+		return Transaction{}, err
+	}
+
+	now := s.clock.Now()
+	err = platformdb.WithTx(ctx, s.db, func(tx *sql.Tx) error {
+		if err := s.repo.Restore(ctx, userID, transactionID, now, tx); err != nil {
+			return err
+		}
+		return s.recalculateAffectedAccounts(ctx, userID, tx, current)
+	})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Transaction{}, httpx.NotFound("transaction_not_found", "transaction not found")
+		}
+		return Transaction{}, err
+	}
+
+	restored, err := s.repo.GetByID(ctx, userID, transactionID)
+	if err != nil {
+		return Transaction{}, err
+	}
+
+	if err := s.audit.RecordChange(ctx, audit.RecordInput{
+		UserID:     userID,
+		Action:     "transactions.restore",
+		EntityType: "transaction",
+		EntityID:   &transactionID,
+		Meta: map[string]any{
+			"type": restored.Type,
+		},
+		ChangeSet: map[string]any{
+			"before": transactionSnapshot(current),
+			"after":  transactionSnapshot(restored),
+		},
+	}); err != nil {
+		return Transaction{}, err
+	}
+
+	return restored, nil
 }
 
 func (s *Service) validateTransaction(ctx context.Context, userID uuid.UUID, item Transaction) error {
@@ -193,6 +310,9 @@ func (s *Service) validateTransaction(ctx context.Context, userID uuid.UUID, ite
 	}
 	if account.IsArchived {
 		return httpx.BadRequest("account_archived", "account is archived")
+	}
+	if !strings.EqualFold(account.Currency, item.Currency) {
+		return httpx.BadRequest("currency_mismatch", "transaction currency must match account currency")
 	}
 
 	if item.TransferAccountID != nil {
@@ -206,9 +326,16 @@ func (s *Service) validateTransaction(ctx context.Context, userID uuid.UUID, ite
 		if err != nil {
 			return httpx.BadRequest("transfer_account_not_found", "transfer account not found")
 		}
-		if destination.Currency != account.Currency {
+		if destination.IsArchived {
+			return httpx.BadRequest("transfer_account_archived", "transfer account is archived")
+		}
+		if !strings.EqualFold(destination.Currency, account.Currency) {
 			return httpx.BadRequest("currency_mismatch", "transfer accounts must use the same currency")
 		}
+	}
+
+	if item.Type == TypeTransfer && item.CategoryID != nil {
+		return httpx.BadRequest("transfer_category_not_allowed", "transfer cannot have a category")
 	}
 
 	if item.CategoryID != nil {
@@ -242,58 +369,60 @@ func (s *Service) validateTransaction(ctx context.Context, userID uuid.UUID, ite
 	return nil
 }
 
-func (s *Service) applyBalanceEffects(ctx context.Context, item Transaction, tx *sql.Tx) error {
-	for _, effect := range balanceEffects(item) {
-		if effect.Delta.IsZero() {
-			continue
+func (s *Service) recalculateAffectedAccounts(ctx context.Context, userID uuid.UUID, tx *sql.Tx, items ...Transaction) error {
+	entries := make([]ledger.Entry, 0, len(items))
+	for _, item := range items {
+		entries = append(entries, ledger.Entry{
+			AccountID:         item.AccountID,
+			TransferAccountID: item.TransferAccountID,
+		})
+	}
+
+	recalculatedAt := s.clock.Now()
+	for _, accountID := range ledger.AffectedAccountIDs(entries...) {
+		balance, err := s.repo.ComputedAccountBalance(ctx, userID, accountID, tx)
+		if err != nil {
+			return err
 		}
-		if err := s.accountsRepo.AdjustBalance(ctx, item.UserID, effect.AccountID, effect.Delta, tx); err != nil {
+		if err := s.accountsRepo.SetCurrentBalance(ctx, userID, accountID, balance, recalculatedAt, tx); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (s *Service) revertBalanceEffects(ctx context.Context, item Transaction, tx *sql.Tx) error {
-	for _, effect := range balanceEffects(item) {
-		if effect.Delta.IsZero() {
-			continue
-		}
-		if err := s.accountsRepo.AdjustBalance(ctx, item.UserID, effect.AccountID, effect.Delta.Neg(), tx); err != nil {
-			return err
-		}
+func transactionSnapshot(item Transaction) map[string]any {
+	snapshot := map[string]any{
+		"account_id":      item.AccountID,
+		"type":            item.Type,
+		"amount":          item.Amount.StringFixedBank(2),
+		"currency":        item.Currency,
+		"direction":       item.Direction,
+		"posting_state":   item.PostingState,
+		"source":          item.Source,
+		"is_mandatory":    item.IsMandatory,
+		"is_subscription": item.IsSubscription,
+		"occurred_at":     item.OccurredAt,
 	}
-	return nil
-}
-
-type balanceEffect struct {
-	AccountID uuid.UUID
-	Delta     common.Money
-}
-
-func balanceEffects(item Transaction) []balanceEffect {
-	switch item.Type {
-	case TypeIncome:
-		return []balanceEffect{{AccountID: item.AccountID, Delta: item.Amount}}
-	case TypeExpense:
-		return []balanceEffect{{AccountID: item.AccountID, Delta: item.Amount.Neg()}}
-	case TypeCorrection:
-		delta := item.Amount
-		if item.Direction == DirectionOutflow {
-			delta = item.Amount.Neg()
-		}
-		return []balanceEffect{{AccountID: item.AccountID, Delta: delta}}
-	case TypeTransfer:
-		if item.TransferAccountID == nil {
-			return nil
-		}
-		return []balanceEffect{
-			{AccountID: item.AccountID, Delta: item.Amount.Neg()},
-			{AccountID: *item.TransferAccountID, Delta: item.Amount},
-		}
-	default:
-		return nil
+	if item.TransferAccountID != nil {
+		snapshot["transfer_account_id"] = *item.TransferAccountID
 	}
+	if item.CategoryID != nil {
+		snapshot["category_id"] = *item.CategoryID
+	}
+	if item.Title != nil {
+		snapshot["title"] = *item.Title
+	}
+	if item.Note != nil {
+		snapshot["note"] = *item.Note
+	}
+	if item.DeletedAt != nil {
+		snapshot["deleted_at"] = *item.DeletedAt
+	}
+	if item.DeleteReason != nil {
+		snapshot["delete_reason"] = *item.DeleteReason
+	}
+	return snapshot
 }
 
 func normalizeOccurredAt(value, fallback time.Time) time.Time {
@@ -301,6 +430,17 @@ func normalizeOccurredAt(value, fallback time.Time) time.Time {
 		return fallback
 	}
 	return value
+}
+
+func normalizeTitle(value *string) *string {
+	if value == nil {
+		return nil
+	}
+	normalized := strings.TrimSpace(strings.ToLower(*value))
+	if normalized == "" {
+		return nil
+	}
+	return &normalized
 }
 
 func directionForCreate(request CreateTransactionRequest) Direction {

@@ -19,14 +19,15 @@ const (
 )
 
 type Account struct {
-	ID             uuid.UUID    `json:"id"`
-	UserID         uuid.UUID    `json:"user_id"`
-	Name           string       `json:"name"`
-	Kind           Kind         `json:"kind"`
-	Currency       string       `json:"currency"`
-	OpeningBalance common.Money `json:"opening_balance"`
-	CurrentBalance common.Money `json:"current_balance"`
-	IsArchived     bool         `json:"is_archived"`
-	CreatedAt      time.Time    `json:"created_at"`
-	UpdatedAt      time.Time    `json:"updated_at"`
+	ID                 uuid.UUID    `json:"id"`
+	UserID             uuid.UUID    `json:"user_id"`
+	Name               string       `json:"name"`
+	Kind               Kind         `json:"kind"`
+	Currency           string       `json:"currency"`
+	OpeningBalance     common.Money `json:"opening_balance"`
+	CurrentBalance     common.Money `json:"current_balance"`
+	IsArchived         bool         `json:"is_archived"`
+	LastRecalculatedAt *time.Time   `json:"last_recalculated_at,omitempty"`
+	CreatedAt          time.Time    `json:"created_at"`
+	UpdatedAt          time.Time    `json:"updated_at"`
 }

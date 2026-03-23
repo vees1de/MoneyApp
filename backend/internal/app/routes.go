@@ -62,6 +62,14 @@ func NewRouter(container *Container) http.Handler {
 				r.Get("/{id}", container.TransactionHandler.Get)
 				r.Patch("/{id}", container.TransactionHandler.Update)
 				r.Delete("/{id}", container.TransactionHandler.Delete)
+				r.Post("/{id}/restore", container.TransactionHandler.Restore)
+			})
+
+			r.Route("/finance/transfers", func(r chi.Router) {
+				r.Post("/", container.TransferHandler.Create)
+				r.Patch("/{id}", container.TransferHandler.Update)
+				r.Delete("/{id}", container.TransferHandler.Delete)
+				r.Post("/{id}/restore", container.TransferHandler.Restore)
 			})
 
 			r.Route("/savings", func(r chi.Router) {

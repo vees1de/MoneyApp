@@ -6,6 +6,7 @@ export interface Account {
   type: AccountType
   balanceMinor: number
   currency: string
+  isArchived: boolean
   isPrimary: boolean
   updatedAt: string
 }

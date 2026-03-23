@@ -10,6 +10,7 @@
 .env
 .env.local
 .env.*.local
+deploy/.env.prod
 
 # Logs
 *.log

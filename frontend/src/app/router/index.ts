@@ -85,6 +85,24 @@ export function createAppRouter(pinia: Pinia) {
             },
           },
           {
+            path: 'transactions/transfer',
+            name: 'transaction-transfer',
+            component: () => import('@/pages/transactions/TransferPage.vue'),
+            meta: {
+              requiresAuth: true,
+              titleKey: 'route.transfer',
+            },
+          },
+          {
+            path: 'transactions/:id',
+            name: 'transaction-edit',
+            component: () => import('@/pages/transactions/TransactionEditorPage.vue'),
+            meta: {
+              requiresAuth: true,
+              titleKey: 'route.transactionEdit',
+            },
+          },
+          {
             path: 'categories',
             name: 'categories',
             component: () => import('@/pages/categories/CategoriesPage.vue'),

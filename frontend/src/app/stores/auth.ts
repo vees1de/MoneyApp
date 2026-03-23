@@ -9,7 +9,7 @@ import { useSavingsStore } from '@/app/stores/savings'
 import { useUserStore } from '@/app/stores/user'
 import { mapApiUser } from '@/shared/api/mappers'
 import { clearSession, readSession, writeSession } from '@/shared/api/session'
-import { fetchMe, loginWithTelegram, loginWithYandex, logout as apiLogout } from '@/shared/api/services/auth'
+import { fetchMe, loginWithEmail, loginWithTelegram, loginWithYandex, logout as apiLogout } from '@/shared/api/services/auth'
 
 type AuthStatus = 'unknown' | 'guest' | 'authenticated'
 
@@ -73,7 +73,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function login(nextProvider: AuthProvider) {
+  async function login(nextProvider: Exclude<AuthProvider, 'email'>) {
     const response =
       nextProvider === 'telegram'
         ? await loginWithTelegram(`tg_${Date.now()}`)
@@ -91,6 +91,23 @@ export const useAuthStore = defineStore('auth', () => {
     useUserStore().setProfile({
       ...mapApiUser(response.user),
       provider: nextProvider,
+    })
+  }
+
+  async function loginWithEmailCredentials(email: string, password: string) {
+    const response = await loginWithEmail(email, password)
+    const nextExpiresAt = new Date(Date.now() + response.tokens.expires_in * 1000).toISOString()
+
+    setSession({
+      accessToken: response.tokens.access_token,
+      expiresAt: nextExpiresAt,
+      provider: 'email',
+      refreshToken: response.tokens.refresh_token,
+    })
+
+    useUserStore().setProfile({
+      ...mapApiUser(response.user),
+      provider: 'email',
     })
   }
 
@@ -125,6 +142,7 @@ export const useAuthStore = defineStore('auth', () => {
     expiresAt,
     isAuthenticated,
     login,
+    loginWithEmailCredentials,
     logout,
     provider,
     status,

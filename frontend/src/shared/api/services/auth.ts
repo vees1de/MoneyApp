@@ -29,6 +29,17 @@ export function loginWithYandex(providerUserId: string) {
   })
 }
 
+export function loginWithEmail(email: string, _password: string) {
+  return apiRequest<ApiAuthResponse>('/auth/email', {
+    method: 'POST',
+    auth: false,
+    body: JSON.stringify({
+      email,
+      display_name: email.split('@')[0],
+    }),
+  })
+}
+
 export function fetchMe() {
   return apiRequest<ApiMeResponse>('/auth/me')
 }

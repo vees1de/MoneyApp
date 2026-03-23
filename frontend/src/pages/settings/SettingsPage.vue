@@ -5,12 +5,15 @@ import { useRouter } from 'vue-router'
 import { useAppUiStore } from '@/app/stores/app-ui'
 import { useAuthStore } from '@/app/stores/auth'
 import { useUserStore } from '@/app/stores/user'
+import { translateProvider, useI18n } from '@/shared/i18n'
 import PageContainer from '@/shared/ui/PageContainer.vue'
+import LanguageSwitch from '@/shared/ui/LanguageSwitch.vue'
 
 const router = useRouter()
 const appUiStore = useAppUiStore()
 const authStore = useAuthStore()
 const userStore = useUserStore()
+const { t } = useI18n()
 
 async function signOut() {
   await authStore.logout()
@@ -28,8 +31,8 @@ onMounted(async () => {
 <template>
   <PageContainer>
     <div class="page-header">
-      <h1>Settings</h1>
-      <p class="muted">Profile and session management.</p>
+      <h1>{{ t('settings.title') }}</h1>
+      <p class="muted">{{ t('settings.subtitle') }}</p>
     </div>
 
     <!-- Profile card -->
@@ -38,8 +41,8 @@ onMounted(async () => {
         {{ userStore.profile.fullName?.charAt(0) ?? '?' }}
       </div>
       <div class="settings-profile-info">
-        <span class="settings-profile-name">{{ userStore.profile.fullName || 'Anonymous' }}</span>
-        <span class="settings-profile-sub">{{ userStore.profile.provider ?? 'No provider' }}</span>
+        <span class="settings-profile-name">{{ userStore.profile.fullName || t('common.anonymous') }}</span>
+        <span class="settings-profile-sub">{{ translateProvider(userStore.profile.provider) }}</span>
       </div>
     </section>
 
@@ -47,17 +50,27 @@ onMounted(async () => {
     <section class="section-card">
       <div class="settings-list">
         <div class="settings-row">
-          <span class="settings-row__label">Currency</span>
+          <span class="settings-row__label">{{ t('common.currency') }}</span>
           <span class="settings-row__value">{{ userStore.profile.currency || '—' }}</span>
         </div>
         <div class="settings-row">
-          <span class="settings-row__label">Timezone</span>
+          <span class="settings-row__label">{{ t('common.timezone') }}</span>
           <span class="settings-row__value">{{ userStore.profile.timezone || '—' }}</span>
         </div>
         <div class="settings-row">
-          <span class="settings-row__label">Provider</span>
-          <span class="settings-row__value">{{ userStore.profile.provider || 'Not linked' }}</span>
+          <span class="settings-row__label">{{ t('common.provider') }}</span>
+          <span class="settings-row__value">{{ userStore.profile.provider ? translateProvider(userStore.profile.provider) : t('common.notLinked') }}</span>
         </div>
+      </div>
+    </section>
+
+    <section class="section-card">
+      <div class="settings-language">
+        <div>
+          <h2 class="settings-section-title">{{ t('settings.languageTitle') }}</h2>
+          <p class="muted settings-language__body">{{ t('settings.languageBody') }}</p>
+        </div>
+        <LanguageSwitch />
       </div>
     </section>
 
@@ -65,19 +78,19 @@ onMounted(async () => {
     <section class="section-card">
       <div class="stack" style="gap:10px">
         <RouterLink class="button button--secondary button--block" to="/categories">
-          Manage categories
+          {{ t('settings.manageCategories') }}
         </RouterLink>
         <button class="button button--secondary button--block" type="button" @click="userStore.fetchProfile()">
-          Refresh profile
+          {{ t('settings.refreshProfile') }}
         </button>
         <button class="button button--danger button--block" type="button" @click="signOut">
-          Sign out
+          {{ t('settings.signOut') }}
         </button>
       </div>
     </section>
 
     <!-- App info -->
-    <p class="settings-version">Finance Core · Personal Life OS · MVP</p>
+    <p class="settings-version">{{ t('settings.version') }}</p>
   </PageContainer>
 </template>
 
@@ -124,6 +137,27 @@ onMounted(async () => {
   font-size: 0.875rem;
   color: var(--text-muted);
   text-transform: capitalize;
+}
+
+.settings-language {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+}
+
+.settings-language__body {
+  margin: 6px 0 0;
+  max-width: 420px;
+  font-size: 0.875rem;
+}
+
+.settings-section-title {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
 }
 
 .settings-row__label {

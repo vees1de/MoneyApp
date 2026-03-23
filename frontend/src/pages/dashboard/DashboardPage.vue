@@ -12,6 +12,7 @@ import TopCategoriesCard from '@/widgets/dashboard/TopCategoriesCard.vue'
 import AccountsSnapshotCard from '@/widgets/finance/AccountsSnapshotCard.vue'
 import TransactionFeedCard from '@/widgets/finance/TransactionFeedCard.vue'
 import SavingsGoalsCard from '@/widgets/savings/SavingsGoalsCard.vue'
+import { useI18n } from '@/shared/i18n'
 import { formatMoney } from '@/shared/lib/money'
 import PageContainer from '@/shared/ui/PageContainer.vue'
 
@@ -19,6 +20,7 @@ const dashboardStore = useDashboardStore()
 const financeStore = useFinanceStore()
 const savingsStore = useSavingsStore()
 const reviewStore = useReviewStore()
+const { t } = useI18n()
 
 const reviewTone = computed(() =>
   reviewStore.review.status === 'matched' || reviewStore.review.status === 'resolved'
@@ -28,15 +30,15 @@ const reviewTone = computed(() =>
 
 const reviewBody = computed(() => {
   if (reviewStore.review.status === 'matched' || reviewStore.review.status === 'resolved') {
-    return 'Last week closed cleanly. Keep the cadence and stay ahead.'
+    return t('dashboard.reviewHealthy')
   }
-  return 'A weekly review is waiting. Resolve the delta before uncertainty compounds.'
+  return t('dashboard.reviewPending')
 })
 
 const reviewActionLabel = computed(() =>
   reviewStore.review.status === 'matched' || reviewStore.review.status === 'resolved'
-    ? 'Open review log'
-    : 'Resolve weekly review',
+    ? t('dashboard.openReviewLog')
+    : t('dashboard.resolveReview'),
 )
 
 onMounted(async () => {
@@ -69,19 +71,19 @@ onMounted(async () => {
     <div class="quick-actions">
       <RouterLink class="qa-btn qa-btn--expense" to="/transactions/new?kind=expense">
         <span class="qa-btn__icon">−</span>
-        <span class="qa-btn__label">Expense</span>
+        <span class="qa-btn__label">{{ t('dashboard.quickExpense') }}</span>
       </RouterLink>
       <RouterLink class="qa-btn qa-btn--income" to="/transactions/new?kind=income">
         <span class="qa-btn__icon">+</span>
-        <span class="qa-btn__label">Income</span>
+        <span class="qa-btn__label">{{ t('dashboard.quickIncome') }}</span>
       </RouterLink>
       <RouterLink class="qa-btn" to="/review">
         <span class="qa-btn__icon">↻</span>
-        <span class="qa-btn__label">Review</span>
+        <span class="qa-btn__label">{{ t('dashboard.quickReview') }}</span>
       </RouterLink>
       <RouterLink class="qa-btn" to="/savings">
         <span class="qa-btn__icon">🎯</span>
-        <span class="qa-btn__label">Goal</span>
+        <span class="qa-btn__label">{{ t('dashboard.quickGoal') }}</span>
       </RouterLink>
     </div>
 
@@ -106,6 +108,7 @@ onMounted(async () => {
 
     <!-- Recent transactions feed -->
     <TransactionFeedCard
+      :accounts="financeStore.accounts"
       :categories="financeStore.categories"
       :transactions="financeStore.sortedTransactions.slice(0, 6)"
     />

@@ -2,27 +2,45 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
+import type { AuthProvider } from '@/entities/user/model/types'
 import { useAppUiStore } from '@/app/stores/app-ui'
 import { useAuthStore } from '@/app/stores/auth'
 import { useUserStore } from '@/app/stores/user'
 import AuthProviderButtons from '@/features/auth/AuthProviderButtons.vue'
 import { env } from '@/shared/config/env'
+import { translateProvider, useI18n } from '@/shared/i18n'
+import LanguageSwitch from '@/shared/ui/LanguageSwitch.vue'
 
 const authStore = useAuthStore()
 const userStore = useUserStore()
 const appUiStore = useAppUiStore()
 const router = useRouter()
+const { t } = useI18n()
 
 const loading = ref(false)
 
-async function login(provider: 'telegram' | 'yandex') {
+async function login(provider: Exclude<AuthProvider, 'email'>) {
   try {
     loading.value = true
     await authStore.login(provider)
-    appUiStore.pushToast(`Signed in with ${provider}.`, 'success')
+    appUiStore.pushToast(t('auth.signedInWith', { provider: translateProvider(provider) }), 'success')
     await router.push(userStore.profile.onboardingCompleted ? '/dashboard' : '/onboarding')
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Sign-in failed.'
+    const message = error instanceof Error ? error.message : t('auth.signInFailed')
+    appUiStore.pushToast(message, 'warning')
+  } finally {
+    loading.value = false
+  }
+}
+
+async function loginWithEmail(email: string, password: string) {
+  try {
+    loading.value = true
+    await authStore.loginWithEmailCredentials(email, password)
+    appUiStore.pushToast(t('auth.signedInWith', { provider: translateProvider('email') }), 'success')
+    await router.push(userStore.profile.onboardingCompleted ? '/dashboard' : '/onboarding')
+  } catch (error) {
+    const message = error instanceof Error ? error.message : t('auth.signInFailed')
     appUiStore.pushToast(message, 'warning')
   } finally {
     loading.value = false
@@ -33,6 +51,10 @@ async function login(provider: 'telegram' | 'yandex') {
 <template>
   <div class="login-wrapper">
     <div class="login-card">
+      <div class="login-toolbar">
+        <LanguageSwitch />
+      </div>
+
       <!-- Brand mark -->
       <div class="login-brand">
         <div class="login-brand__icon">
@@ -50,39 +72,42 @@ async function login(provider: 'telegram' | 'yandex') {
 
       <!-- Headline -->
       <div class="login-headline">
-        <h1 class="login-headline__title">Your financial ground truth</h1>
-        <p class="login-headline__sub">
-          Track cash flow. Review weekly. Build savings momentum. One calm, clean app.
-        </p>
+        <h1 class="login-headline__title">{{ t('auth.loginTitle') }}</h1>
+        <p class="login-headline__sub">{{ t('auth.loginSubtitle') }}</p>
       </div>
 
       <!-- Feature pills -->
       <div class="login-features">
         <div class="login-feature">
           <span class="login-feature__icon">📊</span>
-          <span class="login-feature__text">Balance clarity</span>
+          <span class="login-feature__text">{{ t('auth.featureBalance') }}</span>
         </div>
         <div class="login-feature">
           <span class="login-feature__icon">🔁</span>
-          <span class="login-feature__text">Weekly review</span>
+          <span class="login-feature__text">{{ t('auth.featureReview') }}</span>
         </div>
         <div class="login-feature">
           <span class="login-feature__icon">🎯</span>
-          <span class="login-feature__text">Savings goals</span>
+          <span class="login-feature__text">{{ t('auth.featureSavings') }}</span>
         </div>
       </div>
 
       <!-- Auth buttons -->
-      <AuthProviderButtons :loading="loading" @select="login" />
+      <AuthProviderButtons :loading="loading" @select="login" @login-email="loginWithEmail" />
 
       <p class="login-legal">
-        Local MVP mode uses demo data. Auth connects to real backend endpoints.
+        {{ t('auth.legal') }}
       </p>
     </div>
   </div>
 </template>
 
 <style scoped>
+.login-toolbar {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .login-wrapper {
   display: flex;
   align-items: center;
@@ -101,7 +126,7 @@ async function login(provider: 'telegram' | 'yandex') {
   padding: 32px 28px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
 }
 
 .login-brand {

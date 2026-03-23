@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { Account } from '@/entities/account/model/types'
 import type { Category } from '@/entities/category/model/types'
 import type { Transaction } from '@/entities/transaction/model/types'
 import { useI18n } from '@/shared/i18n'
@@ -6,22 +7,75 @@ import { formatDate } from '@/shared/lib/date'
 import { formatMoney } from '@/shared/lib/money'
 
 const props = defineProps<{
+  accounts: Account[]
   categories: Category[]
   transactions: Transaction[]
 }>()
 
 const { t } = useI18n()
 
-function category(categoryId: string) {
+function category(categoryId: string | null) {
+  if (!categoryId) {
+    return null
+  }
+
   return props.categories.find((c) => c.id === categoryId)
 }
 
-function categoryName(categoryId: string) {
+function accountName(accountId: string | null) {
+  if (!accountId) {
+    return t('common.account')
+  }
+
+  return props.accounts.find((account) => account.id === accountId)?.name ?? t('common.account')
+}
+
+function categoryName(categoryId: string | null) {
   return category(categoryId)?.name ?? t('common.category')
 }
 
-function categoryColor(categoryId: string) {
+function categoryColor(categoryId: string | null) {
   return category(categoryId)?.color ?? '#AEAEB2'
+}
+
+function transactionColor(transaction: Transaction) {
+  return transaction.type === 'transfer' ? 'var(--brand)' : categoryColor(transaction.categoryId)
+}
+
+function transactionLabel(transaction: Transaction) {
+  if (transaction.type === 'transfer') {
+    return transaction.title || t('transactions.transferBetween', {
+      from: accountName(transaction.accountId),
+      to: accountName(transaction.transferAccountId),
+    })
+  }
+
+  return transaction.title || categoryName(transaction.categoryId)
+}
+
+function transactionMeta(transaction: Transaction) {
+  if (transaction.type === 'transfer') {
+    const suffix = transaction.note ? ` · ${transaction.note}` : ''
+    return `${formatDate(transaction.occurredAt)} · ${accountName(transaction.accountId)} → ${accountName(transaction.transferAccountId)}${suffix}`
+  }
+
+  return `${formatDate(transaction.occurredAt)}${transaction.note ? ` · ${transaction.note}` : ''}`
+}
+
+function amountClass(transaction: Transaction) {
+  if (transaction.type === 'transfer') {
+    return 'feed-amount--transfer'
+  }
+
+  return transaction.type === 'income' ? 'feed-amount--income' : 'feed-amount--expense'
+}
+
+function amountText(transaction: Transaction) {
+  if (transaction.type === 'transfer') {
+    return formatMoney(transaction.amountMinor, transaction.currency)
+  }
+
+  return `${transaction.type === 'income' ? '+' : '−'}${formatMoney(transaction.amountMinor, transaction.currency)}`
 }
 </script>
 
@@ -33,21 +87,18 @@ function categoryColor(categoryId: string) {
     </div>
 
     <div v-if="transactions.length" class="feed-list">
-      <div v-for="transaction in transactions" :key="transaction.id" class="feed-row">
-        <div class="feed-icon" :style="{ background: `${categoryColor(transaction.categoryId)}18` }">
-          <div class="feed-dot" :style="{ background: categoryColor(transaction.categoryId) }" />
+      <RouterLink v-for="transaction in transactions" :key="transaction.id" class="feed-row" :to="`/transactions/${transaction.id}`">
+        <div class="feed-icon" :style="{ background: `${transactionColor(transaction)}18` }">
+          <div class="feed-dot" :style="{ background: transactionColor(transaction) }" />
         </div>
         <div class="feed-info">
-          <span class="feed-name">{{ categoryName(transaction.categoryId) }}</span>
-          <span class="feed-meta">{{ formatDate(transaction.occurredAt) }}<span v-if="transaction.note"> · {{ transaction.note }}</span></span>
+          <span class="feed-name">{{ transactionLabel(transaction) }}</span>
+          <span class="feed-meta">{{ transactionMeta(transaction) }}</span>
         </div>
-        <strong
-          class="feed-amount"
-          :class="transaction.kind === 'income' ? 'feed-amount--income' : 'feed-amount--expense'"
-        >
-          {{ transaction.kind === 'income' ? '+' : '−' }}{{ formatMoney(transaction.amountMinor, transaction.currency) }}
+        <strong class="feed-amount" :class="amountClass(transaction)">
+          {{ amountText(transaction) }}
         </strong>
-      </div>
+      </RouterLink>
     </div>
     <p v-else class="tiny" style="margin:0">{{ t('dashboard.transactionsEmpty') }}</p>
   </section>
@@ -137,4 +188,5 @@ function categoryColor(categoryId: string) {
 
 .feed-amount--income { color: var(--income); }
 .feed-amount--expense { color: var(--expense); }
+.feed-amount--transfer { color: var(--brand); }
 </style>

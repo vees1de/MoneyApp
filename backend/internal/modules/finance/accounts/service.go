@@ -46,23 +46,38 @@ func (s *Service) Get(ctx context.Context, userID, accountID uuid.UUID) (Account
 func (s *Service) Create(ctx context.Context, userID uuid.UUID, request CreateAccountRequest) (Account, error) {
 	now := s.clock.Now()
 	account := Account{
-		ID:             uuid.New(),
-		UserID:         userID,
-		Name:           request.Name,
-		Kind:           request.Kind,
-		Currency:       request.Currency,
-		OpeningBalance: request.OpeningBalance,
-		CurrentBalance: request.OpeningBalance,
-		CreatedAt:      now,
-		UpdatedAt:      now,
+		ID:                 uuid.New(),
+		UserID:             userID,
+		Name:               request.Name,
+		Kind:               request.Kind,
+		Currency:           request.Currency,
+		OpeningBalance:     request.OpeningBalance,
+		CurrentBalance:     request.OpeningBalance,
+		LastRecalculatedAt: &now,
+		CreatedAt:          now,
+		UpdatedAt:          now,
 	}
 	if err := s.repo.Create(ctx, account); err != nil {
 		return Account{}, err
 	}
 
-	if err := s.audit.Record(ctx, userID, "accounts.create", "account", &account.ID, map[string]any{
-		"name": account.Name,
-		"kind": account.Kind,
+	if err := s.audit.RecordChange(ctx, audit.RecordInput{
+		UserID:     userID,
+		Action:     "accounts.create",
+		EntityType: "account",
+		EntityID:   &account.ID,
+		Meta: map[string]any{
+			"name": account.Name,
+			"kind": account.Kind,
+		},
+		ChangeSet: map[string]any{
+			"after": map[string]any{
+				"name":        account.Name,
+				"kind":        account.Kind,
+				"currency":    account.Currency,
+				"is_archived": account.IsArchived,
+			},
+		},
 	}); err != nil {
 		return Account{}, err
 	}
@@ -79,6 +94,9 @@ func (s *Service) Update(ctx context.Context, userID, accountID uuid.UUID, reque
 	if request.Name != nil {
 		account.Name = *request.Name
 	}
+	if request.Kind != nil {
+		account.Kind = *request.Kind
+	}
 	if request.IsArchived != nil {
 		account.IsArchived = *request.IsArchived
 	}
@@ -88,8 +106,21 @@ func (s *Service) Update(ctx context.Context, userID, accountID uuid.UUID, reque
 		return Account{}, err
 	}
 
-	if err := s.audit.Record(ctx, userID, "accounts.update", "account", &account.ID, map[string]any{
-		"is_archived": account.IsArchived,
+	if err := s.audit.RecordChange(ctx, audit.RecordInput{
+		UserID:     userID,
+		Action:     "accounts.update",
+		EntityType: "account",
+		EntityID:   &account.ID,
+		Meta: map[string]any{
+			"is_archived": account.IsArchived,
+		},
+		ChangeSet: map[string]any{
+			"after": map[string]any{
+				"name":        account.Name,
+				"kind":        account.Kind,
+				"is_archived": account.IsArchived,
+			},
+		},
 	}); err != nil {
 		return Account{}, err
 	}

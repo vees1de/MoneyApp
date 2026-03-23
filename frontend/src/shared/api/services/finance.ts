@@ -66,7 +66,7 @@ export function deleteCategory(categoryId: string) {
 
 export function listTransactions(filters: {
   accountId?: string | null
-  type?: 'all' | 'income' | 'expense'
+  type?: 'all' | 'income' | 'expense' | 'transfer'
 }) {
   return apiRequest<ApiTransactionsResponse>('/finance/transactions', {
     query: {
@@ -79,23 +79,70 @@ export function listTransactions(filters: {
 export function createTransaction(input: {
   accountId: string
   amount: string
-  categoryId: string
+  categoryId?: string | null
   currency: string
+  direction: 'inflow' | 'outflow' | 'internal'
   note: string
   occurredAt: string
-  type: 'income' | 'expense'
+  title?: string
+  transferAccountId?: string | null
+  type: 'income' | 'expense' | 'transfer'
 }) {
   return apiRequest<ApiTransaction>('/finance/transactions', {
     method: 'POST',
     body: JSON.stringify({
       account_id: input.accountId,
+      transfer_account_id: input.transferAccountId ?? null,
+      category_id: input.categoryId ?? null,
+      type: input.type,
+      amount: input.amount,
+      currency: input.currency,
+      direction: input.direction,
+      title: input.title || null,
+      note: input.note || null,
+      occurred_at: input.occurredAt,
+    }),
+  })
+}
+
+export function getTransaction(transactionId: string) {
+  return apiRequest<ApiTransaction>(`/finance/transactions/${transactionId}`)
+}
+
+export function updateTransaction(
+  transactionId: string,
+  input: {
+    accountId?: string
+    amount?: string
+    categoryId?: string | null
+    currency?: string
+    direction?: 'inflow' | 'outflow' | 'internal'
+    note?: string
+    occurredAt?: string
+    title?: string
+    transferAccountId?: string | null
+    type?: 'income' | 'expense' | 'transfer'
+  },
+) {
+  return apiRequest<ApiTransaction>(`/finance/transactions/${transactionId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      account_id: input.accountId,
+      transfer_account_id: input.transferAccountId,
       category_id: input.categoryId,
       type: input.type,
       amount: input.amount,
       currency: input.currency,
-      direction: input.type === 'income' ? 'inflow' : 'outflow',
-      note: input.note || null,
+      direction: input.direction,
+      title: input.title === undefined ? undefined : input.title || null,
+      note: input.note === undefined ? undefined : input.note || null,
       occurred_at: input.occurredAt,
     }),
+  })
+}
+
+export function deleteTransaction(transactionId: string) {
+  return apiRequest<void>(`/finance/transactions/${transactionId}`, {
+    method: 'DELETE',
   })
 }

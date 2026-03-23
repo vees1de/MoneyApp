@@ -1,4 +1,4 @@
-export type AuthProvider = 'telegram' | 'yandex'
+export type AuthProvider = 'telegram' | 'yandex' | 'email'
 
 export interface UserProfile {
   id: string

@@ -33,7 +33,12 @@ func (r *Repository) MonthlyIncome(ctx context.Context, userID uuid.UUID, start,
 	query := `
 		select coalesce(sum(amount), 0)
 		from finance_transactions
-		where user_id = $1 and type = 'income' and occurred_at >= $2 and occurred_at < $3
+		where user_id = $1
+		  and type = 'income'
+		  and posting_state = 'posted'
+		  and deleted_at is null
+		  and occurred_at >= $2
+		  and occurred_at < $3
 	`
 	var total common.Money
 	err := r.db.QueryRowContext(ctx, query, userID, start, end).Scan(&total)
@@ -44,7 +49,12 @@ func (r *Repository) MonthlyExpense(ctx context.Context, userID uuid.UUID, start
 	query := `
 		select coalesce(sum(amount), 0)
 		from finance_transactions
-		where user_id = $1 and type = 'expense' and occurred_at >= $2 and occurred_at < $3
+		where user_id = $1
+		  and type = 'expense'
+		  and posting_state = 'posted'
+		  and deleted_at is null
+		  and occurred_at >= $2
+		  and occurred_at < $3
 	`
 	var total common.Money
 	err := r.db.QueryRowContext(ctx, query, userID, start, end).Scan(&total)
@@ -56,7 +66,12 @@ func (r *Repository) TopExpenseCategories(ctx context.Context, userID uuid.UUID,
 		select c.id::text, coalesce(c.name, 'Без категории') as name, coalesce(sum(t.amount), 0) as amount
 		from finance_transactions t
 		left join finance_categories c on c.id = t.category_id
-		where t.user_id = $1 and t.type = 'expense' and t.occurred_at >= $2 and t.occurred_at < $3
+		where t.user_id = $1
+		  and t.type = 'expense'
+		  and t.posting_state = 'posted'
+		  and t.deleted_at is null
+		  and t.occurred_at >= $2
+		  and t.occurred_at < $3
 		group by c.id, c.name
 		order by amount desc
 		limit $4

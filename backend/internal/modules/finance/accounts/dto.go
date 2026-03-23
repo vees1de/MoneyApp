@@ -11,5 +11,6 @@ type CreateAccountRequest struct {
 
 type UpdateAccountRequest struct {
 	Name       *string `json:"name"`
+	Kind       *Kind   `json:"kind"`
 	IsArchived *bool   `json:"is_archived"`
 }

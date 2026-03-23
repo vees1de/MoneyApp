@@ -3,11 +3,6 @@ import { computed } from 'vue'
 
 import { useI18n } from '@/shared/i18n'
 
-defineProps<{
-  canResolve: boolean
-  deltaMinor: number | null
-}>()
-
 const emit = defineEmits<{
   resolve: []
   skip: []

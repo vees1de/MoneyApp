@@ -20,6 +20,7 @@ import (
 	financecategories "moneyapp/backend/internal/modules/finance/categories"
 	financesummary "moneyapp/backend/internal/modules/finance/summary"
 	financetransactions "moneyapp/backend/internal/modules/finance/transactions"
+	financetransfers "moneyapp/backend/internal/modules/finance/transfers"
 	reviewmodule "moneyapp/backend/internal/modules/review"
 	savingsmodule "moneyapp/backend/internal/modules/savings"
 	platformauth "moneyapp/backend/internal/platform/auth"
@@ -94,6 +95,7 @@ func New(cfg *config.Config) (*App, error) {
 	accountService := financeaccounts.NewService(database, accountRepo, auditService, appClock)
 	categoryService := financecategories.NewService(categoryRepo, auditService, appClock)
 	transactionService := financetransactions.NewService(database, transactionRepo, accountRepo, categoryRepo, auditService, appClock)
+	transferService := financetransfers.NewService(transactionService)
 	summaryService := financesummary.NewService(summaryRepo)
 	savingsService := savingsmodule.NewService(savingsRepo, summaryRepo, auditService, appClock)
 	reviewService := reviewmodule.NewService(reviewRepo, accountRepo, transactionRepo, auditService, appClock)
@@ -125,6 +127,7 @@ func New(cfg *config.Config) (*App, error) {
 		AccountService:     accountService,
 		CategoryService:    categoryService,
 		TransactionService: transactionService,
+		TransferService:    transferService,
 		SummaryService:     summaryService,
 		SavingsService:     savingsService,
 		ReviewService:      reviewService,
@@ -136,6 +139,7 @@ func New(cfg *config.Config) (*App, error) {
 		AccountHandler:     financeaccounts.NewHandler(accountService, validate),
 		CategoryHandler:    financecategories.NewHandler(categoryService, validate),
 		TransactionHandler: financetransactions.NewHandler(transactionService, validate),
+		TransferHandler:    financetransfers.NewHandler(transferService, validate),
 		SavingsHandler:     savingsmodule.NewHandler(savingsService, validate),
 		ReviewHandler:      reviewmodule.NewHandler(reviewService, validate),
 		DashboardHandler:   dashboardmodule.NewHandler(dashboardService),

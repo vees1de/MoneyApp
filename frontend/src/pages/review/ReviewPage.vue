@@ -6,6 +6,7 @@ import { useFinanceStore } from '@/app/stores/finance'
 import { useReviewStore } from '@/app/stores/review'
 import ReviewActions from '@/features/weekly-review/ReviewActions.vue'
 import ReviewDeltaCard from '@/widgets/review/ReviewDeltaCard.vue'
+import { useI18n } from '@/shared/i18n'
 import { isDateWithinRange, formatWeekRange } from '@/shared/lib/date'
 import { formatMoney, parseAmountToMinor } from '@/shared/lib/money'
 import PageContainer from '@/shared/ui/PageContainer.vue'
@@ -13,6 +14,7 @@ import PageContainer from '@/shared/ui/PageContainer.vue'
 const reviewStore = useReviewStore()
 const appUiStore = useAppUiStore()
 const financeStore = useFinanceStore()
+const { t } = useI18n()
 
 const actualBalanceInput = ref(
   reviewStore.review.actualBalanceMinor === null
@@ -25,7 +27,7 @@ const canResolve = computed(() => reviewStore.review.actualBalanceMinor !== null
 const reviewRange = computed(() =>
   reviewStore.review.periodStart && reviewStore.review.periodEnd
     ? formatWeekRange(reviewStore.review.periodStart, reviewStore.review.periodEnd)
-    : 'Current week',
+    : t('common.currentWeek'),
 )
 
 const isResolved = computed(
@@ -55,9 +57,9 @@ const expenseMinor = computed(() =>
 async function submitActualBalance() {
   try {
     await reviewStore.submitActualBalance(parseAmountToMinor(actualBalanceInput.value))
-    appUiStore.pushToast('Actual balance submitted.', 'success')
+    appUiStore.pushToast(t('review.balanceSubmitted'), 'success')
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Submission failed.'
+    const message = error instanceof Error ? error.message : t('review.submitFailed')
     appUiStore.pushToast(message, 'warning')
   }
 }
@@ -65,9 +67,9 @@ async function submitActualBalance() {
 async function resolve() {
   try {
     await reviewStore.resolve(reviewStore.review.deltaMinor === 0 ? 'matched' : 'manual-confirmation')
-    appUiStore.pushToast('Weekly review completed.', 'success')
+    appUiStore.pushToast(t('review.completed'), 'success')
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Resolution failed.'
+    const message = error instanceof Error ? error.message : t('review.resolveFailed')
     appUiStore.pushToast(message, 'warning')
   }
 }
@@ -75,11 +77,47 @@ async function resolve() {
 async function skip() {
   try {
     await reviewStore.skip()
-    appUiStore.pushToast('Weekly review skipped.', 'warning')
+    appUiStore.pushToast(t('review.skipped'), 'warning')
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Skip failed.'
+    const message = error instanceof Error ? error.message : t('review.skipFailed')
     appUiStore.pushToast(message, 'warning')
   }
+}
+
+function transactionLabel(transaction: (typeof periodTransactions.value)[number]) {
+  if (transaction.type === 'transfer') {
+    const fromName = financeStore.getAccountById(transaction.accountId)?.name ?? t('common.account')
+    const toName =
+      financeStore.getAccountById(transaction.transferAccountId)?.name ?? t('common.account')
+
+    return transaction.title || t('transactions.transferBetween', { from: fromName, to: toName })
+  }
+
+  if (transaction.title) {
+    return transaction.title
+  }
+
+  if (transaction.note) {
+    return transaction.note
+  }
+
+  return financeStore.getCategoryById(transaction.categoryId)?.name ?? t('common.category')
+}
+
+function transactionAmountClass(transaction: (typeof periodTransactions.value)[number]) {
+  if (transaction.type === 'transfer') {
+    return 'review-txn-amount--transfer'
+  }
+
+  return transaction.type === 'income' ? 'review-txn-amount--income' : 'review-txn-amount--expense'
+}
+
+function transactionAmountText(transaction: (typeof periodTransactions.value)[number]) {
+  if (transaction.type === 'transfer') {
+    return formatMoney(transaction.amountMinor, transaction.currency)
+  }
+
+  return `${transaction.type === 'income' ? '+' : '−'}${formatMoney(transaction.amountMinor, transaction.currency)}`
 }
 
 onMounted(async () => {
@@ -99,29 +137,29 @@ onMounted(async () => {
     <!-- Header -->
     <div class="review-page-header">
       <div>
-        <h1 class="review-title">Weekly review</h1>
+        <h1 class="review-title">{{ t('review.title') }}</h1>
         <p class="review-period">{{ reviewRange }}</p>
       </div>
       <span
         class="review-status-badge"
         :class="isResolved ? 'review-status-badge--done' : 'review-status-badge--pending'"
       >
-        {{ isResolved ? '✓ Done' : '◔ Pending' }}
+        {{ isResolved ? `✓ ${t('review.done')}` : `◔ ${t('review.pending')}` }}
       </span>
     </div>
 
     <!-- Period metrics -->
     <div class="review-metrics">
       <div class="review-metric">
-        <span class="review-metric__label">Expected</span>
+        <span class="review-metric__label">{{ t('common.expected') }}</span>
         <strong class="review-metric__value">{{ formatMoney(reviewStore.review.expectedBalanceMinor) }}</strong>
       </div>
       <div class="review-metric review-metric--income">
-        <span class="review-metric__label">Income</span>
+        <span class="review-metric__label">{{ t('common.income') }}</span>
         <strong class="review-metric__value">+{{ formatMoney(incomeMinor) }}</strong>
       </div>
       <div class="review-metric review-metric--expense">
-        <span class="review-metric__label">Expenses</span>
+        <span class="review-metric__label">{{ t('common.expenses') }}</span>
         <strong class="review-metric__value">−{{ formatMoney(expenseMinor) }}</strong>
       </div>
     </div>
@@ -136,22 +174,20 @@ onMounted(async () => {
 
     <!-- Actual balance input -->
     <section class="section-card">
-      <h2 style="margin:0 0 4px;font-size:1.0625rem;font-weight:600;letter-spacing:-0.01em">Enter actual balance</h2>
-      <p class="muted" style="margin:0 0 16px;font-size:0.875rem">
-        Check your banking app and enter the real balance right now.
-      </p>
+      <h2 style="margin:0 0 4px;font-size:1.0625rem;font-weight:600;letter-spacing:-0.01em">{{ t('review.enterBalanceTitle') }}</h2>
+      <p class="muted" style="margin:0 0 16px;font-size:0.875rem">{{ t('review.enterBalanceBody') }}</p>
       <form class="stack" style="gap:12px" @submit.prevent="submitActualBalance">
         <div class="field">
-          <label for="actualBalance">Actual balance</label>
+          <label for="actualBalance">{{ t('common.actual') }}</label>
           <input
             id="actualBalance"
             v-model="actualBalanceInput"
             inputmode="decimal"
-            placeholder="0.00"
+            :placeholder="t('transactionForm.placeholderAmount')"
             style="font-size:1.25rem;font-weight:600;letter-spacing:-0.02em"
           />
         </div>
-        <button class="button button--primary button--block" type="submit">Compare balances</button>
+        <button class="button button--primary button--block" type="submit">{{ t('review.compareBalances') }}</button>
       </form>
     </section>
 
@@ -166,7 +202,7 @@ onMounted(async () => {
     <!-- Period transactions -->
     <section v-if="periodTransactions.length" class="section-card">
       <h2 style="margin:0 0 12px;font-size:1.0625rem;font-weight:600;letter-spacing:-0.01em">
-        This period · {{ periodTransactions.length }} entries
+        {{ t('common.periodEntries', { count: periodTransactions.length }) }}
       </h2>
       <div class="review-txn-list">
         <div
@@ -174,12 +210,9 @@ onMounted(async () => {
           :key="transaction.id"
           class="review-txn-row"
         >
-          <span class="review-txn-name">{{ transaction.note || transaction.categoryId }}</span>
-          <strong
-            class="review-txn-amount"
-            :class="transaction.kind === 'income' ? 'review-txn-amount--income' : 'review-txn-amount--expense'"
-          >
-            {{ transaction.kind === 'income' ? '+' : '−' }}{{ formatMoney(transaction.amountMinor, transaction.currency) }}
+          <span class="review-txn-name">{{ transactionLabel(transaction) }}</span>
+          <strong class="review-txn-amount" :class="transactionAmountClass(transaction)">
+            {{ transactionAmountText(transaction) }}
           </strong>
         </div>
       </div>
@@ -300,4 +333,5 @@ onMounted(async () => {
 
 .review-txn-amount--income { color: var(--income); }
 .review-txn-amount--expense { color: var(--expense); }
+.review-txn-amount--transfer { color: var(--brand); }
 </style>
