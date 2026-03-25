@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -53,7 +54,9 @@ type TelegramConfig struct {
 }
 
 type YandexConfig struct {
-	ClientID string
+	ClientID     string
+	ClientSecret string
+	RedirectURI  string
 }
 
 func MustLoad() *Config {
@@ -97,7 +100,9 @@ func Load() (*Config, error) {
 				ClientID: getEnv("TELEGRAM_CLIENT_ID", ""),
 			},
 			Yandex: YandexConfig{
-				ClientID: getEnv("YANDEX_CLIENT_ID", ""),
+				ClientID:     getEnv("YANDEX_CLIENT_ID", ""),
+				ClientSecret: getEnv("YANDEX_CLIENT_SECRET", ""),
+				RedirectURI:  getEnv("YANDEX_REDIRECT_URI", firstNonEmptyEnv("VITE_YANDEX_REDIRECT_URI", "")),
 			},
 		},
 	}
@@ -131,6 +136,15 @@ func getDatabaseDSN() string {
 
 func getEnv(key, fallback string) string {
 	if value, ok := os.LookupEnv(key); ok && value != "" {
+		return value
+	}
+
+	return fallback
+}
+
+func firstNonEmptyEnv(key, fallback string) string {
+	value := strings.TrimSpace(getEnv(key, ""))
+	if value != "" {
 		return value
 	}
 
