@@ -45,17 +45,29 @@ func New(cfg *config.Config) (*App, error) {
 		return nil, err
 	}
 
-	redisStore, err := platformcache.NewRedisStore(context.Background(), cfg.Redis)
-	if err != nil {
-		_ = database.Close()
-		return nil, err
+	var cacheStore platformcache.Store
+	if cfg.Redis.Enabled {
+		cacheStore, err = platformcache.NewRedisStore(context.Background(), cfg.Redis)
+		if err != nil {
+			_ = database.Close()
+			return nil, err
+		}
+	} else {
+		log.Warn("redis disabled, dashboard cache will be bypassed")
+		cacheStore = platformcache.NewNoopStore()
 	}
 
-	kafkaPublisher, err := platformevents.NewKafkaPublisher(context.Background(), cfg.Kafka)
-	if err != nil {
-		_ = redisStore.Close()
-		_ = database.Close()
-		return nil, err
+	var eventPublisher platformevents.Publisher
+	if cfg.Kafka.Enabled {
+		eventPublisher, err = platformevents.NewKafkaPublisher(context.Background(), cfg.Kafka)
+		if err != nil {
+			_ = cacheStore.Close()
+			_ = database.Close()
+			return nil, err
+		}
+	} else {
+		log.Warn("kafka disabled, audit events will not be published")
+		eventPublisher = platformevents.NewNoopPublisher()
 	}
 
 	dispatcher := jobs.NewDispatcher(log)
@@ -77,7 +89,7 @@ func New(cfg *config.Config) (*App, error) {
 	reviewRepo := reviewmodule.NewRepository(database)
 	dashboardRepo := dashboardmodule.NewRepository(database)
 
-	auditService := coreaudit.NewService(auditRepo, appClock, log, kafkaPublisher, cfg.Kafka.AuditTopic)
+	auditService := coreaudit.NewService(auditRepo, appClock, log, eventPublisher, cfg.Kafka.AuditTopic)
 	userService := coreusers.NewService(database, userRepo)
 	sessionService := coresessions.NewService(database, sessionRepo, jwtManager, appClock, cfg.Auth.AccessTokenTTL, cfg.Auth.RefreshTokenTTL)
 	authService := coreauth.NewService(
@@ -99,20 +111,25 @@ func New(cfg *config.Config) (*App, error) {
 	summaryService := financesummary.NewService(summaryRepo)
 	savingsService := savingsmodule.NewService(savingsRepo, summaryRepo, auditService, appClock)
 	reviewService := reviewmodule.NewService(reviewRepo, accountRepo, transactionRepo, auditService, appClock)
-	dashboardService := dashboardmodule.NewService(dashboardRepo, summaryService, savingsService, reviewService, appClock, redisStore, cfg.Redis.DashboardTTL)
+	dashboardService := dashboardmodule.NewService(dashboardRepo, summaryService, savingsService, reviewService, appClock, cacheStore, cfg.Redis.DashboardTTL)
 	jobService := corejobs.NewService(scheduler)
-	healthService := corehealth.NewService(map[string]corehealth.CheckFunc{
+	healthChecks := map[string]corehealth.CheckFunc{
 		"postgres": database.PingContext,
-		"redis":    redisStore.Ping,
-		"kafka":    kafkaPublisher.Ping,
-	})
+	}
+	if cfg.Redis.Enabled {
+		healthChecks["redis"] = cacheStore.Ping
+	}
+	if cfg.Kafka.Enabled {
+		healthChecks["kafka"] = eventPublisher.Ping
+	}
+	healthService := corehealth.NewService(healthChecks)
 
 	container := &Container{
 		Config:             cfg,
 		Logger:             log,
 		DB:                 database,
-		Cache:              redisStore,
-		Events:             kafkaPublisher,
+		Cache:              cacheStore,
+		Events:             eventPublisher,
 		Clock:              appClock,
 		JWT:                jwtManager,
 		Dispatcher:         dispatcher,

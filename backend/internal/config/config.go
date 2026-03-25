@@ -35,6 +35,7 @@ type DatabaseConfig struct {
 }
 
 type RedisConfig struct {
+	Enabled      bool
 	Addr         string
 	Password     string
 	DB           int
@@ -42,6 +43,7 @@ type RedisConfig struct {
 }
 
 type KafkaConfig struct {
+	Enabled      bool
 	Brokers      []string
 	ClientID     string
 	AuditTopic   string
@@ -101,12 +103,14 @@ func Load() (*Config, error) {
 			ConnMaxLifetime: getDurationEnv("DATABASE_CONN_MAX_LIFETIME", 30*time.Minute),
 		},
 		Redis: RedisConfig{
+			Enabled:      getBoolEnv("REDIS_ENABLED", true),
 			Addr:         getEnv("REDIS_ADDR", "localhost:6379"),
 			Password:     getEnv("REDIS_PASSWORD", ""),
 			DB:           getIntEnv("REDIS_DB", 0),
 			DashboardTTL: getDurationEnv("REDIS_DASHBOARD_TTL", 30*time.Second),
 		},
 		Kafka: KafkaConfig{
+			Enabled:      getBoolEnv("KAFKA_ENABLED", true),
 			Brokers:      getSliceEnv("KAFKA_BROKERS", []string{"localhost:9092"}),
 			ClientID:     getEnv("KAFKA_CLIENT_ID", "moneyapp-backend"),
 			AuditTopic:   getEnv("KAFKA_AUDIT_TOPIC", "moneyapp.audit"),

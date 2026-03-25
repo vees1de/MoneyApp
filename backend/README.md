@@ -31,10 +31,12 @@ export APP_ENV=development
 export HTTP_ADDR=:8080
 export FRONTEND_DIST_DIR='../frontend/dist'
 export DATABASE_DSN='postgres://postgres:postgres@localhost:5432/moneyapp?sslmode=disable'
+export REDIS_ENABLED='true'
 export REDIS_ADDR='localhost:6379'
 export REDIS_PASSWORD='redis'
 export REDIS_DB='0'
 export REDIS_DASHBOARD_TTL='30s'
+export KAFKA_ENABLED='true'
 export KAFKA_BROKERS='localhost:9094'
 export KAFKA_CLIENT_ID='moneyapp-backend'
 export KAFKA_AUDIT_TOPIC='moneyapp.audit'
@@ -65,12 +67,21 @@ go run ./cmd/api
 
 With `FRONTEND_DIST_DIR` set, the backend serves the built SPA and falls back to `index.html` for non-API routes.
 
+For host deployments without Docker, Redis and Kafka can be disabled:
+
+```bash
+export REDIS_ENABLED='false'
+export KAFKA_ENABLED='false'
+```
+
+With these flags off, the app uses a no-op cache and no-op event publisher. PostgreSQL remains required.
+
 Server health checks:
 
 - `GET /healthz`
 - `GET /readyz`
 
-`/readyz` now checks PostgreSQL, Redis, and Kafka connectivity.
+`/readyz` checks PostgreSQL and also Redis/Kafka when they are enabled.
 
 Main API base path:
 
@@ -136,3 +147,4 @@ Bearer <access_token>
 
 - Redis is used as a short-lived cache for `GET /api/v1/dashboard/finance`.
 - Kafka publishes audit/domain events for critical user actions into `KAFKA_AUDIT_TOPIC`.
+- When disabled, Redis cache writes are bypassed and Kafka event publishing becomes a no-op.
