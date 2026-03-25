@@ -2,9 +2,9 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -13,8 +13,6 @@ type Config struct {
 	Environment  string
 	HTTP         HTTPConfig
 	Database     DatabaseConfig
-	Redis        RedisConfig
-	Kafka        KafkaConfig
 	Auth         AuthConfig
 	Integrations IntegrationsConfig
 }
@@ -32,22 +30,6 @@ type DatabaseConfig struct {
 	MaxOpenConns    int
 	MaxIdleConns    int
 	ConnMaxLifetime time.Duration
-}
-
-type RedisConfig struct {
-	Enabled      bool
-	Addr         string
-	Password     string
-	DB           int
-	DashboardTTL time.Duration
-}
-
-type KafkaConfig struct {
-	Enabled      bool
-	Brokers      []string
-	ClientID     string
-	AuditTopic   string
-	WriteTimeout time.Duration
 }
 
 type AuthConfig struct {
@@ -71,9 +53,7 @@ type TelegramConfig struct {
 }
 
 type YandexConfig struct {
-	ClientID     string
-	ClientSecret string
-	RedirectURL  string
+	ClientID string
 }
 
 func MustLoad() *Config {
@@ -97,24 +77,10 @@ func Load() (*Config, error) {
 			IdleTimeout:     getDurationEnv("HTTP_IDLE_TIMEOUT", 60*time.Second),
 		},
 		Database: DatabaseConfig{
-			DSN:             getEnv("DATABASE_DSN", "postgres://postgres:postgres@localhost:5432/moneyapp?sslmode=disable"),
+			DSN:             getDatabaseDSN(),
 			MaxOpenConns:    getIntEnv("DATABASE_MAX_OPEN_CONNS", 20),
 			MaxIdleConns:    getIntEnv("DATABASE_MAX_IDLE_CONNS", 10),
 			ConnMaxLifetime: getDurationEnv("DATABASE_CONN_MAX_LIFETIME", 30*time.Minute),
-		},
-		Redis: RedisConfig{
-			Enabled:      getBoolEnv("REDIS_ENABLED", true),
-			Addr:         getEnv("REDIS_ADDR", "localhost:6379"),
-			Password:     getEnv("REDIS_PASSWORD", ""),
-			DB:           getIntEnv("REDIS_DB", 0),
-			DashboardTTL: getDurationEnv("REDIS_DASHBOARD_TTL", 30*time.Second),
-		},
-		Kafka: KafkaConfig{
-			Enabled:      getBoolEnv("KAFKA_ENABLED", true),
-			Brokers:      getSliceEnv("KAFKA_BROKERS", []string{"localhost:9092"}),
-			ClientID:     getEnv("KAFKA_CLIENT_ID", "moneyapp-backend"),
-			AuditTopic:   getEnv("KAFKA_AUDIT_TOPIC", "moneyapp.audit"),
-			WriteTimeout: getDurationEnv("KAFKA_WRITE_TIMEOUT", 5*time.Second),
 		},
 		Auth: AuthConfig{
 			JWTSecret:               getEnv("AUTH_JWT_SECRET", "change-me"),
@@ -131,9 +97,7 @@ func Load() (*Config, error) {
 				BotToken: getEnv("TELEGRAM_BOT_TOKEN", ""),
 			},
 			Yandex: YandexConfig{
-				ClientID:     getEnv("YANDEX_CLIENT_ID", ""),
-				ClientSecret: getEnv("YANDEX_CLIENT_SECRET", ""),
-				RedirectURL:  getEnv("YANDEX_REDIRECT_URL", ""),
+				ClientID: getEnv("YANDEX_CLIENT_ID", ""),
 			},
 		},
 	}
@@ -143,6 +107,26 @@ func Load() (*Config, error) {
 	}
 
 	return cfg, nil
+}
+
+func getDatabaseDSN() string {
+	if dsn := getEnv("DATABASE_DSN", ""); dsn != "" {
+		return dsn
+	}
+
+	host := getEnv("POSTGRES_HOST", "localhost")
+	port := getEnv("POSTGRES_PORT", "5432")
+	database := getEnv("POSTGRES_DB", "moneyapp")
+	user := getEnv("POSTGRES_USER", "postgres")
+	password := getEnv("POSTGRES_PASSWORD", "postgres")
+
+	return (&url.URL{
+		Scheme:   "postgres",
+		User:     url.UserPassword(user, password),
+		Host:     host + ":" + port,
+		Path:     database,
+		RawQuery: "sslmode=disable",
+	}).String()
 }
 
 func getEnv(key, fallback string) string {
@@ -179,23 +163,6 @@ func getBoolEnv(key string, fallback bool) bool {
 	}
 
 	return parsed
-}
-
-func getSliceEnv(key string, fallback []string) []string {
-	value := getEnv(key, "")
-	if value == "" {
-		return fallback
-	}
-
-	parts := strings.Split(value, ",")
-	result := make([]string, 0, len(parts))
-	for _, p := range parts {
-		if s := strings.TrimSpace(p); s != "" {
-			result = append(result, s)
-		}
-	}
-
-	return result
 }
 
 func getDurationEnv(key string, fallback time.Duration) time.Duration {

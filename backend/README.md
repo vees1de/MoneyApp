@@ -7,8 +7,6 @@ Go backend for the Personal Life OS finance MVP.
 - Go 1.26
 - `net/http` + `chi`
 - PostgreSQL
-- Redis
-- Kafka
 - `pgx` stdlib driver
 - `slog`
 - `validator`
@@ -16,31 +14,25 @@ Go backend for the Personal Life OS finance MVP.
 
 ## Run
 
-1. Start infrastructure locally. The simplest option is from the repo root:
+1. Start PostgreSQL:
 
 ```bash
-docker compose up -d postgres redis kafka kafka-ui
+docker compose up -d postgres
 ```
 
 2. Apply SQL files from [migrations](/Users/vees1de/repos/MoneyApp/backend/migrations).
 
-3. Export local env vars. For local `go run`, use `localhost` in `DATABASE_DSN`:
+3. Export local env vars:
 
 ```bash
 export APP_ENV=development
 export HTTP_ADDR=:8080
 export FRONTEND_DIST_DIR='../frontend/dist'
-export DATABASE_DSN='postgres://postgres:postgres@localhost:5432/moneyapp?sslmode=disable'
-export REDIS_ENABLED='true'
-export REDIS_ADDR='localhost:6379'
-export REDIS_PASSWORD='redis'
-export REDIS_DB='0'
-export REDIS_DASHBOARD_TTL='30s'
-export KAFKA_ENABLED='true'
-export KAFKA_BROKERS='localhost:9094'
-export KAFKA_CLIENT_ID='moneyapp-backend'
-export KAFKA_AUDIT_TOPIC='moneyapp.audit'
-export KAFKA_WRITE_TIMEOUT='5s'
+export POSTGRES_HOST='localhost'
+export POSTGRES_PORT='5432'
+export POSTGRES_DB='moneyapp'
+export POSTGRES_USER='postgres'
+export POSTGRES_PASSWORD='postgres'
 export AUTH_JWT_SECRET='local-dev-secret'
 export AUTH_JWT_ISSUER='moneyapp'
 export AUTH_ACCESS_TOKEN_TTL='15m'
@@ -67,21 +59,12 @@ go run ./cmd/api
 
 With `FRONTEND_DIST_DIR` set, the backend serves the built SPA and falls back to `index.html` for non-API routes.
 
-For host deployments without Docker, Redis and Kafka can be disabled:
-
-```bash
-export REDIS_ENABLED='false'
-export KAFKA_ENABLED='false'
-```
-
-With these flags off, the app uses a no-op cache and no-op event publisher. PostgreSQL remains required.
-
 Server health checks:
 
 - `GET /healthz`
 - `GET /readyz`
 
-`/readyz` checks PostgreSQL and also Redis/Kafka when they are enabled.
+`/readyz` checks PostgreSQL.
 
 Main API base path:
 
@@ -145,6 +128,5 @@ Bearer <access_token>
 
 ## Infra usage
 
-- Redis is used as a short-lived cache for `GET /api/v1/dashboard/finance`.
-- Kafka publishes audit/domain events for critical user actions into `KAFKA_AUDIT_TOPIC`.
-- When disabled, Redis cache writes are bypassed and Kafka event publishing becomes a no-op.
+- The backend only depends on PostgreSQL.
+- The frontend build can be embedded into the backend container or served from `FRONTEND_DIST_DIR`.

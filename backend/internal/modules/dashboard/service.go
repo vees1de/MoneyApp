@@ -16,42 +16,25 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-type Cache interface {
-	GetJSON(ctx context.Context, key string, dst any) (bool, error)
-	SetJSON(ctx context.Context, key string, value any, ttl time.Duration) error
-}
-
 type Service struct {
 	repo           *Repository
 	summaryService *summary.Service
 	savingsService *savings.Service
 	reviewService  *review.Service
 	clock          clock.Clock
-	cache          Cache
-	cacheTTL       time.Duration
 }
 
-func NewService(repo *Repository, summaryService *summary.Service, savingsService *savings.Service, reviewService *review.Service, clock clock.Clock, cache Cache, cacheTTL time.Duration) *Service {
+func NewService(repo *Repository, summaryService *summary.Service, savingsService *savings.Service, reviewService *review.Service, clock clock.Clock) *Service {
 	return &Service{
 		repo:           repo,
 		summaryService: summaryService,
 		savingsService: savingsService,
 		reviewService:  reviewService,
 		clock:          clock,
-		cache:          cache,
-		cacheTTL:       cacheTTL,
 	}
 }
 
 func (s *Service) Finance(ctx context.Context, userID uuid.UUID) (FinanceDashboard, error) {
-	if s.cache != nil && s.cacheTTL > 0 {
-		var cached FinanceDashboard
-		found, err := s.cache.GetJSON(ctx, cacheKeyFinance(userID), &cached)
-		if err == nil && found {
-			return cached, nil
-		}
-	}
-
 	now := s.clock.Now()
 	monthly, err := s.summaryService.Monthly(ctx, userID, now)
 	if err != nil {
@@ -91,7 +74,7 @@ func (s *Service) Finance(ctx context.Context, userID uuid.UUID) (FinanceDashboa
 		insights = append(insights, "Safe-to-spend ушёл в минус: нужно сократить discretionary расходы")
 	}
 
-	result := FinanceDashboard{
+	return FinanceDashboard{
 		CurrentBalance: monthly.CurrentBalance,
 		MonthlyIncome:  monthly.IncomeTotal,
 		MonthlyExpense: monthly.ExpenseTotal,
@@ -101,15 +84,5 @@ func (s *Service) Finance(ctx context.Context, userID uuid.UUID) (FinanceDashboa
 		Savings:        savingsSummary.Goals,
 		WeeklyReview:   currentReview,
 		Insights:       insights,
-	}
-
-	if s.cache != nil && s.cacheTTL > 0 {
-		_ = s.cache.SetJSON(ctx, cacheKeyFinance(userID), result, s.cacheTTL)
-	}
-
-	return result, nil
-}
-
-func cacheKeyFinance(userID uuid.UUID) string {
-	return "dashboard:finance:" + userID.String()
+	}, nil
 }

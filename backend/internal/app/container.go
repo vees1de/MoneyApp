@@ -22,9 +22,7 @@ import (
 	reviewmodule "moneyapp/backend/internal/modules/review"
 	savingsmodule "moneyapp/backend/internal/modules/savings"
 	platformauth "moneyapp/backend/internal/platform/auth"
-	platformcache "moneyapp/backend/internal/platform/cache"
 	"moneyapp/backend/internal/platform/clock"
-	platformevents "moneyapp/backend/internal/platform/events"
 	platformjobs "moneyapp/backend/internal/platform/jobs"
 )
 
@@ -32,8 +30,6 @@ type Container struct {
 	Config     *config.Config
 	Logger     *slog.Logger
 	DB         *sql.DB
-	Cache      platformcache.Store
-	Events     platformevents.Publisher
 	Clock      clock.Clock
 	JWT        *platformauth.JWTManager
 	Dispatcher *platformjobs.Dispatcher

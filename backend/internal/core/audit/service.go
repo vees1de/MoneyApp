@@ -3,7 +3,6 @@ package audit
 import (
 	"context"
 	"encoding/json"
-	"log/slog"
 
 	"moneyapp/backend/internal/middleware"
 	platformauth "moneyapp/backend/internal/platform/auth"
@@ -12,25 +11,15 @@ import (
 	"github.com/google/uuid"
 )
 
-type Publisher interface {
-	PublishJSON(ctx context.Context, topic, key string, payload any) error
-}
-
 type Service struct {
-	repo      *Repository
-	clock     clock.Clock
-	logger    *slog.Logger
-	publisher Publisher
-	topic     string
+	repo  *Repository
+	clock clock.Clock
 }
 
-func NewService(repo *Repository, clock clock.Clock, logger *slog.Logger, publisher Publisher, topic string) *Service {
+func NewService(repo *Repository, clock clock.Clock) *Service {
 	return &Service{
-		repo:      repo,
-		clock:     clock,
-		logger:    logger,
-		publisher: publisher,
-		topic:     topic,
+		repo:  repo,
+		clock: clock,
 	}
 }
 
@@ -95,30 +84,6 @@ func (s *Service) RecordChange(ctx context.Context, input RecordInput) error {
 		ActorID:    input.ActorID,
 		CreatedAt:  s.clock.Now(),
 	}
-	if err := s.repo.Create(ctx, event); err != nil {
-		return err
-	}
 
-	if s.publisher != nil && s.topic != "" {
-		message := map[string]any{
-			"id":          event.ID,
-			"user_id":     event.UserID,
-			"action":      event.Action,
-			"entity_type": event.EntityType,
-			"entity_id":   event.EntityID,
-			"meta":        input.Meta,
-			"source":      event.Source,
-			"request_id":  event.RequestID,
-			"session_id":  event.SessionID,
-			"change_set":  input.ChangeSet,
-			"actor_type":  event.ActorType,
-			"actor_id":    event.ActorID,
-			"created_at":  event.CreatedAt,
-		}
-		if err := s.publisher.PublishJSON(ctx, s.topic, event.UserID.String(), message); err != nil && s.logger != nil {
-			s.logger.Error("publish audit event", "error", err, "action", input.Action, "entity_type", input.EntityType)
-		}
-	}
-
-	return nil
+	return s.repo.Create(ctx, event)
 }
