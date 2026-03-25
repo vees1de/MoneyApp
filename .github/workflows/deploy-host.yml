@@ -40,6 +40,9 @@ jobs:
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          DEPLOY_ENV_HOST: ${{ secrets.DEPLOY_ENV_HOST }}
           APP_DOMAIN: ${{ secrets.APP_DOMAIN }}
           POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
           POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
@@ -47,8 +50,20 @@ jobs:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           AUTH_JWT_SECRET: ${{ secrets.AUTH_JWT_SECRET }}
         run: |
-          required=(DEPLOY_HOST DEPLOY_USER APP_DOMAIN POSTGRES_DB POSTGRES_USER DEPLOY_SSH_KEY POSTGRES_PASSWORD AUTH_JWT_SECRET)
-          for key in "${required[@]}"; do
+          required_base=(DEPLOY_HOST DEPLOY_USER DEPLOY_SSH_KEY)
+          for key in "${required_base[@]}"; do
+            if [ -z "${!key}" ]; then
+              echo "Missing GitHub secret: ${key}" >&2
+              exit 1
+            fi
+          done
+
+          if [ -n "${DEPLOY_ENV_HOST}" ]; then
+            exit 0
+          fi
+
+          required_fallback=(APP_DOMAIN POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD AUTH_JWT_SECRET)
+          for key in "${required_fallback[@]}"; do
             if [ -z "${!key}" ]; then
               echo "Missing GitHub secret: ${key}" >&2
               exit 1
@@ -57,7 +72,14 @@ jobs:
 
       - name: Write deploy env file
         shell: bash
+        env:
+          DEPLOY_ENV_HOST: ${{ secrets.DEPLOY_ENV_HOST }}
         run: |
+          if [ -n "${DEPLOY_ENV_HOST}" ]; then
+            printf '%s\n' "${DEPLOY_ENV_HOST}" > deploy/.env.host
+            exit 0
+          fi
+
           cat > deploy/.env.host <<EOF
           APP_DOMAIN=${{ secrets.APP_DOMAIN }}
           SSL_PRIMARY_DOMAIN=${{ secrets.SSL_PRIMARY_DOMAIN || secrets.APP_DOMAIN }}

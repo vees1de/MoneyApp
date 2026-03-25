@@ -100,54 +100,33 @@ Trigger:
 - every push to `main`
 - manual start from `workflow_dispatch`
 
-Create a GitHub Environment named `production` and add these repository variables:
+The simplest setup is to keep the entire host env file in one GitHub secret:
+
+- `DEPLOY_ENV_HOST`
+
+Use the contents of [deploy/.env.host.example](/Users/vees1de/repos/MoneyApp/deploy/.env.host.example#L1) as the template for that secret.
+
+You still need these separate GitHub secrets:
 
 - `DEPLOY_HOST`
 - `DEPLOY_USER`
-- `DEPLOY_PORT` if not `22`
-- `DEPLOY_PATH` if not `/opt/moneyapp`
-- `APP_DOMAIN`
-- `SSL_PRIMARY_DOMAIN`
-- `POSTGRES_DB`
-- `POSTGRES_USER`
-
-Optional variables:
-
-- `APP_PORT`
-- `APP_USER`
-- `APP_GROUP`
-- `SYSTEMD_SERVICE_NAME`
-- `NGINX_SITE_NAME`
-- `POSTGRES_HOST`
-- `POSTGRES_PORT`
-- `INSTALL_NGINX`
-- `BOOTSTRAP_POSTGRES`
-- `REDIS_ENABLED`
-- `KAFKA_ENABLED`
-- `DEFAULT_TIMEZONE`
-- `DEFAULT_BASE_CURRENCY`
-- `YANDEX_CLIENT_ID`
-- `YANDEX_REDIRECT_URL`
-
-Add these GitHub secrets:
-
 - `DEPLOY_SSH_KEY`
-- `POSTGRES_PASSWORD`
-- `AUTH_JWT_SECRET`
 
-Optional secrets:
+Optional SSH/runtime secrets:
 
+- `DEPLOY_PORT`
+- `DEPLOY_PATH`
 - `DEPLOY_KNOWN_HOSTS`
-- `DATABASE_DSN`
-- `REDIS_PASSWORD`
-- `TELEGRAM_BOT_TOKEN`
-- `YANDEX_CLIENT_SECRET`
+
+Fallback mode without `DEPLOY_ENV_HOST`:
+
+- the workflow can also build `deploy/.env.host` from individual secrets like `APP_DOMAIN`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `AUTH_JWT_SECRET`, and the other keys referenced inside the workflow
 
 Notes:
 
 - `DEPLOY_KNOWN_HOSTS` is recommended. You can get it with `ssh-keyscan -H your-host`.
 - if `POSTGRES_USER` or `POSTGRES_PASSWORD` contains URL-sensitive characters, set `DATABASE_DSN` explicitly
-- the workflow generates `deploy/.env.host`, configures SSH, and then calls [deploy_host_ssh.sh](/Users/vees1de/repos/MoneyApp/deploy/deploy_host_ssh.sh)
+- the workflow writes `deploy/.env.host`, configures SSH, and then calls [deploy_host_ssh.sh](/Users/vees1de/repos/MoneyApp/deploy/deploy_host_ssh.sh)
 
 ## HTTPS
 
