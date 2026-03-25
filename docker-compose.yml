@@ -31,6 +31,19 @@ services:
     entrypoint: ["/bin/sh", "-e", "-c"]
     command:
       - |
+        echo "waiting for postgres auth..."
+        for i in $$(seq 1 30); do
+          psql -c "select 1" > /dev/null 2>&1 && break
+          echo "  attempt $$i/30 failed, retrying in 2s..."
+          sleep 2
+          if [ "$$i" = "30" ]; then
+            echo "ERROR: could not connect to postgres after 30 attempts" >&2
+            psql -c "select 1" >&2
+            exit 1
+          fi
+        done
+        echo "connected"
+
         psql -v ON_ERROR_STOP=1 -c "create table if not exists schema_migrations (version text primary key, applied_at timestamptz not null default now())"
 
         for f in /migrations/*.sql; do

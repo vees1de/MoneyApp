@@ -15,9 +15,18 @@ create table if not exists finance_categories (
   constraint finance_categories_kind_check check (kind in ('income', 'expense'))
 );
 
-alter table finance_transactions
-  add constraint finance_transactions_category_id_fkey
-  foreign key (category_id) references finance_categories(id) on delete set null;
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'finance_transactions_category_id_fkey'
+  ) then
+    alter table finance_transactions
+      add constraint finance_transactions_category_id_fkey
+      foreign key (category_id) references finance_categories(id) on delete set null;
+  end if;
+end $$;
 
 create index if not exists finance_categories_user_id_idx on finance_categories (user_id);
 create index if not exists finance_categories_kind_idx on finance_categories (kind);

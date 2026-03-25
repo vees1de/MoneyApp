@@ -81,7 +81,13 @@ if ! command -v docker >/dev/null 2>&1; then
 fi
 
 echo "  rebuilding + restarting backend container"
-docker compose up --build -d backend
+if ! docker compose up --build -d backend; then
+  echo "--- migrate logs ---" >&2
+  docker compose logs --tail=80 migrate >&2
+  echo "--- backend logs ---" >&2
+  docker compose logs --tail=40 backend >&2
+  exit 1
+fi
 
 echo "  waiting for healthcheck"
 for i in $(seq 1 30); do
