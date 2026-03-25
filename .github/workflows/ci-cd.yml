@@ -185,11 +185,17 @@ jobs:
           EOF
           chmod 600 ~/.ssh/config
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
       - name: Run deploy
         shell: bash
         env:
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH || '/opt/moneyapp' }}
         run: |
-          chmod +x scripts/build_frontend_dist.sh
-          chmod +x deploy/deploy_ssh.sh
-          ./deploy/deploy_ssh.sh deploy-target "${DEPLOY_PATH}"
+          chmod +x deploy/deploy_host_ssh.sh
+          ./deploy/deploy_host_ssh.sh deploy-target "${DEPLOY_PATH}"
