@@ -16,8 +16,10 @@ import {
   loginWithYandex,
   logout as apiLogout,
 } from "@/shared/api/services/auth";
-import { getYandexAuthPayload } from "@/shared/lib/auth-provider";
-import { requestTelegramAuthPayload } from "@/shared/lib/telegram-oidc";
+import {
+  getTelegramAuthPayload,
+  getYandexAuthPayload,
+} from "@/shared/lib/auth-provider";
 
 type AuthStatus = "unknown" | "guest" | "authenticated";
 
@@ -84,7 +86,14 @@ export const useAuthStore = defineStore("auth", () => {
   async function login(nextProvider: Exclude<AuthProvider, "email">) {
     const response = await (async () => {
       if (nextProvider === "telegram") {
-        return loginWithTelegram(await requestTelegramAuthPayload());
+        const payload = getTelegramAuthPayload();
+        if (!payload) {
+          throw new Error(
+            "Telegram auth payload is unavailable in the current runtime.",
+          );
+        }
+
+        return loginWithTelegram(payload);
       }
 
       const payload = getYandexAuthPayload();

@@ -11,12 +11,13 @@ import { env } from "@/shared/config/env";
 import { translateProvider, useI18n } from "@/shared/i18n";
 import {
   buildYandexAuthorizeUrl,
+  clearTelegramAuthPayloadFromUrl,
   clearYandexAuthPayloadFromUrl,
   getAvailableAuthProviders,
+  hasTelegramAuthPayload,
   hasYandexAuthPayload,
   validateYandexState,
 } from "@/shared/lib/auth-provider";
-import { preloadTelegramLoginSdk } from "@/shared/lib/telegram-oidc";
 import LanguageSwitch from "@/shared/ui/LanguageSwitch.vue";
 
 const authStore = useAuthStore();
@@ -59,6 +60,9 @@ async function login(provider: Exclude<AuthProvider, "email">) {
   try {
     loading.value = true;
     await authStore.login(provider);
+    if (provider === "telegram") {
+      clearTelegramAuthPayloadFromUrl();
+    }
     if (provider === "yandex") {
       clearYandexAuthPayloadFromUrl();
     }
@@ -70,6 +74,9 @@ async function login(provider: Exclude<AuthProvider, "email">) {
       userStore.profile.onboardingCompleted ? "/dashboard" : "/onboarding",
     );
   } catch (error) {
+    if (provider === "telegram" && hasTelegramAuthPayload()) {
+      clearTelegramAuthPayloadFromUrl();
+    }
     appUiStore.pushToast(getErrorMessage(error), "warning");
   } finally {
     loading.value = false;
@@ -77,8 +84,9 @@ async function login(provider: Exclude<AuthProvider, "email">) {
 }
 
 onMounted(async () => {
-  if (env.telegramClientId) {
-    preloadTelegramLoginSdk();
+  if (hasTelegramAuthPayload() && !loading.value) {
+    await login("telegram");
+    return;
   }
 
   if (!hasYandexAuthPayload() || loading.value) {

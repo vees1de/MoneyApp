@@ -73,7 +73,7 @@ func New(cfg *config.Config) (*App, error) {
 		userRepo,
 		sessionService,
 		auditService,
-		telegram.NewVerifier(cfg.Integrations.Telegram.ClientID),
+		telegram.NewVerifier(cfg.Integrations.Telegram.BotToken, cfg.Auth.AllowInsecureDevAuth),
 		yandex.NewVerifier(
 			cfg.Integrations.Yandex.ClientID,
 			cfg.Integrations.Yandex.ClientSecret,

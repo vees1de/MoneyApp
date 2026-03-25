@@ -2,8 +2,13 @@ import type { ApiAuthResponse, ApiMeResponse } from "@/shared/api/contracts";
 import { apiRequest } from "@/shared/api/http/client";
 
 export interface TelegramAuthPayload {
-  id_token: string;
-  nonce?: string;
+  provider_user_id: string;
+  username?: string;
+  first_name?: string;
+  last_name?: string;
+  photo_url?: string;
+  auth_date?: number;
+  hash?: string;
 }
 
 export interface YandexAuthPayload {

@@ -50,7 +50,7 @@ type IntegrationsConfig struct {
 }
 
 type TelegramConfig struct {
-	ClientID string
+	BotToken string
 }
 
 type YandexConfig struct {
@@ -97,7 +97,7 @@ func Load() (*Config, error) {
 		},
 		Integrations: IntegrationsConfig{
 			Telegram: TelegramConfig{
-				ClientID: getEnv("TELEGRAM_CLIENT_ID", ""),
+				BotToken: getEnv("TELEGRAM_BOT_TOKEN", ""),
 			},
 			Yandex: YandexConfig{
 				ClientID:     getEnv("YANDEX_CLIENT_ID", ""),

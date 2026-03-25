@@ -844,18 +844,38 @@
       },
       "TelegramLoginRequest": {
         "properties": {
-          "id_token": {
-            "description": "Signed OIDC ID token returned by Telegram Login.",
+          "auth_date": {
+            "default": 0,
+            "format": "int64",
+            "type": "integer"
+          },
+          "first_name": {
+            "nullable": true,
             "type": "string"
           },
-          "nonce": {
-            "description": "Optional nonce that was sent to Telegram Login and must match the token claim.",
+          "hash": {
+            "nullable": true,
+            "type": "string"
+          },
+          "last_name": {
+            "nullable": true,
+            "type": "string"
+          },
+          "photo_url": {
+            "format": "uri",
+            "nullable": true,
+            "type": "string"
+          },
+          "provider_user_id": {
+            "type": "string"
+          },
+          "username": {
             "nullable": true,
             "type": "string"
           }
         },
         "required": [
-          "id_token"
+          "provider_user_id"
         ],
         "type": "object"
       },
@@ -1386,7 +1406,7 @@
     }
   },
   "info": {
-    "description": "HTTP API for the MoneyApp finance core.\n\nNotes for local testing:\n- All money values are strings, not numbers, to preserve decimal precision.\n- Telegram auth expects a real OIDC `id_token` issued by `https://oauth.telegram.org` for the configured `TELEGRAM_CLIENT_ID`.\n- In development, when `AUTH_ALLOW_INSECURE_DEV_AUTH=true`, the Yandex auth endpoint can work in pass-through mode.\n- Protected endpoints use Bearer auth with the access token returned by login.\n",
+    "description": "HTTP API for the MoneyApp finance core.\n\nNotes for local testing:\n- All money values are strings, not numbers, to preserve decimal precision.\n- Telegram auth expects a signed payload from the Telegram Login Widget and verifies it using `TELEGRAM_BOT_TOKEN`.\n- In development, when `AUTH_ALLOW_INSECURE_DEV_AUTH=true`, Telegram and Yandex auth endpoints can work in pass-through mode.\n- Protected endpoints use Bearer auth with the access token returned by login.\n",
     "summary": "Personal Life OS finance MVP backend",
     "title": "MoneyApp Finance Core API",
     "version": "1.0.0"
@@ -1623,16 +1643,21 @@
     },
     "/api/v1/auth/telegram": {
       "post": {
-        "description": "Accepts a Telegram OIDC `id_token` from the official Telegram Login SDK and returns JWT + refresh tokens.\n",
+        "description": "Accepts a signed payload from the Telegram Login Widget and returns JWT + refresh tokens.\n",
         "operationId": "authTelegram",
         "requestBody": {
           "content": {
             "application/json": {
               "examples": {
-                "oidc": {
+                "widget": {
                   "value": {
-                    "id_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InRlbGVncmFtIn0.eyJpc3MiOiJodHRwczovL29hdXRoLnRlbGVncmFtLm9yZyIsImF1ZCI6Ijg1MjE4OTcxOTgiLCJzdWIiOiIxMjM0NTY3ODkwIiwiaWF0IjoxNzAwMDAwMDAwLCJleHAiOjE3MDAwMDM2MDAsImlkIjo5ODc2NTQzMjEsIm5hbWUiOiJKb2huIERvZSJ9.signature",
-                    "nonce": "7e7a2d50d2db4ce58a1fd508dd4bc703"
+                    "auth_date": 1711111111,
+                    "first_name": "Vee",
+                    "hash": "0d3d830abf3f6a7f0f1f72dd9a1b88e7e0b1b6d9bc52f3d441fa4f0e7fa7c2ce",
+                    "last_name": "Side",
+                    "photo_url": "https://example.com/avatar.png",
+                    "provider_user_id": "987654321",
+                    "username": "veeside"
                   }
                 }
               },

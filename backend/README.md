@@ -38,7 +38,7 @@ export AUTH_JWT_ISSUER='moneyapp'
 export AUTH_ACCESS_TOKEN_TTL='15m'
 export AUTH_REFRESH_TOKEN_TTL='720h'
 export AUTH_ALLOW_INSECURE_DEV_AUTH='true'
-export TELEGRAM_CLIENT_ID='8521897198'
+export TELEGRAM_BOT_TOKEN='set-bot-token-here'
 export YANDEX_CLIENT_ID='your-yandex-client-id'
 export YANDEX_CLIENT_SECRET='your-yandex-client-secret'
 export YANDEX_REDIRECT_URI='https://bims.su/auth/yandex/callback'
@@ -55,7 +55,7 @@ Optional frontend integration:
 ```bash
 cd ../frontend
 npm install
-export VITE_TELEGRAM_CLIENT_ID='8521897198'
+export VITE_TELEGRAM_BOT_USERNAME='your_bot_username'
 export VITE_YANDEX_CLIENT_ID='your-yandex-client-id'
 export VITE_YANDEX_REDIRECT_URI='https://bims.su/auth/yandex/callback'
 npm run build
@@ -97,9 +97,9 @@ go generate ./...
 
 ## Quick API test
 
-1. Configure `TELEGRAM_CLIENT_ID` on the backend and `VITE_TELEGRAM_CLIENT_ID` on the frontend using the value from `@BotFather -> Bot Settings -> Web Login`.
+1. Configure `TELEGRAM_BOT_TOKEN` on the backend and `VITE_TELEGRAM_BOT_USERNAME` on the frontend using your bot from `@BotFather`.
 2. Configure `YANDEX_CLIENT_ID`, `YANDEX_CLIENT_SECRET`, and `YANDEX_REDIRECT_URI=https://bims.su/auth/yandex/callback` on the backend, and set `VITE_YANDEX_CLIENT_ID` plus `VITE_YANDEX_REDIRECT_URI=https://bims.su/auth/yandex/callback` on the frontend.
-3. Register your frontend origin in Telegram Allowed URLs and the exact redirect URI in Yandex OAuth settings.
+3. Run `/setdomain` in `@BotFather` for your site domain, and register the exact redirect URI in Yandex OAuth settings.
 4. Open the login page in the browser and complete provider login.
 5. Copy `tokens.access_token` from the browser session or the auth response.
 6. Click `Authorize` in Swagger UI and paste:

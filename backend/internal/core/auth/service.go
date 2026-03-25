@@ -64,8 +64,13 @@ func NewService(
 
 func (s *Service) LoginWithTelegram(ctx context.Context, request TelegramLoginRequest, meta sessions.SessionMeta) (AuthResponse, error) {
 	verified, err := s.telegram.Verify(ctx, TelegramVerificationInput{
-		IDToken: request.IDToken,
-		Nonce:   request.Nonce,
+		ProviderUserID: request.ProviderUserID,
+		Username:       request.Username,
+		FirstName:      request.FirstName,
+		LastName:       request.LastName,
+		PhotoURL:       request.PhotoURL,
+		AuthDate:       request.AuthDate,
+		Hash:           request.Hash,
 	})
 	if err != nil {
 		return AuthResponse{}, err
