@@ -35,13 +35,8 @@ type VerifiedIdentity struct {
 }
 
 type TelegramVerificationInput struct {
-	ProviderUserID string
-	Username       *string
-	FirstName      *string
-	LastName       *string
-	PhotoURL       *string
-	AuthDate       int64
-	Hash           *string
+	IDToken *string
+	Nonce   *string
 }
 
 type YandexVerificationInput struct {

@@ -1,28 +1,19 @@
 <script setup lang="ts">
-import { Eye, EyeOff, Mail } from 'lucide-vue-next'
-import { ref } from 'vue'
-
 import type { AuthProvider } from '@/entities/user/model/types'
 import { useI18n } from '@/shared/i18n'
 
-defineProps<{
+const props = defineProps<{
+  availableProviders?: Partial<Record<Exclude<AuthProvider, 'email'>, boolean>>
   loading?: boolean
 }>()
 
 const emit = defineEmits<{
   select: [provider: Exclude<AuthProvider, 'email'>]
-  loginEmail: [email: string, password: string]
 }>()
-
-const showEmailForm = ref(false)
-const email = ref('')
-const password = ref('')
-const showPassword = ref(false)
 const { t } = useI18n()
 
-function submitEmail() {
-  if (!email.value || !password.value) return
-  emit('loginEmail', email.value, password.value)
+function isProviderAvailable(provider: Exclude<AuthProvider, 'email'>) {
+  return props.availableProviders?.[provider] ?? false
 }
 </script>
 
@@ -31,7 +22,8 @@ function submitEmail() {
     <!-- OAuth buttons -->
     <button
       class="auth-btn auth-btn--telegram"
-      :disabled="loading"
+      :disabled="loading || !isProviderAvailable('telegram')"
+      :title="isProviderAvailable('telegram') ? undefined : t('auth.telegramUnavailable')"
       @click="emit('select', 'telegram')"
     >
       <!-- Telegram brand icon -->
@@ -44,7 +36,8 @@ function submitEmail() {
 
     <button
       class="auth-btn auth-btn--yandex"
-      :disabled="loading"
+      :disabled="loading || !isProviderAvailable('yandex')"
+      :title="isProviderAvailable('yandex') ? undefined : t('auth.yandexUnavailable')"
       @click="emit('select', 'yandex')"
     >
       <!-- Yandex brand icon — explicit fill, no currentColor dependency -->
@@ -56,55 +49,6 @@ function submitEmail() {
         />
       </svg>
       {{ t('auth.continueYandex') }}
-    </button>
-
-    <div class="auth-divider">
-      <span>{{ t('auth.or') }}</span>
-    </div>
-
-    <!-- Email form -->
-    <template v-if="showEmailForm">
-      <form class="email-form" @submit.prevent="submitEmail">
-        <div class="email-form__field">
-          <Mail :size="16" class="email-form__icon" />
-          <input
-            v-model="email"
-            type="email"
-            class="email-form__input"
-            :placeholder="t('auth.emailPlaceholder')"
-            autocomplete="email"
-            required
-          />
-        </div>
-        <div class="email-form__field">
-          <component :is="showPassword ? EyeOff : Eye" :size="16" class="email-form__icon email-form__icon--password" @click="showPassword = !showPassword" />
-          <input
-            v-model="password"
-            :type="showPassword ? 'text' : 'password'"
-            class="email-form__input"
-            :placeholder="t('auth.passwordPlaceholder')"
-            autocomplete="current-password"
-            required
-          />
-        </div>
-        <button
-          type="submit"
-          class="auth-btn auth-btn--email"
-          :disabled="loading || !email || !password"
-        >
-          {{ t('auth.signInEmail') }}
-        </button>
-      </form>
-    </template>
-
-    <button
-      v-else
-      class="auth-btn auth-btn--ghost"
-      :disabled="loading"
-      @click="showEmailForm = true"
-    >
-      <Mail :size="18" />
-      {{ t('auth.continueEmail') }}
     </button>
   </div>
 </template>
@@ -150,82 +94,5 @@ function submitEmail() {
 .auth-btn--yandex {
   background: #FC3F1D;
   color: #fff;
-}
-
-.auth-btn--email {
-  background: var(--brand);
-  color: #fff;
-}
-
-.auth-btn--ghost {
-  background: var(--surface-secondary);
-  color: var(--text-primary);
-  border: 1px solid var(--separator);
-}
-
-.auth-divider {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: var(--text-muted);
-  font-size: 0.8125rem;
-  font-weight: 500;
-}
-
-.auth-divider::before,
-.auth-divider::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--separator);
-}
-
-.email-form {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.email-form__field {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.email-form__icon {
-  position: absolute;
-  left: 14px;
-  color: var(--text-muted);
-  pointer-events: none;
-  flex-shrink: 0;
-}
-
-.email-form__icon--password {
-  pointer-events: auto;
-  cursor: pointer;
-  left: auto;
-  right: 14px;
-}
-
-.email-form__input {
-  width: 100%;
-  height: 48px;
-  padding: 0 44px 0 40px;
-  border: 1px solid var(--separator);
-  border-radius: var(--radius-md);
-  background: var(--surface-secondary);
-  font-size: 0.9375rem;
-  color: var(--text-primary);
-  outline: none;
-  transition: border-color var(--duration-fast) ease;
-}
-
-.email-form__input:focus {
-  border-color: var(--brand);
-  background: var(--surface);
-}
-
-.email-form__input::placeholder {
-  color: var(--text-muted);
 }
 </style>

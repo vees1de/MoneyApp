@@ -1,51 +1,98 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted, ref } from "vue";
+import { useRouter } from "vue-router";
 
-import type { AuthProvider } from '@/entities/user/model/types'
-import { useAppUiStore } from '@/app/stores/app-ui'
-import { useAuthStore } from '@/app/stores/auth'
-import { useUserStore } from '@/app/stores/user'
-import AuthProviderButtons from '@/features/auth/AuthProviderButtons.vue'
-import { env } from '@/shared/config/env'
-import { translateProvider, useI18n } from '@/shared/i18n'
-import LanguageSwitch from '@/shared/ui/LanguageSwitch.vue'
+import type { AuthProvider } from "@/entities/user/model/types";
+import { useAppUiStore } from "@/app/stores/app-ui";
+import { useAuthStore } from "@/app/stores/auth";
+import { useUserStore } from "@/app/stores/user";
+import AuthProviderButtons from "@/features/auth/AuthProviderButtons.vue";
+import { env } from "@/shared/config/env";
+import { translateProvider, useI18n } from "@/shared/i18n";
+import {
+  buildYandexAuthorizeUrl,
+  clearYandexAuthPayloadFromUrl,
+  getAvailableAuthProviders,
+  hasYandexAuthPayload,
+  validateYandexState,
+} from "@/shared/lib/auth-provider";
+import { preloadTelegramLoginSdk } from "@/shared/lib/telegram-oidc";
+import LanguageSwitch from "@/shared/ui/LanguageSwitch.vue";
 
-const authStore = useAuthStore()
-const userStore = useUserStore()
-const appUiStore = useAppUiStore()
-const router = useRouter()
-const { t } = useI18n()
+const authStore = useAuthStore();
+const userStore = useUserStore();
+const appUiStore = useAppUiStore();
+const router = useRouter();
+const { t } = useI18n();
 
-const loading = ref(false)
+const loading = ref(false);
+const availableProviders = computed(() => getAvailableAuthProviders());
 
-async function login(provider: Exclude<AuthProvider, 'email'>) {
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof error.message === "string"
+  ) {
+    return error.message;
+  }
+
+  return t("auth.signInFailed");
+}
+
+async function login(provider: Exclude<AuthProvider, "email">) {
+  if (provider === "yandex" && !hasYandexAuthPayload()) {
+    const authorizeUrl = buildYandexAuthorizeUrl();
+    if (!authorizeUrl) {
+      throw new Error(t("auth.yandexUnavailable"));
+    }
+
+    window.location.assign(authorizeUrl);
+    return;
+  }
+
   try {
-    loading.value = true
-    await authStore.login(provider)
-    appUiStore.pushToast(t('auth.signedInWith', { provider: translateProvider(provider) }), 'success')
-    await router.push(userStore.profile.onboardingCompleted ? '/dashboard' : '/onboarding')
+    loading.value = true;
+    await authStore.login(provider);
+    if (provider === "yandex") {
+      clearYandexAuthPayloadFromUrl();
+    }
+    appUiStore.pushToast(
+      t("auth.signedInWith", { provider: translateProvider(provider) }),
+      "success",
+    );
+    await router.push(
+      userStore.profile.onboardingCompleted ? "/dashboard" : "/onboarding",
+    );
   } catch (error) {
-    const message = error instanceof Error ? error.message : t('auth.signInFailed')
-    appUiStore.pushToast(message, 'warning')
+    appUiStore.pushToast(getErrorMessage(error), "warning");
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
-async function loginWithEmail(email: string, password: string) {
-  try {
-    loading.value = true
-    await authStore.loginWithEmailCredentials(email, password)
-    appUiStore.pushToast(t('auth.signedInWith', { provider: translateProvider('email') }), 'success')
-    await router.push(userStore.profile.onboardingCompleted ? '/dashboard' : '/onboarding')
-  } catch (error) {
-    const message = error instanceof Error ? error.message : t('auth.signInFailed')
-    appUiStore.pushToast(message, 'warning')
-  } finally {
-    loading.value = false
+onMounted(async () => {
+  if (env.telegramClientId) {
+    preloadTelegramLoginSdk();
   }
-}
+
+  if (!hasYandexAuthPayload() || loading.value) {
+    return;
+  }
+
+  if (!validateYandexState()) {
+    appUiStore.pushToast(t("auth.yandexStateInvalid"), "warning");
+    clearYandexAuthPayloadFromUrl();
+    return;
+  }
+
+  await login("yandex");
+});
 </script>
 
 <template>
@@ -59,9 +106,21 @@ async function loginWithEmail(email: string, password: string) {
       <div class="login-brand">
         <div class="login-brand__icon">
           <svg viewBox="0 0 28 28" fill="none" width="28" height="28">
-            <rect width="28" height="28" rx="8" fill="var(--brand)"/>
-            <path d="M8 20V10.5L14 7l6 3.5V20" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M11 20v-5h6v5" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            <rect width="28" height="28" rx="8" fill="var(--brand)" />
+            <path
+              d="M8 20V10.5L14 7l6 3.5V20"
+              stroke="#fff"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M11 20v-5h6v5"
+              stroke="#fff"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
           </svg>
         </div>
         <div class="login-brand__label">
@@ -72,31 +131,39 @@ async function loginWithEmail(email: string, password: string) {
 
       <!-- Headline -->
       <div class="login-headline">
-        <h1 class="login-headline__title">{{ t('auth.loginTitle') }}</h1>
-        <p class="login-headline__sub">{{ t('auth.loginSubtitle') }}</p>
+        <h1 class="login-headline__title">{{ t("auth.loginTitle") }}</h1>
+        <p class="login-headline__sub">{{ t("auth.loginSubtitle") }}</p>
       </div>
 
       <!-- Feature pills -->
       <div class="login-features">
         <div class="login-feature">
           <span class="login-feature__icon">📊</span>
-          <span class="login-feature__text">{{ t('auth.featureBalance') }}</span>
+          <span class="login-feature__text">{{
+            t("auth.featureBalance")
+          }}</span>
         </div>
         <div class="login-feature">
           <span class="login-feature__icon">🔁</span>
-          <span class="login-feature__text">{{ t('auth.featureReview') }}</span>
+          <span class="login-feature__text">{{ t("auth.featureReview") }}</span>
         </div>
         <div class="login-feature">
           <span class="login-feature__icon">🎯</span>
-          <span class="login-feature__text">{{ t('auth.featureSavings') }}</span>
+          <span class="login-feature__text">{{
+            t("auth.featureSavings")
+          }}</span>
         </div>
       </div>
 
       <!-- Auth buttons -->
-      <AuthProviderButtons :loading="loading" @select="login" @login-email="loginWithEmail" />
+      <AuthProviderButtons
+        :loading="loading"
+        :available-providers="availableProviders"
+        @select="login"
+      />
 
       <p class="login-legal">
-        {{ t('auth.legal') }}
+        {{ t("auth.legal") }}
       </p>
     </div>
   </div>

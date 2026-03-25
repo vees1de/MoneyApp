@@ -73,7 +73,7 @@ func New(cfg *config.Config) (*App, error) {
 		userRepo,
 		sessionService,
 		auditService,
-		telegram.NewVerifier(cfg.Integrations.Telegram.BotToken, cfg.Auth.AllowInsecureDevAuth),
+		telegram.NewVerifier(cfg.Integrations.Telegram.ClientID),
 		yandex.NewVerifier(cfg.Integrations.Yandex.ClientID, cfg.Auth.AllowInsecureDevAuth),
 	)
 	linksService := corelinks.NewService(linksRepo, appClock)

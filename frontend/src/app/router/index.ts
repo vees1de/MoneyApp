@@ -27,6 +27,21 @@ export function createAppRouter(pinia: Pinia) {
         ],
       },
       {
+        path: '/auth/yandex/callback',
+        component: () => import('@/app/layouts/AuthLayout.vue'),
+        children: [
+          {
+            path: '',
+            name: 'yandex-callback',
+            component: () => import('@/pages/auth/LoginPage.vue'),
+            meta: {
+              guestOnly: true,
+              titleKey: 'route.login',
+            },
+          },
+        ],
+      },
+      {
         path: '/onboarding',
         component: () => import('@/app/layouts/AuthLayout.vue'),
         children: [

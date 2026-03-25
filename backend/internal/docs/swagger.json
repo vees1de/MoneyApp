@@ -844,38 +844,18 @@
       },
       "TelegramLoginRequest": {
         "properties": {
-          "auth_date": {
-            "default": 0,
-            "format": "int64",
-            "type": "integer"
-          },
-          "first_name": {
-            "nullable": true,
+          "id_token": {
+            "description": "Signed OIDC ID token returned by Telegram Login.",
             "type": "string"
           },
-          "hash": {
-            "nullable": true,
-            "type": "string"
-          },
-          "last_name": {
-            "nullable": true,
-            "type": "string"
-          },
-          "photo_url": {
-            "format": "uri",
-            "nullable": true,
-            "type": "string"
-          },
-          "provider_user_id": {
-            "type": "string"
-          },
-          "username": {
+          "nonce": {
+            "description": "Optional nonce that was sent to Telegram Login and must match the token claim.",
             "nullable": true,
             "type": "string"
           }
         },
         "required": [
-          "provider_user_id"
+          "id_token"
         ],
         "type": "object"
       },
@@ -1406,7 +1386,7 @@
     }
   },
   "info": {
-    "description": "HTTP API for the MoneyApp finance core.\n\nNotes for local testing:\n- All money values are strings, not numbers, to preserve decimal precision.\n- In development, when `AUTH_ALLOW_INSECURE_DEV_AUTH=true`, Telegram and Yandex auth endpoints work in pass-through mode and do not validate provider signatures.\n- Protected endpoints use Bearer auth with the access token returned by login.\n",
+    "description": "HTTP API for the MoneyApp finance core.\n\nNotes for local testing:\n- All money values are strings, not numbers, to preserve decimal precision.\n- Telegram auth expects a real OIDC `id_token` issued by `https://oauth.telegram.org` for the configured `TELEGRAM_CLIENT_ID`.\n- In development, when `AUTH_ALLOW_INSECURE_DEV_AUTH=true`, the Yandex auth endpoint can work in pass-through mode.\n- Protected endpoints use Bearer auth with the access token returned by login.\n",
     "summary": "Personal Life OS finance MVP backend",
     "title": "MoneyApp Finance Core API",
     "version": "1.0.0"
@@ -1643,21 +1623,16 @@
     },
     "/api/v1/auth/telegram": {
       "post": {
-        "description": "In development mode, this endpoint accepts a synthetic Telegram identity payload and returns JWT + refresh tokens.\n",
+        "description": "Accepts a Telegram OIDC `id_token` from the official Telegram Login SDK and returns JWT + refresh tokens.\n",
         "operationId": "authTelegram",
         "requestBody": {
           "content": {
             "application/json": {
               "examples": {
-                "localDev": {
+                "oidc": {
                   "value": {
-                    "auth_date": 1711111111,
-                    "first_name": "Vee",
-                    "hash": "dev-mode",
-                    "last_name": "Side",
-                    "photo_url": "https://example.com/avatar.png",
-                    "provider_user_id": "tg_10001",
-                    "username": "veeside"
+                    "id_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InRlbGVncmFtIn0.eyJpc3MiOiJodHRwczovL29hdXRoLnRlbGVncmFtLm9yZyIsImF1ZCI6Ijg1MjE4OTcxOTgiLCJzdWIiOiIxMjM0NTY3ODkwIiwiaWF0IjoxNzAwMDAwMDAwLCJleHAiOjE3MDAwMDM2MDAsImlkIjo5ODc2NTQzMjEsIm5hbWUiOiJKb2huIERvZSJ9.signature",
+                    "nonce": "7e7a2d50d2db4ce58a1fd508dd4bc703"
                   }
                 }
               },

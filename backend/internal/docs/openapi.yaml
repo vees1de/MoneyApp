@@ -8,7 +8,8 @@ info:
 
     Notes for local testing:
     - All money values are strings, not numbers, to preserve decimal precision.
-    - In development, when `AUTH_ALLOW_INSECURE_DEV_AUTH=true`, Telegram and Yandex auth endpoints work in pass-through mode and do not validate provider signatures.
+    - Telegram auth expects a real OIDC `id_token` issued by `https://oauth.telegram.org` for the configured `TELEGRAM_CLIENT_ID`.
+    - In development, when `AUTH_ALLOW_INSECURE_DEV_AUTH=true`, the Yandex auth endpoint can work in pass-through mode.
     - Protected endpoints use Bearer auth with the access token returned by login.
 servers:
   - url: http://localhost:8080
@@ -58,7 +59,7 @@ paths:
       tags: [Auth]
       summary: Login with Telegram
       description: |
-        In development mode, this endpoint accepts a synthetic Telegram identity payload and returns JWT + refresh tokens.
+        Accepts a Telegram OIDC `id_token` from the official Telegram Login SDK and returns JWT + refresh tokens.
       operationId: authTelegram
       security: []
       requestBody:
@@ -68,15 +69,10 @@ paths:
             schema:
               $ref: '#/components/schemas/TelegramLoginRequest'
             examples:
-              localDev:
+              oidc:
                 value:
-                  provider_user_id: tg_10001
-                  username: veeside
-                  first_name: Vee
-                  last_name: Side
-                  photo_url: https://example.com/avatar.png
-                  auth_date: 1711111111
-                  hash: dev-mode
+                  id_token: eyJhbGciOiJSUzI1NiIsImtpZCI6InRlbGVncmFtIn0.eyJpc3MiOiJodHRwczovL29hdXRoLnRlbGVncmFtLm9yZyIsImF1ZCI6Ijg1MjE4OTcxOTgiLCJzdWIiOiIxMjM0NTY3ODkwIiwiaWF0IjoxNzAwMDAwMDAwLCJleHAiOjE3MDAwMDM2MDAsImlkIjo5ODc2NTQzMjEsIm5hbWUiOiJKb2huIERvZSJ9.signature
+                  nonce: 7e7a2d50d2db4ce58a1fd508dd4bc703
       responses:
         '200':
           description: Authenticated successfully
@@ -1118,30 +1114,15 @@ components:
 
     TelegramLoginRequest:
       type: object
-      required: [provider_user_id]
+      required: [id_token]
       properties:
-        provider_user_id:
+        id_token:
           type: string
-        username:
-          type: string
-          nullable: true
-        first_name:
+          description: Signed OIDC ID token returned by Telegram Login.
+        nonce:
           type: string
           nullable: true
-        last_name:
-          type: string
-          nullable: true
-        photo_url:
-          type: string
-          format: uri
-          nullable: true
-        auth_date:
-          type: integer
-          format: int64
-          default: 0
-        hash:
-          type: string
-          nullable: true
+          description: Optional nonce that was sent to Telegram Login and must match the token claim.
 
     YandexLoginRequest:
       type: object

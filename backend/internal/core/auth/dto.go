@@ -6,13 +6,8 @@ import (
 )
 
 type TelegramLoginRequest struct {
-	ProviderUserID string  `json:"provider_user_id" validate:"required"`
-	Username       *string `json:"username"`
-	FirstName      *string `json:"first_name"`
-	LastName       *string `json:"last_name"`
-	PhotoURL       *string `json:"photo_url"`
-	AuthDate       int64   `json:"auth_date"`
-	Hash           *string `json:"hash"`
+	IDToken *string `json:"id_token" validate:"required"`
+	Nonce   *string `json:"nonce"`
 }
 
 type YandexLoginRequest struct {

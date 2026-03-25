@@ -38,6 +38,8 @@ export AUTH_JWT_ISSUER='moneyapp'
 export AUTH_ACCESS_TOKEN_TTL='15m'
 export AUTH_REFRESH_TOKEN_TTL='720h'
 export AUTH_ALLOW_INSECURE_DEV_AUTH='true'
+export TELEGRAM_CLIENT_ID='8521897198'
+export YANDEX_CLIENT_ID='your-yandex-client-id'
 ```
 
 4. Start the API:
@@ -51,6 +53,9 @@ Optional frontend integration:
 ```bash
 cd ../frontend
 npm install
+export VITE_TELEGRAM_CLIENT_ID='8521897198'
+export VITE_YANDEX_CLIENT_ID='your-yandex-client-id'
+export VITE_YANDEX_REDIRECT_URI='https://bims.su/auth/yandex/callback'
 npm run build
 cd ../backend
 export FRONTEND_DIST_DIR='../frontend/dist'
@@ -90,29 +95,18 @@ go generate ./...
 
 ## Quick API test
 
-1. Open `http://localhost:8080/swagger`
-2. Call `POST /api/v1/auth/telegram`
-3. Use a local dev payload:
-
-```json
-{
-  "provider_user_id": "tg_10001",
-  "username": "veeside",
-  "first_name": "Vee",
-  "last_name": "Side",
-  "auth_date": 1711111111,
-  "hash": "dev-mode"
-}
-```
-
-4. Copy `tokens.access_token` from the response
-5. Click `Authorize` in Swagger UI and paste:
+1. Configure `TELEGRAM_CLIENT_ID` on the backend and `VITE_TELEGRAM_CLIENT_ID` on the frontend using the value from `@BotFather -> Bot Settings -> Web Login`.
+2. Configure `YANDEX_CLIENT_ID` on the backend and set `VITE_YANDEX_CLIENT_ID` plus `VITE_YANDEX_REDIRECT_URI=https://bims.su/auth/yandex/callback` on the frontend.
+3. Register your frontend origin in Telegram Allowed URLs and the exact redirect URI in Yandex OAuth settings.
+4. Open the login page in the browser and complete provider login.
+5. Copy `tokens.access_token` from the browser session or the auth response.
+6. Click `Authorize` in Swagger UI and paste:
 
 ```text
 Bearer <access_token>
 ```
 
-6. Test protected endpoints like:
+7. Test protected endpoints like:
 
 - `GET /api/v1/accounts`
 - `POST /api/v1/finance/transactions`

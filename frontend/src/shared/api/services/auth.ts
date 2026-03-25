@@ -1,56 +1,58 @@
-import type { ApiAuthResponse, ApiMeResponse } from '@/shared/api/contracts'
-import { apiRequest } from '@/shared/api/http/client'
+import type { ApiAuthResponse, ApiMeResponse } from "@/shared/api/contracts";
+import { apiRequest } from "@/shared/api/http/client";
 
-export function loginWithTelegram(providerUserId: string) {
-  return apiRequest<ApiAuthResponse>('/auth/telegram', {
-    method: 'POST',
-    auth: false,
-    body: JSON.stringify({
-      provider_user_id: providerUserId,
-      username: 'localdev',
-      first_name: 'Local',
-      last_name: 'User',
-      auth_date: Math.floor(Date.now() / 1000),
-      hash: 'dev-mode',
-    }),
-  })
+export interface TelegramAuthPayload {
+  id_token: string;
+  nonce?: string;
 }
 
-export function loginWithYandex(providerUserId: string) {
-  return apiRequest<ApiAuthResponse>('/auth/yandex', {
-    method: 'POST',
+export interface YandexAuthPayload {
+  code?: string;
+  id_token?: string;
+  provider_user_id?: string;
+  email?: string;
+  display_name?: string;
+  avatar_url?: string;
+}
+
+export function loginWithTelegram(payload: TelegramAuthPayload) {
+  return apiRequest<ApiAuthResponse>("/auth/telegram", {
+    method: "POST",
     auth: false,
-    body: JSON.stringify({
-      provider_user_id: providerUserId,
-      email: `${providerUserId}@local.dev`,
-      display_name: 'Local Dev',
-      avatar_url: null,
-    }),
-  })
+    body: JSON.stringify(payload),
+  });
+}
+
+export function loginWithYandex(payload: YandexAuthPayload) {
+  return apiRequest<ApiAuthResponse>("/auth/yandex", {
+    method: "POST",
+    auth: false,
+    body: JSON.stringify(payload),
+  });
 }
 
 export function loginWithEmail(email: string, _password: string) {
-  return apiRequest<ApiAuthResponse>('/auth/email', {
-    method: 'POST',
+  return apiRequest<ApiAuthResponse>("/auth/email", {
+    method: "POST",
     auth: false,
     body: JSON.stringify({
       email,
-      display_name: email.split('@')[0],
+      display_name: email.split("@")[0],
     }),
-  })
+  });
 }
 
 export function fetchMe() {
-  return apiRequest<ApiMeResponse>('/auth/me')
+  return apiRequest<ApiMeResponse>("/auth/me");
 }
 
 export function logout(refreshToken: string) {
-  return apiRequest<void>('/auth/logout', {
-    method: 'POST',
+  return apiRequest<void>("/auth/logout", {
+    method: "POST",
     auth: false,
     retryOnUnauthorized: false,
     body: JSON.stringify({
       refresh_token: refreshToken,
     }),
-  })
+  });
 }
