@@ -21,31 +21,31 @@ services:
       postgres:
         condition: service_healthy
     environment:
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGDATABASE: ${POSTGRES_DB:-moneyapp}
+      PGUSER: ${POSTGRES_USER:-postgres}
       PGPASSWORD: ${POSTGRES_PASSWORD:-postgres}
     volumes:
       - ./backend/migrations:/migrations:ro
-    entrypoint: ["/bin/sh", "-ec"]
+    entrypoint: ["/bin/sh", "-e", "-c"]
     command:
       - |
-        psql "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-moneyapp}?sslmode=disable" -v ON_ERROR_STOP=1 <<'SQL'
-        create table if not exists schema_migrations (
-          version text primary key,
-          applied_at timestamptz not null default now()
-        );
-        SQL
+        psql -v ON_ERROR_STOP=1 -c "create table if not exists schema_migrations (version text primary key, applied_at timestamptz not null default now())"
 
-        for file in /migrations/*.sql; do
-          version="$$(basename "$${file}")";
-          applied="$$(psql "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-moneyapp}?sslmode=disable" -tA -v ON_ERROR_STOP=1 -c "select 1 from schema_migrations where version = '$${version}'")";
-          if [ "$${applied}" = "1" ]; then
-            echo "skipping $${version}";
-            continue;
+        for f in /migrations/*.sql; do
+          [ -f "$$f" ] || continue
+          ver=$$(basename "$$f")
+          applied=$$(psql -tAX -c "select 1 from schema_migrations where version='$$ver'" 2>/dev/null || echo "")
+          if [ "$$applied" = "1" ]; then
+            echo "skip $$ver"
+            continue
           fi
-
-          echo "applying $${version}";
-          psql "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-moneyapp}?sslmode=disable" -v ON_ERROR_STOP=1 -f "$${file}";
-          psql "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-moneyapp}?sslmode=disable" -v ON_ERROR_STOP=1 -c "insert into schema_migrations(version) values ('$${version}')";
+          echo "apply $$ver"
+          psql -v ON_ERROR_STOP=1 -f "$$f"
+          psql -v ON_ERROR_STOP=1 -c "insert into schema_migrations(version) values('$$ver')"
         done
+        echo "all migrations done"
 
   backend:
     build:
