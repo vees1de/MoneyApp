@@ -9,7 +9,7 @@ Usage:
 
 The script expects a filled .env file in the repo root.
 It syncs the repository to the server, uploads .env,
-and runs docker compose up --build -d remotely.
+builds frontend/dist for host nginx, and runs docker compose up --build -d remotely.
 EOF
 }
 
@@ -71,6 +71,9 @@ if ! docker compose version >/dev/null 2>&1; then
   echo "docker compose plugin is required on the server" >&2
   exit 1
 fi
+
+echo "building frontend/dist for nginx"
+bash scripts/build_frontend_dist.sh /opt/moneyapp/frontend/dist
 
 docker compose up --build -d
 EOF

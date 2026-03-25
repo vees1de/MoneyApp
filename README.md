@@ -45,7 +45,7 @@ The same flow without the helper:
 docker compose up --build -d
 ```
 
-The frontend is built into the backend image and served by the backend itself. By default the app is available on `http://localhost:8080`.
+The frontend is built into the backend image and can also be copied to `/opt/moneyapp/frontend/dist` for host nginx via `./scripts/build_frontend_dist.sh`. The backend is published only on `127.0.0.1:${APP_PORT}` so it can sit behind host nginx safely. By default the app is available on `http://localhost:8080`.
 
 ## Production deploy
 

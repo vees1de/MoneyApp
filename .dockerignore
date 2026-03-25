@@ -4,7 +4,6 @@
 .DS_Store
 
 .env
-deploy/.env.prod
 
 tmp
 temp
@@ -28,5 +27,3 @@ frontend/test-results
 frontend/.nyc_output
 
 postgres_data
-redis_data
-kafka_data

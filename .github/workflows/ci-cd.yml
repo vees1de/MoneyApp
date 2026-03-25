@@ -1,22 +1,41 @@
-name: Deploy Host
+name: CI/CD
 
 on:
   push:
-    branches:
-      - main
+  pull_request:
   workflow_dispatch:
 
 concurrency:
-  group: deploy-host-production
+  group: ci-cd-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
-  deploy:
-    name: Deploy To Host
+  backend:
+    name: Backend Test
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    permissions:
-      contents: read
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: Run backend tests
+        working-directory: backend
+        run: go test ./...
+
+  frontend:
+    name: Frontend Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
@@ -29,24 +48,55 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: backend/go.mod
-          cache-dependency-path: backend/go.sum
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate compose file
+        run: |
+          cp .env.example .env
+          docker compose config >/dev/null
+
+      - name: Export frontend dist for nginx
+        run: bash scripts/build_frontend_dist.sh /tmp/moneyapp-frontend-dist
+
+      - name: Build production image
+        run: docker build -f deploy/Dockerfile -t moneyapp:ci .
+
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs:
+      - backend
+      - frontend
+      - docker
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Validate deploy configuration
         shell: bash
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
-          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
-          DEPLOY_ENV_HOST: ${{ secrets.DEPLOY_ENV_HOST }}
-          APP_DOMAIN: ${{ secrets.APP_DOMAIN }}
-          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
-          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_ENV: ${{ secrets.DEPLOY_ENV }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           AUTH_JWT_SECRET: ${{ secrets.AUTH_JWT_SECRET }}
         run: |
@@ -58,11 +108,11 @@ jobs:
             fi
           done
 
-          if [ -n "${DEPLOY_ENV_HOST}" ]; then
+          if [ -n "${DEPLOY_ENV}" ]; then
             exit 0
           fi
 
-          required_fallback=(APP_DOMAIN POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD AUTH_JWT_SECRET)
+          required_fallback=(POSTGRES_PASSWORD AUTH_JWT_SECRET)
           for key in "${required_fallback[@]}"; do
             if [ -z "${!key}" ]; then
               echo "Missing GitHub secret: ${key}" >&2
@@ -73,56 +123,26 @@ jobs:
       - name: Write deploy env file
         shell: bash
         env:
-          DEPLOY_ENV_HOST: ${{ secrets.DEPLOY_ENV_HOST }}
+          DEPLOY_ENV: ${{ secrets.DEPLOY_ENV }}
         run: |
-          if [ -n "${DEPLOY_ENV_HOST}" ]; then
-            printf '%s\n' "${DEPLOY_ENV_HOST}" > deploy/.env.host
+          if [ -n "${DEPLOY_ENV}" ]; then
+            printf '%s\n' "${DEPLOY_ENV}" > .env
             exit 0
           fi
 
-          cat > deploy/.env.host <<EOF
-          APP_DOMAIN=${{ secrets.APP_DOMAIN }}
-          SSL_PRIMARY_DOMAIN=${{ secrets.SSL_PRIMARY_DOMAIN || secrets.APP_DOMAIN }}
+          cat > .env <<EOF
+          APP_ENV=production
           APP_PORT=${{ secrets.APP_PORT || '8080' }}
 
-          APP_USER=${{ secrets.APP_USER || 'moneyapp' }}
-          APP_GROUP=${{ secrets.APP_GROUP || secrets.APP_USER || 'moneyapp' }}
-          SYSTEMD_SERVICE_NAME=${{ secrets.SYSTEMD_SERVICE_NAME || 'moneyapp' }}
-          NGINX_SITE_NAME=${{ secrets.NGINX_SITE_NAME || 'moneyapp.conf' }}
-
-          TARGET_GOOS=linux
-          TARGET_GOARCH=${{ secrets.TARGET_GOARCH || 'amd64' }}
-
-          INSTALL_NGINX=${{ secrets.INSTALL_NGINX || 'true' }}
-          BOOTSTRAP_POSTGRES=${{ secrets.BOOTSTRAP_POSTGRES || 'true' }}
-
-          POSTGRES_HOST=${{ secrets.POSTGRES_HOST || '127.0.0.1' }}
-          POSTGRES_PORT=${{ secrets.POSTGRES_PORT || '5432' }}
-          POSTGRES_DB=${{ secrets.POSTGRES_DB }}
-          POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+          POSTGRES_DB=${{ secrets.POSTGRES_DB || 'moneyapp' }}
+          POSTGRES_USER=${{ secrets.POSTGRES_USER || 'moneyapp' }}
           POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
-          DATABASE_DSN=${{ secrets.DATABASE_DSN }}
 
-          APP_NAME=${{ secrets.APP_NAME || 'moneyapp-backend' }}
-          APP_ENV=production
-          HTTP_ADDR=127.0.0.1:${{ secrets.APP_PORT || '8080' }}
           AUTH_JWT_SECRET=${{ secrets.AUTH_JWT_SECRET }}
           AUTH_JWT_ISSUER=${{ secrets.AUTH_JWT_ISSUER || 'moneyapp' }}
           AUTH_ACCESS_TOKEN_TTL=${{ secrets.AUTH_ACCESS_TOKEN_TTL || '15m' }}
           AUTH_REFRESH_TOKEN_TTL=${{ secrets.AUTH_REFRESH_TOKEN_TTL || '720h' }}
           AUTH_ALLOW_INSECURE_DEV_AUTH=${{ secrets.AUTH_ALLOW_INSECURE_DEV_AUTH || 'false' }}
-
-          REDIS_ENABLED=${{ secrets.REDIS_ENABLED || 'false' }}
-          REDIS_ADDR=${{ secrets.REDIS_ADDR || '127.0.0.1:6379' }}
-          REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
-          REDIS_DB=${{ secrets.REDIS_DB || '0' }}
-          REDIS_DASHBOARD_TTL=${{ secrets.REDIS_DASHBOARD_TTL || '30s' }}
-
-          KAFKA_ENABLED=${{ secrets.KAFKA_ENABLED || 'false' }}
-          KAFKA_BROKERS=${{ secrets.KAFKA_BROKERS || '127.0.0.1:9092' }}
-          KAFKA_CLIENT_ID=${{ secrets.KAFKA_CLIENT_ID || 'moneyapp-backend' }}
-          KAFKA_AUDIT_TOPIC=${{ secrets.KAFKA_AUDIT_TOPIC || 'moneyapp.audit' }}
-          KAFKA_WRITE_TIMEOUT=${{ secrets.KAFKA_WRITE_TIMEOUT || '5s' }}
 
           DEFAULT_BASE_CURRENCY=${{ secrets.DEFAULT_BASE_CURRENCY || 'RUB' }}
           DEFAULT_TIMEZONE=${{ secrets.DEFAULT_TIMEZONE || 'Europe/Moscow' }}
@@ -130,8 +150,6 @@ jobs:
 
           TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
           YANDEX_CLIENT_ID=${{ secrets.YANDEX_CLIENT_ID }}
-          YANDEX_CLIENT_SECRET=${{ secrets.YANDEX_CLIENT_SECRET }}
-          YANDEX_REDIRECT_URL=${{ secrets.YANDEX_REDIRECT_URL }}
           EOF
 
       - name: Configure SSH
@@ -171,5 +189,6 @@ jobs:
         env:
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH || '/opt/moneyapp' }}
         run: |
-          chmod +x deploy/deploy_host_ssh.sh
-          ./deploy/deploy_host_ssh.sh deploy-target "${DEPLOY_PATH}"
+          chmod +x scripts/build_frontend_dist.sh
+          chmod +x deploy/deploy_ssh.sh
+          ./deploy/deploy_ssh.sh deploy-target "${DEPLOY_PATH}"

@@ -9,6 +9,11 @@ COPY frontend/ ./
 RUN npm run build
 
 
+FROM scratch AS frontend-dist
+
+COPY --from=frontend-builder /app/frontend/dist/ /
+
+
 FROM golang:1.26-alpine AS backend-builder
 
 WORKDIR /app/backend
@@ -30,7 +35,7 @@ WORKDIR /app
 
 COPY --from=backend-builder /bin/server ./server
 COPY --from=backend-builder /app/backend/migrations ./migrations
-COPY --from=frontend-builder /app/frontend/dist ./frontend-dist
+COPY --from=frontend-dist / ./frontend-dist
 
 ENV APP_ENV=production
 ENV HTTP_ADDR=:8080
