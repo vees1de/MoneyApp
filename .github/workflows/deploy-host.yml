@@ -1,0 +1,162 @@
+name: Deploy Host
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-host-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy To Host
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: Validate deploy configuration
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+          APP_DOMAIN: ${{ vars.APP_DOMAIN }}
+          POSTGRES_DB: ${{ vars.POSTGRES_DB }}
+          POSTGRES_USER: ${{ vars.POSTGRES_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          AUTH_JWT_SECRET: ${{ secrets.AUTH_JWT_SECRET }}
+        run: |
+          required_vars=(DEPLOY_HOST DEPLOY_USER APP_DOMAIN POSTGRES_DB POSTGRES_USER)
+          for key in "${required_vars[@]}"; do
+            if [ -z "${!key}" ]; then
+              echo "Missing GitHub variable: ${key}" >&2
+              exit 1
+            fi
+          done
+
+          required_secrets=(DEPLOY_SSH_KEY POSTGRES_PASSWORD AUTH_JWT_SECRET)
+          for key in "${required_secrets[@]}"; do
+            if [ -z "${!key}" ]; then
+              echo "Missing GitHub secret: ${key}" >&2
+              exit 1
+            fi
+          done
+
+      - name: Write deploy env file
+        shell: bash
+        run: |
+          cat > deploy/.env.host <<EOF
+          APP_DOMAIN=${{ vars.APP_DOMAIN }}
+          SSL_PRIMARY_DOMAIN=${{ vars.SSL_PRIMARY_DOMAIN || vars.APP_DOMAIN }}
+          APP_PORT=${{ vars.APP_PORT || '8080' }}
+
+          APP_USER=${{ vars.APP_USER || 'moneyapp' }}
+          APP_GROUP=${{ vars.APP_GROUP || vars.APP_USER || 'moneyapp' }}
+          SYSTEMD_SERVICE_NAME=${{ vars.SYSTEMD_SERVICE_NAME || 'moneyapp' }}
+          NGINX_SITE_NAME=${{ vars.NGINX_SITE_NAME || 'moneyapp.conf' }}
+
+          TARGET_GOOS=linux
+          TARGET_GOARCH=${{ vars.TARGET_GOARCH || 'amd64' }}
+
+          INSTALL_NGINX=${{ vars.INSTALL_NGINX || 'true' }}
+          BOOTSTRAP_POSTGRES=${{ vars.BOOTSTRAP_POSTGRES || 'true' }}
+
+          POSTGRES_HOST=${{ vars.POSTGRES_HOST || '127.0.0.1' }}
+          POSTGRES_PORT=${{ vars.POSTGRES_PORT || '5432' }}
+          POSTGRES_DB=${{ vars.POSTGRES_DB }}
+          POSTGRES_USER=${{ vars.POSTGRES_USER }}
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          DATABASE_DSN=${{ secrets.DATABASE_DSN }}
+
+          APP_NAME=${{ vars.APP_NAME || 'moneyapp-backend' }}
+          APP_ENV=production
+          HTTP_ADDR=127.0.0.1:${{ vars.APP_PORT || '8080' }}
+          AUTH_JWT_SECRET=${{ secrets.AUTH_JWT_SECRET }}
+          AUTH_JWT_ISSUER=${{ vars.AUTH_JWT_ISSUER || 'moneyapp' }}
+          AUTH_ACCESS_TOKEN_TTL=${{ vars.AUTH_ACCESS_TOKEN_TTL || '15m' }}
+          AUTH_REFRESH_TOKEN_TTL=${{ vars.AUTH_REFRESH_TOKEN_TTL || '720h' }}
+          AUTH_ALLOW_INSECURE_DEV_AUTH=${{ vars.AUTH_ALLOW_INSECURE_DEV_AUTH || 'false' }}
+
+          REDIS_ENABLED=${{ vars.REDIS_ENABLED || 'false' }}
+          REDIS_ADDR=${{ vars.REDIS_ADDR || '127.0.0.1:6379' }}
+          REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
+          REDIS_DB=${{ vars.REDIS_DB || '0' }}
+          REDIS_DASHBOARD_TTL=${{ vars.REDIS_DASHBOARD_TTL || '30s' }}
+
+          KAFKA_ENABLED=${{ vars.KAFKA_ENABLED || 'false' }}
+          KAFKA_BROKERS=${{ vars.KAFKA_BROKERS || '127.0.0.1:9092' }}
+          KAFKA_CLIENT_ID=${{ vars.KAFKA_CLIENT_ID || 'moneyapp-backend' }}
+          KAFKA_AUDIT_TOPIC=${{ vars.KAFKA_AUDIT_TOPIC || 'moneyapp.audit' }}
+          KAFKA_WRITE_TIMEOUT=${{ vars.KAFKA_WRITE_TIMEOUT || '5s' }}
+
+          DEFAULT_BASE_CURRENCY=${{ vars.DEFAULT_BASE_CURRENCY || 'RUB' }}
+          DEFAULT_TIMEZONE=${{ vars.DEFAULT_TIMEZONE || 'Europe/Moscow' }}
+          DEFAULT_WEEKLY_REVIEW_HOUR=${{ vars.DEFAULT_WEEKLY_REVIEW_HOUR || '18' }}
+
+          TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
+          YANDEX_CLIENT_ID=${{ vars.YANDEX_CLIENT_ID }}
+          YANDEX_CLIENT_SECRET=${{ secrets.YANDEX_CLIENT_SECRET }}
+          YANDEX_REDIRECT_URL=${{ vars.YANDEX_REDIRECT_URL }}
+          EOF
+
+      - name: Configure SSH
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+          DEPLOY_PORT: ${{ vars.DEPLOY_PORT || '22' }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "${DEPLOY_SSH_KEY}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+
+          if [ -n "${DEPLOY_KNOWN_HOSTS}" ]; then
+            printf '%s\n' "${DEPLOY_KNOWN_HOSTS}" > ~/.ssh/known_hosts
+          else
+            ssh-keyscan -p "${DEPLOY_PORT}" -H "${DEPLOY_HOST}" > ~/.ssh/known_hosts
+          fi
+          chmod 600 ~/.ssh/known_hosts
+
+          cat > ~/.ssh/config <<EOF
+          Host deploy-target
+            HostName ${DEPLOY_HOST}
+            User ${DEPLOY_USER}
+            Port ${DEPLOY_PORT}
+            IdentityFile ~/.ssh/id_ed25519
+            IdentitiesOnly yes
+            StrictHostKeyChecking yes
+            UserKnownHostsFile ~/.ssh/known_hosts
+          EOF
+          chmod 600 ~/.ssh/config
+
+      - name: Run deploy
+        shell: bash
+        env:
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/opt/moneyapp' }}
+        run: |
+          chmod +x deploy/deploy_host_ssh.sh
+          ./deploy/deploy_host_ssh.sh deploy-target "${DEPLOY_PATH}"
