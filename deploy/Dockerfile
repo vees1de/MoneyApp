@@ -9,7 +9,7 @@ COPY frontend/ ./
 RUN npm run build
 
 
-FROM scratch AS frontend-dist
+FROM alpine:3.20 AS frontend-dist
 
 COPY --from=frontend-builder /app/frontend/dist/ /
 
