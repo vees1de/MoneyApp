@@ -1,6 +1,6 @@
 # MoneyApp
 
-Personal Life OS finance MVP in monorepo format.
+Personal Life OS finance MVP in monorepo format. test
 
 ## Structure
 
