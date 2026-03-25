@@ -15,7 +15,6 @@ jobs:
     name: Deploy To Host
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    environment: production
     permissions:
       contents: read
 
@@ -39,25 +38,17 @@ jobs:
       - name: Validate deploy configuration
         shell: bash
         env:
-          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
-          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
-          APP_DOMAIN: ${{ vars.APP_DOMAIN }}
-          POSTGRES_DB: ${{ vars.POSTGRES_DB }}
-          POSTGRES_USER: ${{ vars.POSTGRES_USER }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          APP_DOMAIN: ${{ secrets.APP_DOMAIN }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           AUTH_JWT_SECRET: ${{ secrets.AUTH_JWT_SECRET }}
         run: |
-          required_vars=(DEPLOY_HOST DEPLOY_USER APP_DOMAIN POSTGRES_DB POSTGRES_USER)
-          for key in "${required_vars[@]}"; do
-            if [ -z "${!key}" ]; then
-              echo "Missing GitHub variable: ${key}" >&2
-              exit 1
-            fi
-          done
-
-          required_secrets=(DEPLOY_SSH_KEY POSTGRES_PASSWORD AUTH_JWT_SECRET)
-          for key in "${required_secrets[@]}"; do
+          required=(DEPLOY_HOST DEPLOY_USER APP_DOMAIN POSTGRES_DB POSTGRES_USER DEPLOY_SSH_KEY POSTGRES_PASSWORD AUTH_JWT_SECRET)
+          for key in "${required[@]}"; do
             if [ -z "${!key}" ]; then
               echo "Missing GitHub secret: ${key}" >&2
               exit 1
@@ -68,65 +59,65 @@ jobs:
         shell: bash
         run: |
           cat > deploy/.env.host <<EOF
-          APP_DOMAIN=${{ vars.APP_DOMAIN }}
-          SSL_PRIMARY_DOMAIN=${{ vars.SSL_PRIMARY_DOMAIN || vars.APP_DOMAIN }}
-          APP_PORT=${{ vars.APP_PORT || '8080' }}
+          APP_DOMAIN=${{ secrets.APP_DOMAIN }}
+          SSL_PRIMARY_DOMAIN=${{ secrets.SSL_PRIMARY_DOMAIN || secrets.APP_DOMAIN }}
+          APP_PORT=${{ secrets.APP_PORT || '8080' }}
 
-          APP_USER=${{ vars.APP_USER || 'moneyapp' }}
-          APP_GROUP=${{ vars.APP_GROUP || vars.APP_USER || 'moneyapp' }}
-          SYSTEMD_SERVICE_NAME=${{ vars.SYSTEMD_SERVICE_NAME || 'moneyapp' }}
-          NGINX_SITE_NAME=${{ vars.NGINX_SITE_NAME || 'moneyapp.conf' }}
+          APP_USER=${{ secrets.APP_USER || 'moneyapp' }}
+          APP_GROUP=${{ secrets.APP_GROUP || secrets.APP_USER || 'moneyapp' }}
+          SYSTEMD_SERVICE_NAME=${{ secrets.SYSTEMD_SERVICE_NAME || 'moneyapp' }}
+          NGINX_SITE_NAME=${{ secrets.NGINX_SITE_NAME || 'moneyapp.conf' }}
 
           TARGET_GOOS=linux
-          TARGET_GOARCH=${{ vars.TARGET_GOARCH || 'amd64' }}
+          TARGET_GOARCH=${{ secrets.TARGET_GOARCH || 'amd64' }}
 
-          INSTALL_NGINX=${{ vars.INSTALL_NGINX || 'true' }}
-          BOOTSTRAP_POSTGRES=${{ vars.BOOTSTRAP_POSTGRES || 'true' }}
+          INSTALL_NGINX=${{ secrets.INSTALL_NGINX || 'true' }}
+          BOOTSTRAP_POSTGRES=${{ secrets.BOOTSTRAP_POSTGRES || 'true' }}
 
-          POSTGRES_HOST=${{ vars.POSTGRES_HOST || '127.0.0.1' }}
-          POSTGRES_PORT=${{ vars.POSTGRES_PORT || '5432' }}
-          POSTGRES_DB=${{ vars.POSTGRES_DB }}
-          POSTGRES_USER=${{ vars.POSTGRES_USER }}
+          POSTGRES_HOST=${{ secrets.POSTGRES_HOST || '127.0.0.1' }}
+          POSTGRES_PORT=${{ secrets.POSTGRES_PORT || '5432' }}
+          POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER=${{ secrets.POSTGRES_USER }}
           POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
           DATABASE_DSN=${{ secrets.DATABASE_DSN }}
 
-          APP_NAME=${{ vars.APP_NAME || 'moneyapp-backend' }}
+          APP_NAME=${{ secrets.APP_NAME || 'moneyapp-backend' }}
           APP_ENV=production
-          HTTP_ADDR=127.0.0.1:${{ vars.APP_PORT || '8080' }}
+          HTTP_ADDR=127.0.0.1:${{ secrets.APP_PORT || '8080' }}
           AUTH_JWT_SECRET=${{ secrets.AUTH_JWT_SECRET }}
-          AUTH_JWT_ISSUER=${{ vars.AUTH_JWT_ISSUER || 'moneyapp' }}
-          AUTH_ACCESS_TOKEN_TTL=${{ vars.AUTH_ACCESS_TOKEN_TTL || '15m' }}
-          AUTH_REFRESH_TOKEN_TTL=${{ vars.AUTH_REFRESH_TOKEN_TTL || '720h' }}
-          AUTH_ALLOW_INSECURE_DEV_AUTH=${{ vars.AUTH_ALLOW_INSECURE_DEV_AUTH || 'false' }}
+          AUTH_JWT_ISSUER=${{ secrets.AUTH_JWT_ISSUER || 'moneyapp' }}
+          AUTH_ACCESS_TOKEN_TTL=${{ secrets.AUTH_ACCESS_TOKEN_TTL || '15m' }}
+          AUTH_REFRESH_TOKEN_TTL=${{ secrets.AUTH_REFRESH_TOKEN_TTL || '720h' }}
+          AUTH_ALLOW_INSECURE_DEV_AUTH=${{ secrets.AUTH_ALLOW_INSECURE_DEV_AUTH || 'false' }}
 
-          REDIS_ENABLED=${{ vars.REDIS_ENABLED || 'false' }}
-          REDIS_ADDR=${{ vars.REDIS_ADDR || '127.0.0.1:6379' }}
+          REDIS_ENABLED=${{ secrets.REDIS_ENABLED || 'false' }}
+          REDIS_ADDR=${{ secrets.REDIS_ADDR || '127.0.0.1:6379' }}
           REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
-          REDIS_DB=${{ vars.REDIS_DB || '0' }}
-          REDIS_DASHBOARD_TTL=${{ vars.REDIS_DASHBOARD_TTL || '30s' }}
+          REDIS_DB=${{ secrets.REDIS_DB || '0' }}
+          REDIS_DASHBOARD_TTL=${{ secrets.REDIS_DASHBOARD_TTL || '30s' }}
 
-          KAFKA_ENABLED=${{ vars.KAFKA_ENABLED || 'false' }}
-          KAFKA_BROKERS=${{ vars.KAFKA_BROKERS || '127.0.0.1:9092' }}
-          KAFKA_CLIENT_ID=${{ vars.KAFKA_CLIENT_ID || 'moneyapp-backend' }}
-          KAFKA_AUDIT_TOPIC=${{ vars.KAFKA_AUDIT_TOPIC || 'moneyapp.audit' }}
-          KAFKA_WRITE_TIMEOUT=${{ vars.KAFKA_WRITE_TIMEOUT || '5s' }}
+          KAFKA_ENABLED=${{ secrets.KAFKA_ENABLED || 'false' }}
+          KAFKA_BROKERS=${{ secrets.KAFKA_BROKERS || '127.0.0.1:9092' }}
+          KAFKA_CLIENT_ID=${{ secrets.KAFKA_CLIENT_ID || 'moneyapp-backend' }}
+          KAFKA_AUDIT_TOPIC=${{ secrets.KAFKA_AUDIT_TOPIC || 'moneyapp.audit' }}
+          KAFKA_WRITE_TIMEOUT=${{ secrets.KAFKA_WRITE_TIMEOUT || '5s' }}
 
-          DEFAULT_BASE_CURRENCY=${{ vars.DEFAULT_BASE_CURRENCY || 'RUB' }}
-          DEFAULT_TIMEZONE=${{ vars.DEFAULT_TIMEZONE || 'Europe/Moscow' }}
-          DEFAULT_WEEKLY_REVIEW_HOUR=${{ vars.DEFAULT_WEEKLY_REVIEW_HOUR || '18' }}
+          DEFAULT_BASE_CURRENCY=${{ secrets.DEFAULT_BASE_CURRENCY || 'RUB' }}
+          DEFAULT_TIMEZONE=${{ secrets.DEFAULT_TIMEZONE || 'Europe/Moscow' }}
+          DEFAULT_WEEKLY_REVIEW_HOUR=${{ secrets.DEFAULT_WEEKLY_REVIEW_HOUR || '18' }}
 
           TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
-          YANDEX_CLIENT_ID=${{ vars.YANDEX_CLIENT_ID }}
+          YANDEX_CLIENT_ID=${{ secrets.YANDEX_CLIENT_ID }}
           YANDEX_CLIENT_SECRET=${{ secrets.YANDEX_CLIENT_SECRET }}
-          YANDEX_REDIRECT_URL=${{ vars.YANDEX_REDIRECT_URL }}
+          YANDEX_REDIRECT_URL=${{ secrets.YANDEX_REDIRECT_URL }}
           EOF
 
       - name: Configure SSH
         shell: bash
         env:
-          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
-          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
-          DEPLOY_PORT: ${{ vars.DEPLOY_PORT || '22' }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT || '22' }}
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
         run: |
@@ -156,7 +147,7 @@ jobs:
       - name: Run deploy
         shell: bash
         env:
-          DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/opt/moneyapp' }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH || '/opt/moneyapp' }}
         run: |
           chmod +x deploy/deploy_host_ssh.sh
           ./deploy/deploy_host_ssh.sh deploy-target "${DEPLOY_PATH}"
