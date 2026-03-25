@@ -27,9 +27,24 @@ services:
     entrypoint: ["/bin/sh", "-ec"]
     command:
       - |
+        psql "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-moneyapp}?sslmode=disable" -v ON_ERROR_STOP=1 <<'SQL'
+        create table if not exists schema_migrations (
+          version text primary key,
+          applied_at timestamptz not null default now()
+        );
+        SQL
+
         for file in /migrations/*.sql; do
-          echo "applying $${file}";
+          version="$$(basename "$${file}")";
+          applied="$$(psql "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-moneyapp}?sslmode=disable" -tA -v ON_ERROR_STOP=1 -c "select 1 from schema_migrations where version = '$${version}'")";
+          if [ "$${applied}" = "1" ]; then
+            echo "skipping $${version}";
+            continue;
+          fi
+
+          echo "applying $${version}";
           psql "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-moneyapp}?sslmode=disable" -v ON_ERROR_STOP=1 -f "$${file}";
+          psql "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-moneyapp}?sslmode=disable" -v ON_ERROR_STOP=1 -c "insert into schema_migrations(version) values ('$${version}')";
         done
 
   backend:
