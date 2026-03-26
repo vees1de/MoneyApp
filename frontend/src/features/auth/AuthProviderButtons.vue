@@ -97,9 +97,10 @@ function isTelegramWidgetConfigured() {
   font-weight: 600;
   letter-spacing: -0.01em;
   cursor: pointer;
-  transition: opacity var(--duration-fast) var(--ease-out),
-              transform var(--duration-fast) var(--ease-out),
-              box-shadow var(--duration-base) var(--ease-out);
+  transition:
+    opacity var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-base) var(--ease-out);
 }
 
 .auth-btn:hover {
@@ -118,20 +119,20 @@ function isTelegramWidgetConfigured() {
 }
 
 .auth-btn--telegram {
-  background: #2AABEE;
+  background: #2aabee;
   color: var(--text-on-fill);
 }
 
 .auth-btn--telegram:hover:not(:disabled) {
-  box-shadow: 0 2px 12px rgba(42, 171, 238, 0.30);
+  box-shadow: 0 2px 12px rgba(42, 171, 238, 0.3);
 }
 
 .auth-btn--yandex {
-  background: #FC3F1D;
+  background: #fc3f1d;
   color: var(--text-on-fill);
 }
 
 .auth-btn--yandex:hover:not(:disabled) {
-  box-shadow: 0 2px 12px rgba(252, 63, 29, 0.30);
+  box-shadow: 0 2px 12px rgba(252, 63, 29, 0.3);
 }
 </style>

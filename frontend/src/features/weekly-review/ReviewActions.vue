@@ -26,7 +26,7 @@ const incomeReviewRoute = computed(() => `/transactions/new?kind=income&note=${e
       <p class="muted">{{ t('review.actionsBody') }}</p>
     </div>
 
-    <div class="cta-list">
+    <div class="ra-cta-list">
       <RouterLink class="button button--secondary" :to="expenseReviewRoute">
         {{ t('review.addExpense') }}
       </RouterLink>
@@ -36,7 +36,7 @@ const incomeReviewRoute = computed(() => `/transactions/new?kind=income&note=${e
       <button class="button button--secondary" type="button" @click="emit('skip')">{{ t('review.skipWeek') }}</button>
     </div>
 
-    <div class="divider" />
+    <div class="ra-divider" />
 
     <div class="stack">
       <div class="tiny" v-if="props.deltaMinor === null">
@@ -58,3 +58,16 @@ const incomeReviewRoute = computed(() => `/transactions/new?kind=income&note=${e
     </div>
   </div>
 </template>
+
+<style scoped>
+.ra-cta-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ra-divider {
+  height: 0.5px;
+  background: var(--separator);
+}
+</style>

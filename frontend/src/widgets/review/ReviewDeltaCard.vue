@@ -83,6 +83,7 @@ const { t } = useI18n()
   font-size: 0.875rem;
   font-weight: 700;
   letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
   padding: 6px 12px;
   border-radius: var(--radius-pill);
 }
@@ -120,6 +121,7 @@ const { t } = useI18n()
   font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
   color: var(--text-primary);
 }
 

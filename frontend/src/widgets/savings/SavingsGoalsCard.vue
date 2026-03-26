@@ -96,6 +96,7 @@ function goalRatio(goal: SavingsGoal): number {
   font-size: 0.9375rem;
   font-weight: 700;
   letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
   color: var(--brand);
 }
 
@@ -110,7 +111,7 @@ function goalRatio(goal: SavingsGoal): number {
   height: 100%;
   border-radius: var(--radius-pill);
   background: var(--brand);
-  transition: width var(--duration-slow) var(--ease-out);
+  transition: width var(--duration-gentle, 500ms) var(--ease-out);
 }
 
 .sg-row-sub {
@@ -121,11 +122,13 @@ function goalRatio(goal: SavingsGoal): number {
 .sg-pct {
   font-size: 0.75rem;
   font-weight: 500;
+  font-variant-numeric: tabular-nums;
   color: var(--brand);
 }
 
 .sg-target {
   font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
   color: var(--text-muted);
 }
 

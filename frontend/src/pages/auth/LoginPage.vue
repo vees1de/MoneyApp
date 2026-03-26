@@ -110,32 +110,6 @@ onMounted(async () => {
         <LanguageSwitch />
       </div>
 
-      <div class="login-brand">
-        <div class="login-brand__icon">
-          <svg viewBox="0 0 28 28" fill="none" width="32" height="32">
-            <rect width="28" height="28" rx="8" fill="var(--brand)" />
-            <path
-              d="M8 20V10.5L14 7l6 3.5V20"
-              stroke="#fff"
-              stroke-width="1.8"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-            <path
-              d="M11 20v-5h6v5"
-              stroke="#fff"
-              stroke-width="1.8"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
-        </div>
-        <div class="login-brand__label">
-          <span class="login-brand__name">{{ env.appName }}</span>
-          <span class="login-brand__sub">{{ env.productName }}</span>
-        </div>
-      </div>
-
       <div class="login-headline">
         <h1 class="login-headline__title">{{ t("auth.loginTitle") }}</h1>
         <p class="login-headline__sub">{{ t("auth.loginSubtitle") }}</p>
@@ -144,7 +118,9 @@ onMounted(async () => {
       <div class="login-features">
         <div class="login-feature">
           <span class="login-feature__icon">📊</span>
-          <span class="login-feature__text">{{ t("auth.featureBalance") }}</span>
+          <span class="login-feature__text">{{
+            t("auth.featureBalance")
+          }}</span>
         </div>
         <div class="login-feature">
           <span class="login-feature__icon">🔁</span>
@@ -152,7 +128,9 @@ onMounted(async () => {
         </div>
         <div class="login-feature">
           <span class="login-feature__icon">🎯</span>
-          <span class="login-feature__text">{{ t("auth.featureSavings") }}</span>
+          <span class="login-feature__text">{{
+            t("auth.featureSavings")
+          }}</span>
         </div>
       </div>
 
