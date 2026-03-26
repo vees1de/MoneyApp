@@ -48,8 +48,7 @@ Workflow: [.github/workflows/ci-cd.yml](/Users/vees1de/repos/MoneyApp/.github/wo
 
 What it does:
 
-- on every push and `pull_request`: runs backend tests, frontend build, and Docker image build
-- on push to `main`: runs the same CI checks and then deploys
+- on push to `main`: runs deploy only
 - on `workflow_dispatch`: lets you trigger deploy manually
 
 Required GitHub secrets for deploy:

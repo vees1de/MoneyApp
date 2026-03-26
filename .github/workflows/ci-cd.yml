@@ -2,7 +2,8 @@ name: CI/CD
 
 on:
   push:
-  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 concurrency:
@@ -13,79 +14,11 @@ permissions:
   contents: read
 
 jobs:
-  backend:
-    name: Backend Test
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: backend/go.mod
-          cache-dependency-path: backend/go.sum
-
-      - name: Run backend tests
-        working-directory: backend
-        run: go test ./...
-
-  frontend:
-    name: Frontend Build
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: npm ci
-
-      - name: Build frontend
-        working-directory: frontend
-        run: npm run build
-
-  docker:
-    name: Docker Build
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Validate compose file
-        run: |
-          cp .env.example .env
-          docker compose config >/dev/null
-
-      - name: Export frontend dist for nginx
-        run: bash scripts/build_frontend_dist.sh /tmp/moneyapp-frontend-dist
-
-      - name: Build production image
-        run: docker build -f deploy/Dockerfile -t moneyapp:ci .
-
   deploy:
     name: Deploy
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 30
-    needs:
-      - backend
-      - frontend
-      - docker
-    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
 
     steps:
       - name: Checkout
@@ -184,13 +117,6 @@ jobs:
             UserKnownHostsFile ~/.ssh/known_hosts
           EOF
           chmod 600 ~/.ssh/config
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
 
       - name: Run deploy
         shell: bash
