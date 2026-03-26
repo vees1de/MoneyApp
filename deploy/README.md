@@ -6,7 +6,7 @@ Deployment is reduced to one Docker Compose stack:
 - `migrate`
 - `backend`
 
-For host nginx, the deploy flow copies the built frontend directly to `/opt/moneyapp/frontend/dist`.
+For host nginx, the deploy flow copies the built frontend directly to `/root/MoneyApp/frontend/dist`.
 
 ## Manual deploy on a server
 
@@ -28,7 +28,7 @@ docker compose up --build -d
 
 This matches a host nginx config that:
 
-- serves `/opt/moneyapp/frontend/dist`
+- serves `/root/MoneyApp/frontend/dist`
 - proxies `/api/`, `/healthz`, `/readyz`, `/openapi.yaml`, and `/swagger` to `127.0.0.1:${APP_PORT}`
 
 ## Deploy over SSH
@@ -37,10 +37,11 @@ If you want the server to pull the repo itself over git and only upload `.env`, 
 
 ```bash
 chmod +x deploy/deploy_ssh.sh
-./deploy/deploy_ssh.sh user@server /opt/moneyapp
+./deploy/deploy_ssh.sh user@server
 ```
 
 The CI deploy flow now updates the server with `git clone` / `git fetch` / `git reset --hard`, uploads the root `.env`, and runs `docker compose up --build -d backend` remotely.
+The repo URL, branch, SSH port, and deploy path are hardcoded for this project.
 
 ## GitHub Actions CI/CD
 
@@ -59,12 +60,9 @@ Required GitHub secrets for deploy:
 
 Recommended optional deploy secrets:
 
-- `DEPLOY_PORT`
-- `DEPLOY_PATH`
 - `DEPLOY_KNOWN_HOSTS`
-- `DEPLOY_REPO_URL` if the server should clone from a different URL than `https://github.com/<owner>/<repo>.git`
 
-If the repository is private, make sure the server can authenticate to the git remote referenced by `DEPLOY_REPO_URL` via deploy key, SSH agent, or embedded HTTPS credentials.
+If the repository is private, make sure the server can authenticate to `https://github.com/vees1de/MoneyApp.git` via deploy key, SSH agent, or embedded HTTPS credentials.
 
 Application config can be provided in one of two ways:
 

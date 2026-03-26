@@ -91,10 +91,10 @@ jobs:
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT || '22' }}
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
         run: |
+          readonly DEPLOY_PORT=22
           install -d -m 700 ~/.ssh
           printf '%s\n' "${DEPLOY_SSH_KEY}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
@@ -120,10 +120,6 @@ jobs:
 
       - name: Run deploy
         shell: bash
-        env:
-          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH || '/opt/moneyapp' }}
-          DEPLOY_REPO_URL: ${{ secrets.DEPLOY_REPO_URL || format('{0}/{1}.git', github.server_url, github.repository) }}
-          DEPLOY_GIT_REF: ${{ github.ref_name }}
         run: |
           chmod +x deploy/deploy_host_ssh.sh
-          ./deploy/deploy_host_ssh.sh deploy-target "${DEPLOY_PATH}"
+          ./deploy/deploy_host_ssh.sh deploy-target

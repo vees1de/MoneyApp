@@ -64,6 +64,10 @@ services:
     build:
       context: .
       dockerfile: deploy/Dockerfile
+      args:
+        VITE_TELEGRAM_BOT_USERNAME: ${VITE_TELEGRAM_BOT_USERNAME:-}
+        VITE_YANDEX_CLIENT_ID: ${VITE_YANDEX_CLIENT_ID:-}
+        VITE_YANDEX_REDIRECT_URI: ${VITE_YANDEX_REDIRECT_URI:-}
     restart: unless-stopped
     depends_on:
       postgres:
