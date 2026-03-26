@@ -110,10 +110,9 @@ onMounted(async () => {
         <LanguageSwitch />
       </div>
 
-      <!-- Brand mark -->
       <div class="login-brand">
         <div class="login-brand__icon">
-          <svg viewBox="0 0 28 28" fill="none" width="28" height="28">
+          <svg viewBox="0 0 28 28" fill="none" width="32" height="32">
             <rect width="28" height="28" rx="8" fill="var(--brand)" />
             <path
               d="M8 20V10.5L14 7l6 3.5V20"
@@ -137,19 +136,15 @@ onMounted(async () => {
         </div>
       </div>
 
-      <!-- Headline -->
       <div class="login-headline">
         <h1 class="login-headline__title">{{ t("auth.loginTitle") }}</h1>
         <p class="login-headline__sub">{{ t("auth.loginSubtitle") }}</p>
       </div>
 
-      <!-- Feature pills -->
       <div class="login-features">
         <div class="login-feature">
           <span class="login-feature__icon">📊</span>
-          <span class="login-feature__text">{{
-            t("auth.featureBalance")
-          }}</span>
+          <span class="login-feature__text">{{ t("auth.featureBalance") }}</span>
         </div>
         <div class="login-feature">
           <span class="login-feature__icon">🔁</span>
@@ -157,13 +152,10 @@ onMounted(async () => {
         </div>
         <div class="login-feature">
           <span class="login-feature__icon">🎯</span>
-          <span class="login-feature__text">{{
-            t("auth.featureSavings")
-          }}</span>
+          <span class="login-feature__text">{{ t("auth.featureSavings") }}</span>
         </div>
       </div>
 
-      <!-- Auth buttons -->
       <AuthProviderButtons
         :loading="loading"
         :available-providers="availableProviders"
@@ -188,6 +180,7 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   min-height: 100vh;
+  min-height: 100dvh;
   padding: 24px 0;
 }
 
@@ -195,13 +188,25 @@ onMounted(async () => {
   width: 100%;
   max-width: 420px;
   background: var(--surface);
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-2xl);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-lg);
-  padding: 32px 28px;
+  padding: 36px 32px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px;
+  animation: loginCardIn 0.5s var(--ease-out) both;
+}
+
+@keyframes loginCardIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .login-brand {
@@ -214,19 +219,20 @@ onMounted(async () => {
   flex-shrink: 0;
   border-radius: 10px;
   overflow: hidden;
+  display: flex;
 }
 
 .login-brand__label {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
 }
 
 .login-brand__name {
-  font-size: 0.9375rem;
+  font-size: 1rem;
   font-weight: 700;
   color: var(--text-primary);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
 }
 
 .login-brand__sub {
@@ -235,11 +241,11 @@ onMounted(async () => {
 }
 
 .login-headline__title {
-  margin: 0 0 8px;
-  font-size: 1.75rem;
+  margin: 0 0 10px;
+  font-size: 2rem;
   font-weight: 700;
   letter-spacing: -0.03em;
-  line-height: 1.1;
+  line-height: 1.08;
   color: var(--text-primary);
 }
 
@@ -252,7 +258,7 @@ onMounted(async () => {
 
 .login-features {
   display: flex;
-  gap: 8px;
+  gap: 10px;
 }
 
 .login-feature {
@@ -260,29 +266,34 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 12px 8px;
+  gap: 8px;
+  padding: 16px 8px;
   background: var(--surface-secondary);
   border-radius: var(--radius-md);
   text-align: center;
+  transition: background-color var(--duration-base) var(--ease-out);
+}
+
+.login-feature:hover {
+  background: var(--surface-fill);
 }
 
 .login-feature__icon {
-  font-size: 1.25rem;
+  font-size: 1.375rem;
 }
 
 .login-feature__text {
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--text-secondary);
-  line-height: 1.2;
+  line-height: 1.25;
 }
 
 .login-legal {
   margin: 0;
-  font-size: 0.78125rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
   text-align: center;
-  line-height: 1.4;
+  line-height: 1.45;
 }
 </style>

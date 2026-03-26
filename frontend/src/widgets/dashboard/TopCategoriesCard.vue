@@ -9,7 +9,7 @@ const props = defineProps<{
   categories: TopCategorySummary[]
 }>()
 
-const colors = ['#FF453A', '#FF9500', '#AF52DE', '#32ADE6']
+const colors = ['#FF3B30', '#FF9500', '#AF52DE', '#5AC8FA']
 const { t } = useI18n()
 
 const total = computed(() =>
@@ -44,7 +44,7 @@ const total = computed(() =>
         </div>
       </div>
     </div>
-    <p v-else class="tiny" style="margin:0">{{ t('dashboard.topSpendingEmpty') }}</p>
+    <p v-else class="tiny" style="margin: 0">{{ t('dashboard.topSpendingEmpty') }}</p>
   </section>
 </template>
 
@@ -53,26 +53,31 @@ const total = computed(() =>
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 .cat-header h3 {
   margin: 0;
   font-size: 1.0625rem;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
 }
 
 .cat-link {
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--brand);
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.cat-link:hover {
+  opacity: 0.7;
 }
 
 .cat-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
 .cat-row {
@@ -86,14 +91,14 @@ const total = computed(() =>
   height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
-  margin-top: 3px;
+  margin-top: 4px;
 }
 
 .cat-info {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
 }
 
 .cat-name-row {
@@ -104,9 +109,10 @@ const total = computed(() =>
 }
 
 .cat-name {
-  font-size: 0.9rem;
+  font-size: 0.9375rem;
   font-weight: 500;
   color: var(--text-primary);
+  letter-spacing: -0.01em;
 }
 
 .cat-amount {
@@ -114,11 +120,12 @@ const total = computed(() =>
   font-weight: 600;
   color: var(--expense);
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .cat-track {
   height: 4px;
-  background: var(--surface-secondary);
+  background: var(--surface-fill);
   border-radius: var(--radius-pill);
   overflow: hidden;
 }
@@ -126,7 +133,7 @@ const total = computed(() =>
 .cat-fill {
   height: 100%;
   border-radius: var(--radius-pill);
-  transition: width var(--duration-slow) var(--ease-out);
-  opacity: 0.75;
+  transition: width var(--duration-gentle) var(--ease-out);
+  opacity: 0.70;
 }
 </style>

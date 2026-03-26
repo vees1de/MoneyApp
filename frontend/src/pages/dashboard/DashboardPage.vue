@@ -53,21 +53,18 @@ onMounted(async () => {
 
 <template>
   <PageContainer>
-    <!-- Hero balance card -->
     <DashboardHero
       :balance="formatMoney(dashboardStore.snapshot.currentBalanceMinor)"
       :review-status="reviewStore.review.status"
       :safe-to-spend="formatMoney(dashboardStore.snapshot.safeToSpendMinor)"
     />
 
-    <!-- Cashflow metrics row -->
     <CashflowMetrics
       :inflow="formatMoney(dashboardStore.snapshot.inflowMinor)"
       :outflow="formatMoney(dashboardStore.snapshot.outflowMinor)"
       :safe-to-spend="formatMoney(dashboardStore.snapshot.safeToSpendMinor)"
     />
 
-    <!-- Quick actions -->
     <div class="quick-actions">
       <RouterLink class="qa-btn qa-btn--expense" to="/transactions/new?kind=expense">
         <span class="qa-btn__icon">−</span>
@@ -82,19 +79,17 @@ onMounted(async () => {
         <span class="qa-btn__label">{{ t('dashboard.quickReview') }}</span>
       </RouterLink>
       <RouterLink class="qa-btn" to="/savings">
-        <span class="qa-btn__icon">🎯</span>
+        <span class="qa-btn__icon qa-btn__icon--target">●</span>
         <span class="qa-btn__label">{{ t('dashboard.quickGoal') }}</span>
       </RouterLink>
     </div>
 
-    <!-- Review prompt -->
     <ReviewPromptCard
       :action-label="reviewActionLabel"
       :body="reviewBody"
       :tone="reviewTone"
     />
 
-    <!-- Two-column: top categories + savings -->
     <div class="grid grid--two">
       <TopCategoriesCard :categories="dashboardStore.snapshot.topCategories" />
       <SavingsGoalsCard
@@ -103,10 +98,8 @@ onMounted(async () => {
       />
     </div>
 
-    <!-- Accounts snapshot -->
     <AccountsSnapshotCard :accounts="financeStore.accounts" />
 
-    <!-- Recent transactions feed -->
     <TransactionFeedCard
       :accounts="financeStore.accounts"
       :categories="financeStore.categories"
@@ -119,33 +112,52 @@ onMounted(async () => {
 .quick-actions {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
+  gap: 10px;
 }
 
 .qa-btn {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 12px 8px 10px;
+  gap: 8px;
+  padding: 16px 8px 14px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-xs);
   text-decoration: none;
-  transition: transform var(--duration-fast) ease, opacity var(--duration-fast) ease;
+  transition: transform var(--duration-fast) var(--ease-out),
+              box-shadow var(--duration-base) var(--ease-out),
+              background-color var(--duration-base) var(--ease-out);
+}
+
+.qa-btn:hover {
+  background: var(--surface-muted);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
 }
 
 .qa-btn:active {
   transform: scale(0.95);
-  opacity: 0.80;
 }
 
 .qa-btn__icon {
-  font-size: 1.25rem;
+  font-size: 1.375rem;
   font-weight: 700;
   line-height: 1;
   color: var(--text-primary);
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--surface-secondary);
+}
+
+.qa-btn__icon--target {
+  font-size: 0.75rem;
+  color: var(--brand);
 }
 
 .qa-btn__label {
@@ -153,13 +165,17 @@ onMounted(async () => {
   font-weight: 600;
   color: var(--text-secondary);
   letter-spacing: 0.01em;
+  text-align: center;
+  line-height: 1.3;
 }
 
 .qa-btn--expense .qa-btn__icon {
   color: var(--expense);
+  background: var(--danger-soft);
 }
 
 .qa-btn--income .qa-btn__icon {
   color: var(--income);
+  background: var(--income-soft);
 }
 </style>

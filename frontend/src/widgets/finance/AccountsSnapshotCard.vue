@@ -41,34 +41,38 @@ const typeIcon: Record<string, string> = {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .acct-header h3 {
   margin: 0;
   font-size: 1.0625rem;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
 }
 
 .acct-link {
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--brand);
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.acct-link:hover {
+  opacity: 0.7;
 }
 
 .acct-list {
   display: flex;
   flex-direction: column;
-  gap: 0;
 }
 
 .acct-row {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 11px 0;
-  border-bottom: 1px solid var(--separator);
+  padding: 12px 0;
+  border-bottom: 0.5px solid var(--separator);
 }
 
 .acct-row:first-child {
@@ -81,8 +85,8 @@ const typeIcon: Record<string, string> = {
 }
 
 .acct-icon {
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   border-radius: var(--radius-sm);
   background: var(--surface-secondary);
   display: flex;
@@ -96,7 +100,7 @@ const typeIcon: Record<string, string> = {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
   min-width: 0;
 }
 
@@ -107,6 +111,7 @@ const typeIcon: Record<string, string> = {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  letter-spacing: -0.01em;
 }
 
 .acct-type {
@@ -121,5 +126,6 @@ const typeIcon: Record<string, string> = {
   letter-spacing: -0.02em;
   color: var(--text-primary);
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 </style>

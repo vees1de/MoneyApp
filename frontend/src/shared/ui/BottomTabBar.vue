@@ -22,7 +22,7 @@ const items = [
       :to="item.to"
       class="bottom-nav__link"
     >
-      <component :is="item.icon" :size="24" :stroke-width="1.75" />
+      <component :is="item.icon" :size="22" :stroke-width="1.7" />
       <span class="bottom-nav__label">{{ item.label() }}</span>
     </RouterLink>
   </nav>

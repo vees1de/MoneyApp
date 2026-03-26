@@ -67,7 +67,6 @@ onMounted(async () => {
       <p class="muted">{{ t('savings.subtitle') }}</p>
     </div>
 
-    <!-- Portfolio summary -->
     <div v-if="savingsStore.visibleGoals.length" class="savings-summary">
       <div class="savings-summary__label">{{ t('savings.overallFunded') }}</div>
       <div class="savings-summary__pct">{{ overallPercent }}</div>
@@ -86,13 +85,14 @@ onMounted(async () => {
       </button>
     </div>
 
-    <!-- Goals list -->
     <section v-if="savingsStore.visibleGoals.length" class="section-card">
       <div class="goals-list">
         <div v-for="goal in savingsStore.visibleGoals" :key="goal.id" class="goal-row">
           <div class="goal-row__top">
             <span class="goal-name">{{ goal.name }}</span>
-            <span class="goal-pct-badge">{{ formatPercent(goalRatio(goal)) }}</span>
+            <span class="goal-pct-badge" :class="{ 'goal-pct-badge--complete': goalRatio(goal) >= 1 }">
+              {{ formatPercent(goalRatio(goal)) }}
+            </span>
           </div>
 
           <div class="goal-track">
@@ -118,10 +118,9 @@ onMounted(async () => {
       :description="t('savings.emptyDescription')"
     />
 
-    <!-- Create goal form -->
     <section class="section-card">
-      <h2 style="margin:0 0 16px;font-size:1.0625rem;font-weight:600;letter-spacing:-0.01em">{{ t('savings.newGoal') }}</h2>
-      <form class="stack" style="gap:14px" @submit.prevent="submit">
+      <h2 class="section-title">{{ t('savings.newGoal') }}</h2>
+      <form class="stack" @submit.prevent="submit">
         <div class="field">
           <label for="goalName">{{ t('savings.goalName') }}</label>
           <input id="goalName" v-model="form.name" :placeholder="t('savings.goalPlaceholder')" />
@@ -146,36 +145,44 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.section-title {
+  margin: 0 0 18px;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
 .savings-summary {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-sm);
-  padding: 20px;
+  padding: 22px;
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
 .savings-summary__label {
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   color: var(--text-muted);
 }
 
 .savings-summary__pct {
-  font-size: 2rem;
+  font-size: 2.25rem;
   font-weight: 700;
   letter-spacing: -0.04em;
   color: var(--brand);
   line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .savings-summary__track {
   height: 8px;
-  background: var(--surface-secondary);
+  background: var(--surface-fill);
   border-radius: var(--radius-pill);
   overflow: hidden;
 }
@@ -184,19 +191,19 @@ onMounted(async () => {
   height: 100%;
   background: var(--brand);
   border-radius: var(--radius-pill);
-  transition: width var(--duration-slow) var(--ease-out);
+  transition: width var(--duration-gentle) var(--ease-out);
 }
 
 .goals-list {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 20px;
 }
 
 .goal-row {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 8px;
 }
 
 .goal-row__top {
@@ -209,20 +216,27 @@ onMounted(async () => {
   font-size: 0.9375rem;
   font-weight: 600;
   color: var(--text-primary);
+  letter-spacing: -0.01em;
 }
 
 .goal-pct-badge {
   font-size: 0.8125rem;
   font-weight: 700;
-  padding: 3px 9px;
+  padding: 3px 10px;
   border-radius: var(--radius-pill);
   background: var(--brand-soft);
   color: var(--brand);
+  font-variant-numeric: tabular-nums;
+}
+
+.goal-pct-badge--complete {
+  background: var(--income-soft);
+  color: var(--income);
 }
 
 .goal-track {
-  height: 7px;
-  background: var(--surface-secondary);
+  height: 6px;
+  background: var(--surface-fill);
   border-radius: var(--radius-pill);
   overflow: hidden;
 }
@@ -231,7 +245,7 @@ onMounted(async () => {
   height: 100%;
   border-radius: var(--radius-pill);
   background: var(--brand);
-  transition: width var(--duration-slow) var(--ease-out);
+  transition: width var(--duration-gentle) var(--ease-out);
 }
 
 .goal-fill--complete {

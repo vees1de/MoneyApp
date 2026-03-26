@@ -37,23 +37,28 @@ const { t } = useI18n()
 
 <style scoped>
 .review-prompt {
-  padding: 18px 20px;
+  padding: 20px;
   border-radius: var(--radius-xl);
   border: 1px solid;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   box-shadow: var(--shadow-xs);
+  transition: box-shadow var(--duration-base) var(--ease-out);
+}
+
+.review-prompt:hover {
+  box-shadow: var(--shadow-sm);
 }
 
 .review-prompt--warning {
-  background: rgba(255, 149, 0, 0.06);
-  border-color: rgba(255, 149, 0, 0.20);
+  background: rgba(255, 149, 0, 0.04);
+  border-color: rgba(255, 149, 0, 0.14);
 }
 
 .review-prompt--success {
-  background: rgba(52, 199, 89, 0.06);
-  border-color: rgba(52, 199, 89, 0.18);
+  background: rgba(40, 205, 65, 0.04);
+  border-color: rgba(40, 205, 65, 0.12);
 }
 
 .review-prompt__header {
@@ -66,8 +71,8 @@ const { t } = useI18n()
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   flex-shrink: 0;
 }
@@ -87,12 +92,13 @@ const { t } = useI18n()
   font-weight: 600;
   color: var(--text-primary);
   flex: 1;
+  letter-spacing: -0.01em;
 }
 
 .review-prompt__badge {
   font-size: 0.75rem;
   font-weight: 600;
-  padding: 3px 9px;
+  padding: 3px 10px;
   border-radius: var(--radius-pill);
 }
 
@@ -110,7 +116,7 @@ const { t } = useI18n()
   margin: 0;
   font-size: 0.875rem;
   color: var(--text-secondary);
-  line-height: 1.45;
+  line-height: 1.5;
 }
 
 .review-prompt__cta {
@@ -118,17 +124,19 @@ const { t } = useI18n()
   align-items: center;
   justify-content: center;
   height: 40px;
-  padding: 0 16px;
+  padding: 0 18px;
   border-radius: var(--radius-pill);
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   font-weight: 600;
   align-self: flex-start;
-  transition: opacity var(--duration-fast) ease;
+  letter-spacing: -0.01em;
+  transition: opacity var(--duration-fast) var(--ease-out),
+              transform var(--duration-fast) var(--ease-out);
 }
 
 .review-prompt--warning .review-prompt__cta {
   background: var(--warning);
-  color: #fff;
+  color: var(--text-on-fill);
 }
 
 .review-prompt--success .review-prompt__cta {
@@ -136,7 +144,12 @@ const { t } = useI18n()
   color: var(--income);
 }
 
+.review-prompt__cta:hover {
+  opacity: 0.9;
+}
+
 .review-prompt__cta:active {
-  opacity: 0.80;
+  transform: scale(0.97);
+  opacity: 0.85;
 }
 </style>

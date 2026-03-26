@@ -88,7 +88,7 @@ function amountText(transaction: Transaction) {
 
     <div v-if="transactions.length" class="feed-list">
       <RouterLink v-for="transaction in transactions" :key="transaction.id" class="feed-row" :to="`/transactions/${transaction.id}`">
-        <div class="feed-icon" :style="{ background: `${transactionColor(transaction)}18` }">
+        <div class="feed-icon" :style="{ background: `${transactionColor(transaction)}10` }">
           <div class="feed-dot" :style="{ background: transactionColor(transaction) }" />
         </div>
         <div class="feed-info">
@@ -100,7 +100,7 @@ function amountText(transaction: Transaction) {
         </strong>
       </RouterLink>
     </div>
-    <p v-else class="tiny" style="margin:0">{{ t('dashboard.transactionsEmpty') }}</p>
+    <p v-else class="tiny" style="margin: 0">{{ t('dashboard.transactionsEmpty') }}</p>
   </section>
 </template>
 
@@ -109,20 +109,25 @@ function amountText(transaction: Transaction) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .feed-header h3 {
   margin: 0;
   font-size: 1.0625rem;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
 }
 
 .feed-link {
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--brand);
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.feed-link:hover {
+  opacity: 0.7;
 }
 
 .feed-list {
@@ -134,16 +139,21 @@ function amountText(transaction: Transaction) {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 11px 0;
-  border-bottom: 1px solid var(--separator);
+  padding: 12px 0;
+  border-bottom: 0.5px solid var(--separator);
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.feed-row:hover {
+  opacity: 0.75;
 }
 
 .feed-row:first-child { padding-top: 0; }
 .feed-row:last-child { border-bottom: none; padding-bottom: 0; }
 
 .feed-icon {
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
@@ -161,7 +171,7 @@ function amountText(transaction: Transaction) {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
   min-width: 0;
 }
 
@@ -172,6 +182,7 @@ function amountText(transaction: Transaction) {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  letter-spacing: -0.01em;
 }
 
 .feed-meta {
@@ -184,6 +195,7 @@ function amountText(transaction: Transaction) {
   font-weight: 700;
   letter-spacing: -0.02em;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .feed-amount--income { color: var(--income); }

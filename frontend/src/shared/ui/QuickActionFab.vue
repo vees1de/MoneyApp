@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeftRight, Minus, Plus, WandSparkles } from 'lucide-vue-next'
+import { ArrowLeftRight, Minus, Plus, X } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
@@ -45,81 +45,43 @@ const actions = computed(() => [
 </script>
 
 <template>
-  <div v-if="!hidden" class="quick-fab">
-    <div v-if="expanded" class="quick-fab__menu">
+  <div v-if="!hidden" class="fab-wrap">
+    <template v-if="expanded">
       <RouterLink
-        v-for="action in actions"
+        v-for="(action, i) in actions"
         :key="action.to"
-        :class="['quick-fab__item', `quick-fab__item--${action.tone}`]"
+        class="fab-action"
+        :class="`fab-action--${action.tone}`"
         :to="action.to"
+        :style="{ animationDelay: `${i * 50}ms` }"
       >
-        <component :is="action.icon" :size="18" :stroke-width="2.2" />
+        <component :is="action.icon" :size="17" :stroke-width="2" />
         <span>{{ action.label }}</span>
       </RouterLink>
-    </div>
+    </template>
 
-    <button class="quick-fab__button" type="button" @click="expanded = !expanded">
-      <WandSparkles v-if="expanded" :size="20" :stroke-width="2.2" />
-      <Plus v-else :size="20" :stroke-width="2.2" />
+    <button
+      class="fab-trigger"
+      :class="{ 'is-open': expanded }"
+      type="button"
+      @click="expanded = !expanded"
+    >
+      <X v-if="expanded" :size="20" :stroke-width="2" />
+      <Plus v-else :size="22" :stroke-width="2.2" />
     </button>
   </div>
 </template>
 
 <style scoped>
-.quick-fab {
-  position: fixed;
-  right: max(16px, calc((100vw - var(--content-width)) / 2 + 16px));
-  bottom: 92px;
-  display: grid;
-  gap: 10px;
-  z-index: 18;
-}
-
-.quick-fab__menu {
-  display: grid;
-  gap: 10px;
-}
-
-.quick-fab__item {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  justify-content: flex-start;
-  min-height: 44px;
-  padding: 0 16px;
-  border-radius: var(--radius-pill);
-  box-shadow: var(--shadow);
-  background: var(--surface);
-  color: var(--text-primary);
-  font-size: 0.875rem;
-  font-weight: 700;
-}
-
-.quick-fab__item--expense {
+.fab-action--expense {
   color: var(--expense);
 }
 
-.quick-fab__item--income {
+.fab-action--income {
   color: var(--income);
 }
 
-.quick-fab__button {
-  justify-self: end;
-  width: 56px;
-  height: 56px;
-  border: none;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--brand), #36a4ff);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: var(--shadow-lg);
-}
-
-@media (min-width: 960px) {
-  .quick-fab {
-    bottom: 32px;
-  }
+.fab-action--neutral {
+  color: var(--text-primary);
 }
 </style>

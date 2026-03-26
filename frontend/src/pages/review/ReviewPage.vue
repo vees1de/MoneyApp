@@ -134,7 +134,6 @@ onMounted(async () => {
 
 <template>
   <PageContainer>
-    <!-- Header -->
     <div class="review-page-header">
       <div>
         <h1 class="review-title">{{ t('review.title') }}</h1>
@@ -144,11 +143,10 @@ onMounted(async () => {
         class="review-status-badge"
         :class="isResolved ? 'review-status-badge--done' : 'review-status-badge--pending'"
       >
-        {{ isResolved ? `✓ ${t('review.done')}` : `◔ ${t('review.pending')}` }}
+        {{ isResolved ? t('review.done') : t('review.pending') }}
       </span>
     </div>
 
-    <!-- Period metrics -->
     <div class="review-metrics">
       <div class="review-metric">
         <span class="review-metric__label">{{ t('common.expected') }}</span>
@@ -164,7 +162,6 @@ onMounted(async () => {
       </div>
     </div>
 
-    <!-- Delta card -->
     <ReviewDeltaCard
       :actual-balance-minor="reviewStore.review.actualBalanceMinor"
       :delta-hint="reviewStore.deltaHint"
@@ -172,11 +169,10 @@ onMounted(async () => {
       :expected-balance-minor="reviewStore.review.expectedBalanceMinor"
     />
 
-    <!-- Actual balance input -->
     <section class="section-card">
-      <h2 style="margin:0 0 4px;font-size:1.0625rem;font-weight:600;letter-spacing:-0.01em">{{ t('review.enterBalanceTitle') }}</h2>
-      <p class="muted" style="margin:0 0 16px;font-size:0.875rem">{{ t('review.enterBalanceBody') }}</p>
-      <form class="stack" style="gap:12px" @submit.prevent="submitActualBalance">
+      <h2 class="section-title" style="margin-bottom: 4px">{{ t('review.enterBalanceTitle') }}</h2>
+      <p class="muted" style="margin: 0 0 18px; font-size: 0.875rem">{{ t('review.enterBalanceBody') }}</p>
+      <form class="stack" @submit.prevent="submitActualBalance">
         <div class="field">
           <label for="actualBalance">{{ t('common.actual') }}</label>
           <input
@@ -184,14 +180,13 @@ onMounted(async () => {
             v-model="actualBalanceInput"
             inputmode="decimal"
             :placeholder="t('transactionForm.placeholderAmount')"
-            style="font-size:1.25rem;font-weight:600;letter-spacing:-0.02em"
+            class="actual-balance-input"
           />
         </div>
         <button class="button button--primary button--block" type="submit">{{ t('review.compareBalances') }}</button>
       </form>
     </section>
 
-    <!-- Actions -->
     <ReviewActions
       :can-resolve="canResolve"
       :delta-minor="reviewStore.review.deltaMinor"
@@ -199,9 +194,8 @@ onMounted(async () => {
       @skip="skip"
     />
 
-    <!-- Period transactions -->
     <section v-if="periodTransactions.length" class="section-card">
-      <h2 style="margin:0 0 12px;font-size:1.0625rem;font-weight:600;letter-spacing:-0.01em">
+      <h2 class="section-title">
         {{ t('common.periodEntries', { count: periodTransactions.length }) }}
       </h2>
       <div class="review-txn-list">
@@ -221,6 +215,13 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.section-title {
+  margin: 0 0 14px;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
 .review-page-header {
   display: flex;
   align-items: flex-start;
@@ -231,14 +232,14 @@ onMounted(async () => {
 
 .review-title {
   margin: 0;
-  font-size: 1.75rem;
+  font-size: 2rem;
   font-weight: 700;
   letter-spacing: -0.03em;
-  line-height: 1.1;
+  line-height: 1.08;
 }
 
 .review-period {
-  margin: 4px 0 0;
+  margin: 6px 0 0;
   font-size: 0.875rem;
   color: var(--text-muted);
 }
@@ -246,10 +247,11 @@ onMounted(async () => {
 .review-status-badge {
   flex-shrink: 0;
   font-size: 0.8125rem;
-  font-weight: 700;
-  padding: 6px 12px;
+  font-weight: 600;
+  padding: 6px 14px;
   border-radius: var(--radius-pill);
   margin-top: 4px;
+  letter-spacing: -0.01em;
 }
 
 .review-status-badge--done {
@@ -271,8 +273,8 @@ onMounted(async () => {
 .review-metric {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 14px 14px 12px;
+  gap: 6px;
+  padding: 16px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -283,20 +285,27 @@ onMounted(async () => {
   font-size: 0.6875rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   color: var(--text-muted);
 }
 
 .review-metric__value {
-  font-size: 1rem;
+  font-size: 1.0625rem;
   font-weight: 700;
   letter-spacing: -0.025em;
   color: var(--text-primary);
   line-height: 1.1;
+  font-variant-numeric: tabular-nums;
 }
 
 .review-metric--income .review-metric__value { color: var(--income); }
 .review-metric--expense .review-metric__value { color: var(--expense); }
+
+.actual-balance-input {
+  font-size: 1.25rem !important;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
 
 .review-txn-list {
   display: flex;
@@ -308,8 +317,8 @@ onMounted(async () => {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 11px 0;
-  border-bottom: 1px solid var(--separator);
+  padding: 12px 0;
+  border-bottom: 0.5px solid var(--separator);
 }
 
 .review-txn-row:first-child { padding-top: 0; }
@@ -322,6 +331,7 @@ onMounted(async () => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  letter-spacing: -0.01em;
 }
 
 .review-txn-amount {
@@ -329,6 +339,7 @@ onMounted(async () => {
   font-weight: 700;
   letter-spacing: -0.02em;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .review-txn-amount--income { color: var(--income); }

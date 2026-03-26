@@ -35,7 +35,6 @@ onMounted(async () => {
       <p class="muted">{{ t('settings.subtitle') }}</p>
     </div>
 
-    <!-- Profile card -->
     <section class="settings-profile-card">
       <div class="settings-avatar">
         {{ userStore.profile.fullName?.charAt(0) ?? '?' }}
@@ -46,7 +45,6 @@ onMounted(async () => {
       </div>
     </section>
 
-    <!-- Profile details -->
     <section class="section-card">
       <div class="settings-list">
         <div class="settings-row">
@@ -74,9 +72,8 @@ onMounted(async () => {
       </div>
     </section>
 
-    <!-- Actions -->
     <section class="section-card">
-      <div class="stack" style="gap:10px">
+      <div class="stack" style="gap: 10px">
         <RouterLink class="button button--secondary button--block" to="/categories">
           {{ t('settings.manageCategories') }}
         </RouterLink>
@@ -89,7 +86,6 @@ onMounted(async () => {
       </div>
     </section>
 
-    <!-- App info -->
     <p class="settings-version">{{ t('settings.version') }}</p>
   </PageContainer>
 </template>
@@ -103,7 +99,7 @@ onMounted(async () => {
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-sm);
-  padding: 20px;
+  padding: 22px;
 }
 
 .settings-avatar {
@@ -123,13 +119,13 @@ onMounted(async () => {
 .settings-profile-info {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
 }
 
 .settings-profile-name {
-  font-size: 1.125rem;
+  font-size: 1.1875rem;
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
   color: var(--text-primary);
 }
 
@@ -156,7 +152,7 @@ onMounted(async () => {
   margin: 0;
   font-size: 1.0625rem;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
   color: var(--text-primary);
 }
 
@@ -173,7 +169,7 @@ onMounted(async () => {
 
 .settings-version {
   text-align: center;
-  font-size: 0.78125rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
   margin: 4px 0 0;
 }

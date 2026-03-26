@@ -48,7 +48,7 @@ const isReviewResolved = computed(() => props.reviewStatus === 'matched' || prop
 .hero-card__inner {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   position: relative;
   z-index: 1;
 }
@@ -63,19 +63,21 @@ const isReviewResolved = computed(() => props.reviewStatus === 'matched' || prop
 .hero-eyebrow-label {
   font-size: 0.8125rem;
   font-weight: 500;
-  color: rgba(255,255,255,0.55);
+  color: rgba(255, 255, 255, 0.50);
   letter-spacing: 0.02em;
 }
 
 .hero-badge {
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   font-weight: 600;
-  padding: 3px 9px;
-  border-radius: 999px;
-  background: rgba(255,255,255,0.10);
-  color: rgba(255,255,255,0.70);
-  border: 1px solid rgba(255,255,255,0.08);
-  letter-spacing: 0.02em;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  backdrop-filter: blur(8px);
 }
 
 .hero-card__sub {
@@ -88,45 +90,46 @@ const isReviewResolved = computed(() => props.reviewStatus === 'matched' || prop
   z-index: 1;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 20px;
   margin-top: 20px;
-  padding-top: 18px;
-  border-top: 1px solid rgba(255,255,255,0.10);
+  padding-top: 20px;
+  border-top: 0.5px solid rgba(255, 255, 255, 0.08);
 }
 
 .hero-metric {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
 }
 
 .hero-metric__label {
   font-size: 0.6875rem;
   font-weight: 500;
-  color: rgba(255,255,255,0.45);
+  color: rgba(255, 255, 255, 0.40);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
 }
 
 .hero-metric__value {
-  font-size: 1rem;
+  font-size: 1.0625rem;
   font-weight: 600;
-  color: rgba(255,255,255,0.90);
-  letter-spacing: -0.01em;
+  color: rgba(255, 255, 255, 0.88);
+  letter-spacing: -0.015em;
+  font-variant-numeric: tabular-nums;
 }
 
 .hero-metric__value--green {
-  color: #5CDB8F;
+  color: #4ADE80;
 }
 
 .hero-metric__value--amber {
-  color: #FFBE5C;
+  color: #FBB042;
 }
 
 .hero-metric__divider {
-  width: 1px;
-  height: 32px;
-  background: rgba(255,255,255,0.12);
+  width: 0.5px;
+  height: 36px;
+  background: rgba(255, 255, 255, 0.10);
   flex-shrink: 0;
 }
 </style>

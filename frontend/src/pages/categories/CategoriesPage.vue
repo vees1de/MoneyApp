@@ -12,7 +12,7 @@ const appUiStore = useAppUiStore()
 const { t } = useI18n()
 
 const form = reactive({
-  color: '#007AFF',
+  color: '#0071E3',
   kind: 'expense' as 'income' | 'expense',
   name: '',
 })
@@ -59,11 +59,10 @@ onMounted(async () => {
       <p class="muted">{{ t('categories.subtitle') }}</p>
     </div>
 
-    <!-- Category list -->
     <section v-if="financeStore.categories.length" class="section-card">
       <div class="cat-list">
         <div v-for="category in financeStore.categories" :key="category.id" class="cat-row">
-          <div class="cat-swatch" :style="{ background: `${category.color}20`, borderColor: `${category.color}30` }">
+          <div class="cat-swatch" :style="{ background: `${category.color}10`, borderColor: `${category.color}20` }">
             <div class="cat-dot" :style="{ background: category.color }" />
           </div>
           <div class="cat-info">
@@ -89,10 +88,9 @@ onMounted(async () => {
       :description="t('categories.emptyDescription')"
     />
 
-    <!-- New category form -->
     <section class="section-card">
-      <h2 style="margin:0 0 16px;font-size:1.0625rem;font-weight:600;letter-spacing:-0.01em">{{ t('categories.newTitle') }}</h2>
-      <form class="stack" style="gap:14px" @submit.prevent="submit">
+      <h2 class="section-title">{{ t('categories.newTitle') }}</h2>
+      <form class="stack" @submit.prevent="submit">
         <div class="field">
           <label for="categoryName">{{ t('common.name') }}</label>
           <input id="categoryName" v-model="form.name" :placeholder="t('categories.namePlaceholder')" />
@@ -122,7 +120,7 @@ onMounted(async () => {
     </section>
 
     <section class="section-card">
-      <p class="muted" style="margin:0 0 12px;font-size:0.875rem">{{ t('common.usedIn') }}</p>
+      <p class="muted" style="margin: 0 0 12px; font-size: 0.875rem">{{ t('common.usedIn') }}</p>
       <div class="cta-list">
         <RouterLink class="button button--secondary" to="/transactions">{{ t('route.transactions') }}</RouterLink>
         <RouterLink class="button button--secondary" to="/review">{{ t('route.review') }}</RouterLink>
@@ -132,6 +130,13 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.section-title {
+  margin: 0 0 18px;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
 .cat-list {
   display: flex;
   flex-direction: column;
@@ -141,16 +146,16 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--separator);
+  padding: 13px 0;
+  border-bottom: 0.5px solid var(--separator);
 }
 
 .cat-row:first-child { padding-top: 0; }
 .cat-row:last-child { border-bottom: none; padding-bottom: 0; }
 
 .cat-swatch {
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
@@ -169,13 +174,14 @@ onMounted(async () => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
 }
 
 .cat-name {
   font-size: 0.9375rem;
   font-weight: 600;
   color: var(--text-primary);
+  letter-spacing: -0.01em;
 }
 
 .cat-meta {
@@ -185,30 +191,34 @@ onMounted(async () => {
 }
 
 .cat-delete {
-  height: 32px;
-  padding: 0 12px;
+  height: 34px;
+  padding: 0 14px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-pill);
   background: transparent;
   font-size: 0.8125rem;
   font-weight: 500;
   color: var(--expense);
-  transition: background var(--duration-fast) ease;
   flex-shrink: 0;
+  transition: background-color var(--duration-fast) var(--ease-out),
+              transform var(--duration-fast) var(--ease-out);
 }
 
-.cat-delete:active {
+.cat-delete:hover {
   background: var(--danger-soft);
 }
 
-/* Color picker field */
+.cat-delete:active {
+  transform: scale(0.96);
+}
+
 .color-field {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 46px;
-  padding: 0 14px;
-  border-radius: var(--radius-md);
+  min-height: 48px;
+  padding: 0 16px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border-strong);
   background: var(--surface-strong);
 }
@@ -220,7 +230,7 @@ onMounted(async () => {
   padding: 0;
   background: transparent;
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: 6px;
   flex-shrink: 0;
 }
 
@@ -229,13 +239,13 @@ onMounted(async () => {
   height: 20px;
   border-radius: 50%;
   flex-shrink: 0;
-  border: 2px solid rgba(0,0,0,0.06);
+  border: 2px solid var(--border);
   display: none;
 }
 
 .color-value {
   font-size: 0.875rem;
   color: var(--text-muted);
-  font-family: ui-monospace, monospace;
+  font-family: ui-monospace, 'SF Mono', monospace;
 }
 </style>

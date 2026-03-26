@@ -287,7 +287,7 @@ async function submit() {
     </button>
 
     <div v-if="detailsExpanded || props.mode === 'edit'" class="composer__details">
-      <div class="grid grid--two" style="gap:10px">
+      <div class="grid grid--two" style="gap: 10px">
         <div class="field">
           <label for="account">{{ t('common.account') }}</label>
           <select id="account" v-model="form.accountId">
@@ -303,7 +303,7 @@ async function submit() {
         </div>
       </div>
 
-      <div class="grid grid--two" style="gap:10px">
+      <div class="grid grid--two" style="gap: 10px">
         <div class="field">
           <label for="title">{{ t('common.title') }}</label>
           <input
@@ -337,31 +337,32 @@ async function submit() {
   border-radius: var(--radius-xl);
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
-  padding: 20px;
+  padding: 22px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
 }
 
 .composer__kind-row {
   display: flex;
-  gap: 6px;
+  gap: 8px;
 }
 
 .kind-btn {
   flex: 1;
-  height: 40px;
+  height: 42px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-pill);
   background: transparent;
-  font-size: 0.9rem;
+  font-size: 0.9375rem;
   font-weight: 600;
   color: var(--text-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  transition: background var(--duration-fast) ease, color var(--duration-fast) ease, border-color var(--duration-fast) ease;
+  letter-spacing: -0.01em;
+  transition: all var(--duration-base) var(--ease-out);
 }
 
 .kind-btn__icon {
@@ -376,22 +377,24 @@ async function submit() {
 
 .kind-btn--expense {
   background: var(--expense);
-  color: #fff;
+  color: var(--text-on-fill);
+  box-shadow: 0 2px 8px rgba(255, 59, 48, 0.20);
 }
 
 .kind-btn--income {
   background: var(--income);
-  color: #fff;
+  color: var(--text-on-fill);
+  box-shadow: 0 2px 8px rgba(40, 205, 65, 0.20);
 }
 
 .composer__amount-wrap {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 0 16px;
+  padding: 0 18px;
   background: var(--surface-secondary);
   border-radius: var(--radius-lg);
-  min-height: 56px;
+  min-height: 60px;
 }
 
 .composer__currency {
@@ -411,6 +414,7 @@ async function submit() {
   letter-spacing: -0.04em;
   color: var(--text-primary);
   min-width: 0;
+  font-variant-numeric: tabular-nums;
 }
 
 .composer__amount-input::placeholder {
@@ -441,7 +445,7 @@ async function submit() {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-height: 34px;
+  min-height: 36px;
   padding: 0 14px;
   border: 1px solid var(--border);
   border-radius: var(--radius-pill);
@@ -449,15 +453,25 @@ async function submit() {
   color: var(--text-secondary);
   font-size: 0.875rem;
   font-weight: 600;
+  transition: all var(--duration-base) var(--ease-out);
+}
+
+.chip:hover {
+  background: var(--surface-fill);
+}
+
+.chip:active {
+  transform: scale(0.96);
 }
 
 .chip--amount {
   background: var(--surface);
+  font-variant-numeric: tabular-nums;
 }
 
 .chip--active {
   background: var(--brand-soft);
-  border-color: rgba(0, 122, 255, 0.24);
+  border-color: rgba(0, 113, 227, 0.20);
   color: var(--brand);
 }
 
@@ -473,22 +487,35 @@ async function submit() {
   color: var(--brand);
   text-align: left;
   font-size: 0.875rem;
-  font-weight: 700;
+  font-weight: 600;
   padding: 0;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.composer__details-toggle:hover {
+  opacity: 0.7;
 }
 
 .composer__details {
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .composer__save--expense {
   background: var(--expense);
-  color: #fff;
+  color: var(--text-on-fill);
+}
+
+.composer__save--expense:hover {
+  box-shadow: 0 2px 12px rgba(255, 59, 48, 0.25);
 }
 
 .composer__save--income {
   background: var(--income);
-  color: #fff;
+  color: var(--text-on-fill);
+}
+
+.composer__save--income:hover {
+  box-shadow: 0 2px 12px rgba(40, 205, 65, 0.25);
 }
 </style>

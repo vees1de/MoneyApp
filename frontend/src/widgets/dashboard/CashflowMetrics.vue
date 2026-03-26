@@ -42,28 +42,34 @@ const { t } = useI18n()
 .cashflow-card {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  padding: 14px 14px 12px;
+  gap: 4px;
+  padding: 16px;
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
   background: var(--surface);
   box-shadow: var(--shadow-xs);
+  transition: box-shadow var(--duration-base) var(--ease-out);
+}
+
+.cashflow-card:hover {
+  box-shadow: var(--shadow-sm);
 }
 
 .cashflow-card__label {
   font-size: 0.6875rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   color: var(--text-muted);
 }
 
 .cashflow-card__value {
-  font-size: 1.0625rem;
+  font-size: 1.125rem;
   font-weight: 700;
   letter-spacing: -0.025em;
   line-height: 1.1;
   margin-top: 2px;
+  font-variant-numeric: tabular-nums;
 }
 
 .cashflow-card__sub {

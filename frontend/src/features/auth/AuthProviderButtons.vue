@@ -25,7 +25,6 @@ function isTelegramWidgetConfigured() {
 
 <template>
   <div class="auth-providers">
-    <!-- OAuth buttons -->
     <TelegramWidgetButton
       v-if="isProviderAvailable('telegram') && isTelegramWidgetConfigured()"
       :disabled="loading"
@@ -37,7 +36,6 @@ function isTelegramWidgetConfigured() {
       :title="t('auth.telegramUnavailable')"
       type="button"
     >
-      <!-- Telegram brand icon -->
       <svg
         viewBox="0 0 24 24"
         width="20"
@@ -62,7 +60,6 @@ function isTelegramWidgetConfigured() {
       "
       @click="emit('select', 'yandex')"
     >
-      <!-- Yandex brand icon — explicit fill, no currentColor dependency -->
       <svg
         viewBox="0 0 24 24"
         width="20"
@@ -100,28 +97,41 @@ function isTelegramWidgetConfigured() {
   font-weight: 600;
   letter-spacing: -0.01em;
   cursor: pointer;
-  transition:
-    opacity var(--duration-fast) ease,
-    transform var(--duration-fast) ease;
+  transition: opacity var(--duration-fast) var(--ease-out),
+              transform var(--duration-fast) var(--ease-out),
+              box-shadow var(--duration-base) var(--ease-out);
+}
+
+.auth-btn:hover {
+  transform: translateY(-0.5px);
 }
 
 .auth-btn:active {
   transform: scale(0.97);
-  opacity: 0.85;
+  opacity: 0.88;
 }
 
 .auth-btn:disabled {
-  opacity: 0.45;
+  opacity: 0.38;
   cursor: not-allowed;
+  transform: none;
 }
 
 .auth-btn--telegram {
-  background: #2aabee;
-  color: #fff;
+  background: #2AABEE;
+  color: var(--text-on-fill);
+}
+
+.auth-btn--telegram:hover:not(:disabled) {
+  box-shadow: 0 2px 12px rgba(42, 171, 238, 0.30);
 }
 
 .auth-btn--yandex {
-  background: #fc3f1d;
-  color: #fff;
+  background: #FC3F1D;
+  color: var(--text-on-fill);
+}
+
+.auth-btn--yandex:hover:not(:disabled) {
+  box-shadow: 0 2px 12px rgba(252, 63, 29, 0.30);
 }
 </style>

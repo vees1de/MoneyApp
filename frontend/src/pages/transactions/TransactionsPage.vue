@@ -128,7 +128,7 @@ onMounted(async () => {
     </section>
 
     <section class="section-card">
-      <div class="field" style="margin-bottom:12px">
+      <div class="field" style="margin-bottom: 14px">
         <label for="transactionSearch">{{ t('common.search') }}</label>
         <input
           id="transactionSearch"
@@ -139,7 +139,7 @@ onMounted(async () => {
       </div>
 
       <div class="txn-filter-header">
-        <h2 style="margin:0;font-size:1.0625rem;font-weight:600;letter-spacing:-0.01em">{{ t('common.filter') }}</h2>
+        <h2 class="txn-filter-title">{{ t('common.filter') }}</h2>
         <div class="txn-filter-actions">
           <button
             class="filter-link"
@@ -153,7 +153,7 @@ onMounted(async () => {
         </div>
       </div>
 
-      <div class="grid grid--two" style="margin-top:12px">
+      <div class="grid grid--two" style="margin-top: 14px">
         <div class="field">
           <label for="accountFilter">{{ t('common.account') }}</label>
           <select
@@ -185,8 +185,8 @@ onMounted(async () => {
     </section>
 
     <section v-if="financeStore.savedFilters.length" class="section-card">
-      <div class="txn-filter-header" style="margin-bottom:12px">
-        <h2 style="margin:0;font-size:1.0625rem;font-weight:600;letter-spacing:-0.01em">{{ t('transactions.savedFilters') }}</h2>
+      <div class="txn-filter-header" style="margin-bottom: 14px">
+        <h2 class="txn-filter-title">{{ t('transactions.savedFilters') }}</h2>
         <button
           v-if="financeStore.filters.searchQuery"
           class="filter-link"
@@ -221,7 +221,7 @@ onMounted(async () => {
           class="txn-row"
           :to="`/transactions/${transaction.id}`"
         >
-          <div class="txn-icon" :style="{ background: `${transactionColor(transaction)}18` }">
+          <div class="txn-icon" :style="{ background: `${transactionColor(transaction)}10` }">
             <div class="txn-dot" :style="{ background: transactionColor(transaction) }" />
           </div>
           <div class="txn-info">
@@ -256,12 +256,23 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   min-height: 40px;
-  padding: 0 16px;
+  padding: 0 18px;
   border-radius: var(--radius-pill);
   background: var(--surface-secondary);
   color: var(--text-primary);
   font-size: 0.875rem;
-  font-weight: 700;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  transition: background-color var(--duration-base) var(--ease-out),
+              transform var(--duration-fast) var(--ease-out);
+}
+
+.action-pill:hover {
+  background: var(--surface-fill);
+}
+
+.action-pill:active {
+  transform: scale(0.96);
 }
 
 .action-pill--expense {
@@ -269,9 +280,17 @@ onMounted(async () => {
   color: var(--expense);
 }
 
+.action-pill--expense:hover {
+  background: rgba(255, 59, 48, 0.14);
+}
+
 .action-pill--income {
   background: var(--income-soft);
   color: var(--income);
+}
+
+.action-pill--income:hover {
+  background: rgba(40, 205, 65, 0.16);
 }
 
 .txn-filter-header {
@@ -281,10 +300,17 @@ onMounted(async () => {
   gap: 12px;
 }
 
+.txn-filter-title {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
 .txn-filter-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 
 .filter-link {
@@ -294,10 +320,16 @@ onMounted(async () => {
   border: none;
   background: transparent;
   padding: 0;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.filter-link:hover {
+  opacity: 0.75;
 }
 
 .filter-link:disabled {
   color: var(--text-muted);
+  opacity: 1;
 }
 
 .saved-filter-list {
@@ -311,9 +343,14 @@ onMounted(async () => {
   align-items: center;
   gap: 8px;
   min-height: 36px;
-  padding: 0 8px 0 14px;
+  padding: 0 10px 0 14px;
   border-radius: var(--radius-pill);
   background: var(--surface-secondary);
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+.saved-filter-chip:hover {
+  background: var(--surface-fill);
 }
 
 .saved-filter-chip__label,
@@ -326,13 +363,18 @@ onMounted(async () => {
 .saved-filter-chip__label {
   color: var(--text-primary);
   font-size: 0.8125rem;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .saved-filter-chip__remove {
   color: var(--text-muted);
   font-size: 1rem;
   line-height: 1;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+.saved-filter-chip__remove:hover {
+  color: var(--expense);
 }
 
 .txn-list {
@@ -344,16 +386,21 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--separator);
+  padding: 13px 0;
+  border-bottom: 0.5px solid var(--separator);
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.txn-row:hover {
+  opacity: 0.75;
 }
 
 .txn-row:first-child { padding-top: 0; }
 .txn-row:last-child { border-bottom: none; padding-bottom: 0; }
 
 .txn-icon {
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
@@ -371,7 +418,7 @@ onMounted(async () => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
   min-width: 0;
 }
 
@@ -382,6 +429,7 @@ onMounted(async () => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  letter-spacing: -0.01em;
 }
 
 .txn-meta {
@@ -394,6 +442,7 @@ onMounted(async () => {
   font-weight: 700;
   letter-spacing: -0.02em;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .txn-amount--income { color: var(--income); }

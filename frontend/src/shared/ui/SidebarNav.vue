@@ -20,52 +20,53 @@ const navItems = [
   { label: () => t('nav.savings'), to: '/savings', icon: PiggyBank },
   { label: () => t('nav.review'), to: '/review', icon: ClipboardCheck },
 ]
+
+function isActive(to: string): boolean {
+  return route.path === to || route.path.startsWith(to + '/')
+}
 </script>
 
 <template>
   <aside class="sidebar">
-    <!-- Logo -->
-    <div class="sidebar__brand">
-      <div class="sidebar__logo">
-        <svg viewBox="0 0 28 28" fill="none" width="22" height="22">
+    <div class="sidebar__logo">
+      <div class="sidebar__logo-icon">
+        <svg viewBox="0 0 28 28" fill="none" width="20" height="20">
           <rect width="28" height="28" rx="8" fill="var(--brand)"/>
           <path d="M8 20V10.5L14 7l6 3.5V20" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
           <path d="M11 20v-5h6v5" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </div>
-      <div class="sidebar__brand-text">
-        <span class="sidebar__app-name">{{ env.appName }}</span>
-        <span class="sidebar__product">{{ env.productName }}</span>
-      </div>
+      <span class="sidebar__logo-text">{{ env.appName }}</span>
     </div>
 
-    <!-- User greeting -->
     <div v-if="firstName" class="sidebar__user">
       <div class="sidebar__avatar">{{ firstName.charAt(0).toUpperCase() }}</div>
-      <div class="sidebar__user-info">
+      <div class="sidebar__user-meta">
         <span class="sidebar__user-name">{{ firstName }}</span>
-        <span class="sidebar__user-sub">{{ t('header.greeting', { name: firstName }) }}</span>
+        <span class="sidebar__user-handle">{{ t('header.greeting', { name: firstName }) }}</span>
       </div>
     </div>
 
-    <!-- Nav -->
     <nav class="sidebar__nav">
       <RouterLink
         v-for="item in navItems"
         :key="item.to"
         :to="item.to"
         class="sidebar__link"
-        :class="{ 'sidebar__link--active': route.path === item.to || route.path.startsWith(item.to + '/') }"
+        :class="{ 'router-link-active': isActive(item.to) }"
       >
-        <component :is="item.icon" :size="18" :stroke-width="route.path === item.to ? 2.25 : 1.75" />
+        <component :is="item.icon" :size="18" :stroke-width="isActive(item.to) ? 2.2 : 1.7" />
         <span>{{ item.label() }}</span>
       </RouterLink>
     </nav>
 
-    <!-- Settings at bottom -->
     <div class="sidebar__footer">
-      <RouterLink to="/settings" class="sidebar__link" :class="{ 'sidebar__link--active': route.path === '/settings' }">
-        <Settings :size="18" :stroke-width="route.path === '/settings' ? 2.25 : 1.75" />
+      <RouterLink
+        to="/settings"
+        class="sidebar__link"
+        :class="{ 'router-link-active': isActive('/settings') }"
+      >
+        <Settings :size="18" :stroke-width="isActive('/settings') ? 2.2 : 1.7" />
         <span>{{ t('route.settings') }}</span>
       </RouterLink>
     </div>
@@ -74,62 +75,49 @@ const navItems = [
 
 <style scoped>
 .sidebar {
-  width: 220px;
+  width: var(--sidebar-width);
   flex-shrink: 0;
   height: 100vh;
+  height: 100dvh;
   position: sticky;
   top: 0;
   display: flex;
   flex-direction: column;
-  background: var(--surface);
-  border-right: 1px solid var(--separator);
-  padding: 20px 12px 24px;
+  background: var(--surface-glass);
+  backdrop-filter: blur(40px) saturate(200%);
+  -webkit-backdrop-filter: blur(40px) saturate(200%);
+  border-right: 0.5px solid var(--border);
+  padding: 20px 14px 24px;
   overflow-y: auto;
 }
 
-.sidebar__brand {
+.sidebar__logo {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 4px 8px 20px;
+  padding: 8px 10px 20px;
 }
 
-.sidebar__logo {
+.sidebar__logo-icon {
   flex-shrink: 0;
-  border-radius: 8px;
-  overflow: hidden;
   display: flex;
 }
 
-.sidebar__brand-text {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-}
-
-.sidebar__app-name {
-  font-size: 0.9375rem;
+.sidebar__logo-text {
+  font-size: 1.0625rem;
   font-weight: 700;
   color: var(--text-primary);
-  letter-spacing: -0.02em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.sidebar__product {
-  font-size: 0.75rem;
-  color: var(--text-muted);
+  letter-spacing: -0.025em;
 }
 
 .sidebar__user {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 8px 16px;
-  border-bottom: 1px solid var(--separator);
-  margin-bottom: 8px;
+  padding: 12px 10px;
+  margin-bottom: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-secondary);
 }
 
 .sidebar__avatar {
@@ -146,7 +134,7 @@ const navItems = [
   flex-shrink: 0;
 }
 
-.sidebar__user-info {
+.sidebar__user-meta {
   display: flex;
   flex-direction: column;
   gap: 1px;
@@ -157,9 +145,10 @@ const navItems = [
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--text-primary);
+  letter-spacing: -0.01em;
 }
 
-.sidebar__user-sub {
+.sidebar__user-handle {
   font-size: 0.75rem;
   color: var(--text-muted);
 }
@@ -175,13 +164,14 @@ const navItems = [
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 9px 10px;
-  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  border-radius: var(--radius-xs);
   font-size: 0.9375rem;
   font-weight: 500;
   color: var(--text-secondary);
-  transition: background var(--duration-fast) ease, color var(--duration-fast) ease;
+  letter-spacing: -0.01em;
   text-decoration: none;
+  transition: all var(--duration-base) var(--ease-out);
 }
 
 .sidebar__link:hover {
@@ -189,14 +179,15 @@ const navItems = [
   color: var(--text-primary);
 }
 
-.sidebar__link--active {
+.sidebar__link.router-link-active {
   background: var(--brand-soft);
   color: var(--brand);
   font-weight: 600;
 }
 
 .sidebar__footer {
-  padding-top: 12px;
-  border-top: 1px solid var(--separator);
+  padding-top: 14px;
+  border-top: 0.5px solid var(--separator);
+  margin-top: 8px;
 }
 </style>

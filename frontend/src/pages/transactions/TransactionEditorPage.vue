@@ -114,7 +114,7 @@ onMounted(async () => {
     </div>
 
     <section v-if="pageLoading" class="section-card">
-      <p class="muted" style="margin:0">{{ t('common.loading') }}</p>
+      <p class="muted" style="margin: 0">{{ t('common.loading') }}</p>
     </section>
 
     <template v-else>
@@ -123,7 +123,7 @@ onMounted(async () => {
           <strong class="editor-meta__title">
             {{ transaction.title || transaction.note || t('transactions.untitled') }}
           </strong>
-          <p class="tiny" style="margin:4px 0 0">
+          <p class="tiny" style="margin: 4px 0 0">
             {{ t('common.lastUpdated', { date: formatDateTime(transaction.updatedAt) }) }}
           </p>
         </div>
@@ -165,6 +165,7 @@ onMounted(async () => {
   display: block;
   font-size: 0.9375rem;
   font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .editor-meta__delete {

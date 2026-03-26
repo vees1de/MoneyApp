@@ -43,6 +43,13 @@ chmod +x deploy/deploy_ssh.sh
 The CI deploy flow now updates the server with `git clone` / `git fetch` / `git reset --hard`, uploads the root `.env`, and runs `docker compose up --build -d backend` remotely.
 The repo URL, branch, SSH port, and deploy path are hardcoded for this project.
 
+To build only the static frontend on the server over SSH, use:
+
+```bash
+chmod +x deploy/build_frontend_ssh.sh
+./deploy/build_frontend_ssh.sh user@server
+```
+
 ## GitHub Actions CI/CD
 
 Workflow: [.github/workflows/ci-cd.yml](/Users/vees1de/repos/MoneyApp/.github/workflows/ci-cd.yml)

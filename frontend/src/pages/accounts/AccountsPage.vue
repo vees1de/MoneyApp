@@ -145,7 +145,7 @@ onMounted(async () => {
               <input :id="`edit-account-${account.id}`" v-model="editForm.name" />
             </div>
 
-            <p class="tiny" style="margin:0">{{ t('accounts.typeLockedHint') }}</p>
+            <p class="tiny" style="margin: 0">{{ t('accounts.typeLockedHint') }}</p>
 
             <div class="acct-edit__actions">
               <button class="button button--secondary" type="button" @click="stopEditing">
@@ -169,8 +169,8 @@ onMounted(async () => {
     />
 
     <section class="section-card">
-      <h2 style="margin:0 0 16px;font-size:1.0625rem;font-weight:600;letter-spacing:-0.01em">{{ t('accounts.addTitle') }}</h2>
-      <form class="stack" style="gap:14px" @submit.prevent="submit">
+      <h2 class="section-title">{{ t('accounts.addTitle') }}</h2>
+      <form class="stack" @submit.prevent="submit">
         <div class="field">
           <label for="accountName">{{ t('common.name') }}</label>
           <input id="accountName" v-model="form.name" :placeholder="t('accounts.namePlaceholder')" />
@@ -199,14 +199,21 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.section-title {
+  margin: 0 0 18px;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
 .acct-list {
   display: flex;
   flex-direction: column;
 }
 
 .acct-item {
-  padding: 12px 0;
-  border-bottom: 1px solid var(--separator);
+  padding: 14px 0;
+  border-bottom: 0.5px solid var(--separator);
 }
 
 .acct-item:first-child { padding-top: 0; }
@@ -219,8 +226,8 @@ onMounted(async () => {
 }
 
 .acct-icon {
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   border-radius: var(--radius-sm);
   background: var(--surface-secondary);
   display: flex;
@@ -234,13 +241,14 @@ onMounted(async () => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
 }
 
 .acct-name {
   font-size: 0.9375rem;
   font-weight: 600;
   color: var(--text-primary);
+  letter-spacing: -0.01em;
 }
 
 .acct-meta {
@@ -254,12 +262,13 @@ onMounted(async () => {
   font-weight: 700;
   letter-spacing: -0.02em;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .acct-actions {
   display: flex;
   gap: 16px;
-  margin: 10px 0 0 50px;
+  margin: 10px 0 0 52px;
 }
 
 .acct-action-link {
@@ -268,15 +277,20 @@ onMounted(async () => {
   background: transparent;
   color: var(--brand);
   font-size: 0.8125rem;
-  font-weight: 700;
+  font-weight: 600;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.acct-action-link:hover {
+  opacity: 0.7;
 }
 
 .acct-edit {
   display: grid;
-  gap: 12px;
-  margin-top: 12px;
-  margin-left: 50px;
-  padding: 14px;
+  gap: 14px;
+  margin-top: 14px;
+  margin-left: 52px;
+  padding: 16px;
   border-radius: var(--radius-lg);
   background: var(--surface-secondary);
 }

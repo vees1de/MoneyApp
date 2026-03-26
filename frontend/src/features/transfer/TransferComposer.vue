@@ -197,7 +197,7 @@ async function submit() {
       </select>
     </div>
 
-    <div class="grid grid--two" style="gap:10px">
+    <div class="grid grid--two" style="gap: 10px">
       <div class="field">
         <label for="title">{{ t('common.title') }}</label>
         <input
@@ -228,22 +228,22 @@ async function submit() {
 <style scoped>
 .transfer-form {
   display: grid;
-  gap: 14px;
+  gap: 16px;
   background: var(--surface);
   border-radius: var(--radius-xl);
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
-  padding: 20px;
+  padding: 22px;
 }
 
 .transfer-form__hero {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 0 16px;
+  padding: 0 18px;
   background: var(--surface-secondary);
   border-radius: var(--radius-lg);
-  min-height: 56px;
+  min-height: 60px;
 }
 
 .transfer-form__currency {
@@ -260,6 +260,7 @@ async function submit() {
   font-size: 1.75rem;
   font-weight: 700;
   letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
 }
 
 .transfer-form__amount:focus {
