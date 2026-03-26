@@ -122,6 +122,8 @@ jobs:
         shell: bash
         env:
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH || '/opt/moneyapp' }}
+          DEPLOY_REPO_URL: ${{ secrets.DEPLOY_REPO_URL || format('{0}/{1}.git', github.server_url, github.repository) }}
+          DEPLOY_GIT_REF: ${{ github.ref_name }}
         run: |
           chmod +x deploy/deploy_host_ssh.sh
           ./deploy/deploy_host_ssh.sh deploy-target "${DEPLOY_PATH}"

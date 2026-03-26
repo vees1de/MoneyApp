@@ -33,14 +33,14 @@ This matches a host nginx config that:
 
 ## Deploy over SSH
 
-If you want the repo and `.env` pushed to a server automatically, use:
+If you want the server to pull the repo itself over git and only upload `.env`, use:
 
 ```bash
 chmod +x deploy/deploy_ssh.sh
 ./deploy/deploy_ssh.sh user@server /opt/moneyapp
 ```
 
-The script uploads the repository, uploads the root `.env`, copies the built frontend to `/opt/moneyapp/frontend/dist` on the server for nginx, and runs `docker compose up --build -d` remotely.
+The CI deploy flow now updates the server with `git clone` / `git fetch` / `git reset --hard`, uploads the root `.env`, and runs `docker compose up --build -d backend` remotely.
 
 ## GitHub Actions CI/CD
 
@@ -57,11 +57,14 @@ Required GitHub secrets for deploy:
 - `DEPLOY_USER`
 - `DEPLOY_SSH_KEY`
 
-Recommended optional SSH secrets:
+Recommended optional deploy secrets:
 
 - `DEPLOY_PORT`
 - `DEPLOY_PATH`
 - `DEPLOY_KNOWN_HOSTS`
+- `DEPLOY_REPO_URL` if the server should clone from a different URL than `https://github.com/<owner>/<repo>.git`
+
+If the repository is private, make sure the server can authenticate to the git remote referenced by `DEPLOY_REPO_URL` via deploy key, SSH agent, or embedded HTTPS credentials.
 
 Application config can be provided in one of two ways:
 
