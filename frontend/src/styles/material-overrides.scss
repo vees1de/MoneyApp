@@ -1,0 +1,48 @@
+.mat-mdc-card {
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-card);
+}
+
+.mat-toolbar.mat-primary,
+.mat-toolbar {
+  --mat-toolbar-container-background-color: var(--app-header);
+  --mat-toolbar-container-text-color: #f4f8fc;
+}
+
+.mat-mdc-button-base {
+  border-radius: var(--radius-sm) !important;
+}
+
+.mat-mdc-stroked-button {
+  border-color: var(--app-border) !important;
+}
+
+.mat-mdc-progress-bar {
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.mat-mdc-card-header {
+  padding-bottom: 0 !important;
+}
+
+.mat-mdc-card-content {
+  padding-top: var(--space-2) !important;
+}
+
+.mat-mdc-list-item {
+  background: var(--app-surface-soft);
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-2);
+}
+
+.mat-grid-tile .mat-grid-tile-content {
+  background: var(--app-surface-soft);
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-sm);
+  color: var(--app-text);
+  font-weight: 500;
+}

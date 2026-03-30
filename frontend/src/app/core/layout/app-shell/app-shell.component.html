@@ -1,17 +1,42 @@
 ﻿<div class="shell">
   <mat-toolbar>
-    <button mat-stroked-button type="button" (click)="goBack()">Назад</button>
+    <span class="shell__brand">Diamond Learning</span>
+
+    @if (showBackButton) {
+      <button mat-stroked-button type="button" (click)="goBack()">Назад</button>
+    }
+
     <span class="spacer"></span>
 
-    <button mat-icon-button [matMenuTriggerFor]="notificationsMenu" matBadge="2" matBadgeSize="small">
-      <mat-icon>notifications</mat-icon>
-    </button>
-    <mat-menu #notificationsMenu="matMenu">
-      <button mat-menu-item>Новая заявка на согласование</button>
-      <button mat-menu-item>Дедлайн курса через 3 дня</button>
-    </mat-menu>
+    <div class="notifications">
+      <button
+        mat-icon-button
+        type="button"
+        (click)="toggleNotifications()"
+        [matBadge]="unreadCount()"
+        matBadgeSize="small"
+      >
+        <mat-icon>notifications</mat-icon>
+      </button>
 
-    <a mat-button routerLink="/profile">
+      @if (notificationsOpen()) {
+        <section class="notifications__panel">
+          <h3>Уведомления</h3>
+          @for (item of notifications(); track item.id) {
+            <div class="notifications__item" [class.notifications__item--read]="item.read">
+              <a [routerLink]="item.route">{{ item.text }}</a>
+              @if (!item.read) {
+                <button mat-button type="button" (click)="markAsRead(item.id)">Прочитать</button>
+              } @else {
+                <span>Прочитано</span>
+              }
+            </div>
+          }
+        </section>
+      }
+    </div>
+
+    <a mat-button routerLink="/profile" class="shell__profile-link">
       <mat-icon>person</mat-icon>
       Профиль
     </a>

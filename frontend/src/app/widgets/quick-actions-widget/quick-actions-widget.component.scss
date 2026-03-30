@@ -1,5 +1,13 @@
 ﻿.actions {
+  column-gap: var(--space-4);
   display: grid;
-  gap: 8px;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  row-gap: var(--space-4);
+}
+
+.actions .mat-mdc-outlined-button,
+.actions .mat-mdc-unelevated-button,
+.actions .mat-mdc-button-base {
+  justify-content: flex-start;
+  min-height: 42px;
 }

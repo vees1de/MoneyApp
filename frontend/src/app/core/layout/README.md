@@ -4,8 +4,10 @@
 Protected shell with header-only navigation for desktop MVP.
 
 ## Header
-- Back button
-- Notifications dropdown (Material menu)
+- Dark corporate top bar
+- Conditional back button (hidden on `/dashboard/test-role`)
+- Custom notifications panel (not Material menu)
+- `Прочитать` action per notification item
 - Profile link
 
 ## Navigation model

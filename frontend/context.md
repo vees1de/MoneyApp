@@ -12,9 +12,10 @@
 - widgets are hardcoded per role page for now
 
 ## Header for protected routes
-- notifications dropdown
+- dark top bar
+- conditional back button (not visible on main dashboard showcase)
+- custom notifications panel with mark-as-read action
 - profile link
-- back button
 
 ## Widget Set (current)
 - Team overview
@@ -31,8 +32,19 @@
 ## Data strategy (current stage)
 - layout and flow first
 - real backend binding later
-- block errors are shown as text (`Data did not load :(`)
+- block errors are shown as text (`Данные не подгрузились :(`)
 - skeleton states planned next step
+
+## Design baseline
+- corporate clean style
+- cold "diamond" palette on white base
+- subtle gradients and minimal shadows
+- no dark theme planned
+
+## Styling architecture
+- design tokens: `src/styles/tokens.scss`
+- material overrides: `src/styles/material-overrides.scss`
+- global entry: `src/styles.scss`
 
 ## Backend-first notes
 - permissions come from `/api/v1/auth/me` as `user.permissions[]`
