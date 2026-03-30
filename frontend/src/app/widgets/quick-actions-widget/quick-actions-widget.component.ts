@@ -10,5 +10,6 @@ import { WidgetShellComponent } from '@app/widgets/widget-shell/widget-shell.com
   standalone: true,
   imports: [CommonModule, RouterLink, MatButtonModule, WidgetShellComponent],
   templateUrl: './quick-actions-widget.component.html',
+  styleUrl: './quick-actions-widget.component.scss',
 })
 export class QuickActionsWidgetComponent {}

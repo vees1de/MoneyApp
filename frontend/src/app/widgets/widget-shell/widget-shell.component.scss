@@ -8,6 +8,7 @@
 
 .widget-shell__title-link {
   color: var(--app-text);
+  font-size: 1.15rem;
   font-weight: 500;
   text-decoration: none;
 }
@@ -19,6 +20,7 @@
 .widget-shell__content {
   display: grid;
   gap: var(--space-3);
+  line-height: 1.45;
   font-weight: 300;
   padding-top: var(--space-2) !important;
 }

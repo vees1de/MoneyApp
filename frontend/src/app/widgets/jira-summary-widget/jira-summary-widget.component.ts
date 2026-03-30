@@ -9,5 +9,7 @@ import { WidgetShellComponent } from '@app/widgets/widget-shell/widget-shell.com
   standalone: true,
   imports: [CommonModule, MatGridListModule, WidgetShellComponent],
   templateUrl: './jira-summary-widget.component.html',
+  styleUrl: './jira-summary-widget.component.scss',
 })
 export class JiraSummaryWidgetComponent {}
+

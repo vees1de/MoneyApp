@@ -11,5 +11,7 @@ import { WidgetShellComponent } from '@app/widgets/widget-shell/widget-shell.com
   standalone: true,
   imports: [CommonModule, RouterLink, MatListModule, MatProgressBarModule, WidgetShellComponent],
   templateUrl: './current-learning-widget.component.html',
+  styleUrl: './current-learning-widget.component.scss',
 })
 export class CurrentLearningWidgetComponent {}
+

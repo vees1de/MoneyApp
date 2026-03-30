@@ -10,5 +10,7 @@ import { WidgetShellComponent } from '@app/widgets/widget-shell/widget-shell.com
   standalone: true,
   imports: [CommonModule, RouterLink, MatListModule, WidgetShellComponent],
   templateUrl: './upcoming-events-widget.component.html',
+  styleUrl: './upcoming-events-widget.component.scss',
 })
 export class UpcomingEventsWidgetComponent {}
+

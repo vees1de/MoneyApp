@@ -10,5 +10,7 @@ import { WidgetShellComponent } from '@app/widgets/widget-shell/widget-shell.com
   standalone: true,
   imports: [CommonModule, RouterLink, MatCardModule, WidgetShellComponent],
   templateUrl: './recommendations-widget.component.html',
+  styleUrl: './recommendations-widget.component.scss',
 })
 export class RecommendationsWidgetComponent {}
+

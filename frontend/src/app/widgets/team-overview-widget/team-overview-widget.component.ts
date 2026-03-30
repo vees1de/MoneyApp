@@ -9,5 +9,7 @@ import { WidgetShellComponent } from '@app/widgets/widget-shell/widget-shell.com
   standalone: true,
   imports: [CommonModule, MatListModule, WidgetShellComponent],
   templateUrl: './team-overview-widget.component.html',
+  styleUrl: './team-overview-widget.component.scss',
 })
 export class TeamOverviewWidgetComponent {}
+

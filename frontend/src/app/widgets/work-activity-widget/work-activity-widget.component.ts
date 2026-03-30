@@ -10,5 +10,7 @@ import { WidgetShellComponent } from '@app/widgets/widget-shell/widget-shell.com
   standalone: true,
   imports: [CommonModule, RouterLink, MatListModule, WidgetShellComponent],
   templateUrl: './work-activity-widget.component.html',
+  styleUrl: './work-activity-widget.component.scss',
 })
 export class WorkActivityWidgetComponent {}
+

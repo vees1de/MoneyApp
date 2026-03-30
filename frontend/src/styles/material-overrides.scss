@@ -1,8 +1,9 @@
 .mat-mdc-card {
-  background: var(--app-surface);
+  background: #f9fcff;
   border: 1px solid var(--app-border);
   border-radius: var(--radius-md) !important;
   box-shadow: var(--shadow-card);
+  padding: var(--space-4);
 }
 
 .mat-toolbar.mat-primary,
@@ -25,22 +26,29 @@
 }
 
 .mat-mdc-card-header {
-  padding-bottom: 0 !important;
+  padding: 0 0 var(--space-2) !important;
 }
 
 .mat-mdc-card-content {
-  padding-top: var(--space-2) !important;
+  padding: var(--space-2) 0 0 !important;
+}
+
+.mat-mdc-card-title {
+  color: var(--app-text);
+  font-size: 1.2rem !important;
+  font-weight: 500 !important;
+  line-height: 1.3;
 }
 
 .mat-mdc-list-item {
-  background: var(--app-surface-soft);
+  background: #eef5fc;
   border: 1px solid var(--app-border);
   border-radius: var(--radius-sm);
   margin-bottom: var(--space-2);
 }
 
 .mat-grid-tile .mat-grid-tile-content {
-  background: var(--app-surface-soft);
+  background: #e9f2fb;
   border: 1px solid var(--app-border);
   border-radius: var(--radius-sm);
   color: var(--app-text);

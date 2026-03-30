@@ -10,5 +10,7 @@ import { WidgetShellComponent } from '@app/widgets/widget-shell/widget-shell.com
   standalone: true,
   imports: [CommonModule, RouterLink, MatListModule, WidgetShellComponent],
   templateUrl: './my-requests-widget.component.html',
+  styleUrl: './my-requests-widget.component.scss',
 })
 export class MyRequestsWidgetComponent {}
+
