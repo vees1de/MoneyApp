@@ -13,7 +13,9 @@ import (
 	auditmodule "moneyapp/backend/internal/modules/audit"
 	catalogmodule "moneyapp/backend/internal/modules/catalog"
 	certificatesmodule "moneyapp/backend/internal/modules/certificates"
+	courserequestsmodule "moneyapp/backend/internal/modules/course_requests"
 	externaltrainingmodule "moneyapp/backend/internal/modules/external_training"
+	githubmodule "moneyapp/backend/internal/modules/github_integration"
 	identitymodule "moneyapp/backend/internal/modules/identity"
 	learningmodule "moneyapp/backend/internal/modules/learning"
 	notificationsmodule "moneyapp/backend/internal/modules/notifications"
@@ -21,6 +23,7 @@ import (
 	outlookmodule "moneyapp/backend/internal/modules/outlook"
 	testingmodule "moneyapp/backend/internal/modules/testing"
 	universitymodule "moneyapp/backend/internal/modules/university"
+	yougilemodule "moneyapp/backend/internal/modules/yougile"
 	platformauth "moneyapp/backend/internal/platform/auth"
 	"moneyapp/backend/internal/platform/clock"
 	"moneyapp/backend/internal/platform/outbox"
@@ -46,12 +49,15 @@ type Container struct {
 	LearningService         *learningmodule.Service
 	TestingService          *testingmodule.Service
 	CertificatesService     *certificatesmodule.Service
+	CourseRequestsService   *courserequestsmodule.Service
 	ExternalTrainingService *externaltrainingmodule.Service
 	OutlookService          *outlookmodule.Service
 	NotificationsService    *notificationsmodule.Service
 	UniversityService       *universitymodule.Service
 	AnalyticsService        *analyticsmodule.Service
 	AuditService            *auditmodule.Service
+	YougileService          *yougilemodule.Service
+	GitHubService           *githubmodule.Service
 
 	HealthHandler           *corehealth.Handler
 	IdentityHandler         *identitymodule.Handler
@@ -60,10 +66,13 @@ type Container struct {
 	LearningHandler         *learningmodule.Handler
 	TestingHandler          *testingmodule.Handler
 	CertificatesHandler     *certificatesmodule.Handler
+	CourseRequestsHandler   *courserequestsmodule.Handler
 	ExternalTrainingHandler *externaltrainingmodule.Handler
 	OutlookHandler          *outlookmodule.Handler
 	NotificationsHandler    *notificationsmodule.Handler
 	UniversityHandler       *universitymodule.Handler
 	AnalyticsHandler        *analyticsmodule.Handler
 	AuditHandler            *auditmodule.Handler
+	YougileHandler          *yougilemodule.Handler
+	GitHubHandler           *githubmodule.Handler
 }

@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MoneyApp API Tester</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <!-- Header -->
+    <header class="header">
+      <h1>MoneyApp API Tester</h1>
+      <div class="status">
+        <span class="base-url">https://bims.su</span>
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">Checking...</span>
+      </div>
+    </header>
+
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="sidebar-section">Auth</div>
+      <div class="sidebar-item" data-method="POST" data-path="/api/v1/auth/register" data-body='{"email":"","password":"","first_name":"","last_name":""}'>
+        <span class="method method-post">POST</span> register
+      </div>
+      <div class="sidebar-item" data-method="POST" data-path="/api/v1/auth/login" data-body='{"email":"","password":""}'>
+        <span class="method method-post">POST</span> login
+      </div>
+      <div class="sidebar-item" data-method="POST" data-path="/api/v1/auth/refresh" data-body='{"refresh_token":""}'>
+        <span class="method method-post">POST</span> refresh
+      </div>
+      <div class="sidebar-item" data-method="POST" data-path="/api/v1/auth/logout" data-body='{}'>
+        <span class="method method-post">POST</span> logout
+      </div>
+      <div class="sidebar-item" data-method="POST" data-path="/api/v1/auth/forgot-password" data-body='{"email":""}'>
+        <span class="method method-post">POST</span> forgot-password
+      </div>
+      <div class="sidebar-item" data-method="POST" data-path="/api/v1/auth/reset-password" data-body='{"token":"","new_password":""}'>
+        <span class="method method-post">POST</span> reset-password
+      </div>
+      <div class="sidebar-item" data-method="GET" data-path="/api/v1/auth/me">
+        <span class="method method-get">GET</span> me
+      </div>
+
+      <div class="sidebar-section">Admin / Users</div>
+      <div class="sidebar-item" data-method="GET" data-path="/api/v1/admin/users">
+        <span class="method method-get">GET</span> list users
+      </div>
+      <div class="sidebar-item" data-method="POST" data-path="/api/v1/admin/users" data-body='{"email":"","password":"","first_name":"","last_name":""}'>
+        <span class="method method-post">POST</span> create user
+      </div>
+      <div class="sidebar-item" data-method="GET" data-path="/api/v1/admin/users/{id}">
+        <span class="method method-get">GET</span> get user
+      </div>
+      <div class="sidebar-item" data-method="PATCH" data-path="/api/v1/admin/users/{id}" data-body='{}'>
+        <span class="method method-patch">PATCH</span> update user
+      </div>
+      <div class="sidebar-item" data-method="GET" data-path="/api/v1/admin/roles">
+        <span class="method method-get">GET</span> list roles
+      </div>
+      <div class="sidebar-item" data-method="GET" data-path="/api/v1/admin/permissions">
+        <span class="method method-get">GET</span> list permissions
+      </div>
+
+      <div class="sidebar-section">Courses</div>
+      <div class="sidebar-item" data-method="GET" data-path="/api/v1/courses">
+        <span class="method method-get">GET</span> list courses
+      </div>
+      <div class="sidebar-item" data-method="POST" data-path="/api/v1/courses" data-body='{"title":"","description":"","category":""}'>
+        <span class="method method-post">POST</span> create course
+      </div>
+      <div class="sidebar-item" data-method="GET" data-path="/api/v1/courses/{id}">
+        <span class="method method-get">GET</span> get course
+      </div>
+      <div class="sidebar-item" data-method="GET" data-path="/api/v1/courses/{id}/materials">
+        <span class="method method-get">GET</span> materials
+      </div>
+
+      <div class="sidebar-section">Enrollments</div>
+      <div class="sidebar-item" data-method="GET" data-path="/api/v1/enrollments/my">
+        <span class="method method-get">GET</span> my enrollments
+      </div>
+      <div class="sidebar-item" data-method="POST" data-path="/api/v1/enrollments/{id}/start">
+        <span class="method method-post">POST</span> start
+      </div>
+      <div class="sidebar-item" data-method="POST" data-path="/api/v1/enrollments/{id}/complete">
+        <span class="method method-post">POST</span> complete
+      </div>
+
+      <div class="sidebar-section">Tests</div>
+      <div class="sidebar-item" data-method="GET" data-path="/api/v1/tests/{id}">
+        <span class="method method-get">GET</span> get test
+      </div>
+      <div class="sidebar-item" data-method="POST" data-path="/api/v1/tests/{id}/attempts">
+        <span class="method method-post">POST</span> start attempt
+      </div>
+      <div class="sidebar-item" data-method="POST" data-path="/api/v1/test-attempts/{id}/submit">
+        <span class="method method-post">POST</span> submit attempt
+      </div>
+
+      <div class="sidebar-section">Notifications</div>
+      <div class="sidebar-item" data-method="GET" data-path="/api/v1/notifications">
+        <span class="method method-get">GET</span> list
+      </div>
+      <div class="sidebar-item" data-method="POST" data-path="/api/v1/notifications/read-all">
+        <span class="method method-post">POST</span> read all
+      </div>
+
+      <div class="sidebar-section">Programs</div>
+      <div class="sidebar-item" data-method="GET" data-path="/api/v1/programs">
+        <span class="method method-get">GET</span> list programs
+      </div>
+      <div class="sidebar-item" data-method="POST" data-path="/api/v1/programs" data-body='{"name":"","description":""}'>
+        <span class="method method-post">POST</span> create program
+      </div>
+
+      <div class="sidebar-section">Analytics</div>
+      <div class="sidebar-item" data-method="GET" data-path="/api/v1/analytics/dashboard/hr">
+        <span class="method method-get">GET</span> HR dashboard
+      </div>
+      <div class="sidebar-item" data-method="GET" data-path="/api/v1/analytics/dashboard/manager">
+        <span class="method method-get">GET</span> manager dashboard
+      </div>
+      <div class="sidebar-item" data-method="GET" data-path="/api/v1/analytics/compliance">
+        <span class="method method-get">GET</span> compliance
+      </div>
+      <div class="sidebar-item" data-method="GET" data-path="/api/v1/analytics/budget">
+        <span class="method method-get">GET</span> budget
+      </div>
+
+      <div class="sidebar-section">Certificates</div>
+      <div class="sidebar-item" data-method="GET" data-path="/api/v1/certificates/my">
+        <span class="method method-get">GET</span> my certificates
+      </div>
+
+      <div class="sidebar-section">Course Requests</div>
+      <div class="sidebar-item" data-method="GET" data-path="/api/v1/course-requests">
+        <span class="method method-get">GET</span> list requests
+      </div>
+      <div class="sidebar-item" data-method="POST" data-path="/api/v1/course-requests" data-body='{"course_id":"","employee_comment":"Хочу пройти этот курс","deadline_at":""}'>
+        <span class="method method-post">POST</span> create request
+      </div>
+      <div class="sidebar-item" data-method="GET" data-path="/api/v1/course-requests/{id}">
+        <span class="method method-get">GET</span> get request
+      </div>
+      <div class="sidebar-item" data-method="POST" data-path="/api/v1/course-requests/{id}/approve-manager" data-body='{"comment":"Согласовано руководителем"}'>
+        <span class="method method-post">POST</span> approve manager
+      </div>
+      <div class="sidebar-item" data-method="POST" data-path="/api/v1/course-requests/{id}/approve-hr" data-body='{"comment":"Согласовано HR"}'>
+        <span class="method method-post">POST</span> approve hr
+      </div>
+      <div class="sidebar-item" data-method="POST" data-path="/api/v1/course-requests/{id}/reject" data-body='{"comment":"Отклонено"}'>
+        <span class="method method-post">POST</span> reject request
+      </div>
+      <div class="sidebar-item" data-method="POST" data-path="/api/v1/course-requests/{id}/cancel" data-body='{"comment":"Отказываюсь от курса"}'>
+        <span class="method method-post">POST</span> cancel request
+      </div>
+      <div class="sidebar-item" data-method="POST" data-path="/api/v1/course-requests/{id}/start">
+        <span class="method method-post">POST</span> start course
+      </div>
+      <div class="sidebar-item" data-method="POST" data-path="/api/v1/course-requests/{id}/complete" data-body='{"comment":"Курс завершен"}'>
+        <span class="method method-post">POST</span> complete course
+      </div>
+      <div class="sidebar-item" data-method="POST" data-path="/api/v1/course-requests/{id}/certificate/upload" data-body='{"certificate_no":"CERT-001","issued_by":"Demo Provider","notes":"Сертификат по курсу","storage_provider":"local","storage_key":"course-certificates/demo-certificate.pdf","original_name":"demo-certificate.pdf","mime_type":"application/pdf","size_bytes":20480}'>
+        <span class="method method-post">POST</span> upload certificate
+      </div>
+      <div class="sidebar-item" data-method="POST" data-path="/api/v1/course-requests/{id}/certificate/approve" data-body='{"comment":"Сертификат принят"}'>
+        <span class="method method-post">POST</span> approve certificate
+      </div>
+      <div class="sidebar-item" data-method="POST" data-path="/api/v1/course-requests/{id}/certificate/reject" data-body='{"comment":"Нужен корректный сертификат"}'>
+        <span class="method method-post">POST</span> reject certificate
+      </div>
+      <div class="sidebar-item" data-method="GET" data-path="/api/v1/course-requests/export/excel">
+        <span class="method method-get">GET</span> export excel
+      </div>
+
+      <div class="sidebar-section">External Requests</div>
+      <div class="sidebar-item" data-method="GET" data-path="/api/v1/external-requests/my">
+        <span class="method method-get">GET</span> my requests
+      </div>
+      <div class="sidebar-item" data-method="POST" data-path="/api/v1/external-requests" data-body='{"title":"","provider":"","cost":0,"currency":"RUB","start_date":"","end_date":"","justification":""}'>
+        <span class="method method-post">POST</span> create request
+      </div>
+
+      <div class="sidebar-section">Audit</div>
+      <div class="sidebar-item" data-method="GET" data-path="/api/v1/audit-logs">
+        <span class="method method-get">GET</span> audit logs
+      </div>
+
+      <div class="sidebar-section">Health</div>
+      <div class="sidebar-item" data-method="GET" data-path="/healthz">
+        <span class="method method-get">GET</span> healthz
+      </div>
+      <div class="sidebar-item" data-method="GET" data-path="/readyz">
+        <span class="method method-get">GET</span> readyz
+      </div>
+
+      <div class="sidebar-section">History</div>
+      <div id="historyList"></div>
+    </nav>
+
+    <!-- Main content -->
+    <main class="main">
+      <!-- Request -->
+      <div class="request-panel">
+        <!-- Auth bar -->
+        <div class="auth-panel">
+          <input type="email" id="authEmail" placeholder="email">
+          <input type="password" id="authPassword" placeholder="password">
+          <button class="btn-sm" id="loginBtn">Login</button>
+          <button class="btn-sm" id="registerBtn">Register</button>
+          <button class="btn-sm" id="clearTokenBtn">Clear Token</button>
+          <span class="token-display" id="tokenDisplay">No token</span>
+        </div>
+        <div class="auth-panel">
+          <button class="btn-sm demo-login" data-email="employee.demo@moneyapp.local" data-password="DemoEmployee123!">Demo Employee</button>
+          <button class="btn-sm demo-login" data-email="manager.demo@moneyapp.local" data-password="DemoManager123!">Demo Manager</button>
+          <button class="btn-sm demo-login" data-email="hr.demo@moneyapp.local" data-password="DemoHR123!">Demo HR</button>
+        </div>
+
+        <!-- URL bar -->
+        <div class="request-row">
+          <select class="method-select" id="methodSelect">
+            <option value="GET">GET</option>
+            <option value="POST">POST</option>
+            <option value="PATCH">PATCH</option>
+            <option value="DELETE">DELETE</option>
+          </select>
+          <input class="url-input" id="urlInput" placeholder="/api/v1/..." value="/healthz">
+          <button class="send-btn" id="sendBtn">Send</button>
+        </div>
+
+        <!-- Quick actions -->
+        <div class="quick-actions">
+          <button class="quick-btn" data-path="/healthz">healthz</button>
+          <button class="quick-btn" data-path="/readyz">readyz</button>
+          <button class="quick-btn" data-path="/api/v1/auth/me">me</button>
+          <button class="quick-btn" data-path="/api/v1/admin/users">users</button>
+          <button class="quick-btn" data-path="/api/v1/courses">courses</button>
+          <button class="quick-btn" data-path="/api/v1/course-requests">course requests</button>
+          <button class="quick-btn" data-path="/api/v1/notifications">notifications</button>
+          <button class="quick-btn" data-path="/api/v1/programs">programs</button>
+        </div>
+
+        <!-- Request tabs -->
+        <div class="tabs">
+          <div class="tab active" data-tab="body">Body</div>
+          <div class="tab" data-tab="headers">Headers</div>
+          <div class="tab" data-tab="params">Query Params</div>
+        </div>
+
+        <div class="tab-content active" id="tab-body">
+          <textarea class="editor-area" id="bodyEditor" placeholder='{"key": "value"}'></textarea>
+        </div>
+
+        <div class="tab-content" id="tab-headers">
+          <textarea class="editor-area" id="headersEditor" placeholder='{"X-Custom-Header": "value"}'>{"Content-Type": "application/json"}</textarea>
+        </div>
+
+        <div class="tab-content" id="tab-params">
+          <textarea class="editor-area" id="paramsEditor" placeholder='{"page": "1", "limit": "20"}'></textarea>
+        </div>
+      </div>
+
+      <!-- Response -->
+      <div class="response-panel">
+        <div class="response-header" id="responseHeader" style="display:none;">
+          <span class="response-status" id="responseStatus"></span>
+          <span class="response-time" id="responseTime"></span>
+          <span class="response-time" id="responseSize"></span>
+        </div>
+        <div class="response-body" id="responseBody">
+          <div class="empty-state">
+            <div class="icon">&#9889;</div>
+            <div>Send a request to see the response</div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -950,6 +950,319 @@ paths:
         '204':
           description: Sync queued
 
+  /api/v1/integrations/yougile/connections:
+    get:
+      tags: [Integrations]
+      summary: List YouGile connections
+      responses:
+        '200':
+          description: Connection list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/YougileConnectionListResponse'
+    post:
+      tags: [Integrations]
+      summary: Create YouGile connection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateYougileConnectionRequest'
+      responses:
+        '201':
+          description: Connection created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/YougileConnection'
+  /api/v1/integrations/yougile/connections/test-key:
+    post:
+      tags: [Integrations]
+      summary: Verify YouGile API key without saving
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestYougileKeyRequest'
+      responses:
+        '200':
+          description: Key verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestYougileKeyResponse'
+  /api/v1/integrations/yougile/connections/create-key:
+    post:
+      tags: [Integrations]
+      summary: Create YouGile API key via login/password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateYougileKeyRequest'
+      responses:
+        '200':
+          description: Key created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateYougileKeyResponse'
+  /api/v1/integrations/yougile/discover-companies:
+    post:
+      tags: [Integrations]
+      summary: Discover YouGile companies by login/password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiscoverYougileCompaniesRequest'
+      responses:
+        '200':
+          description: Companies discovered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericObject'
+  /api/v1/integrations/yougile/connections/{id}:
+    get:
+      tags: [Integrations]
+      summary: Get one YouGile connection
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      responses:
+        '200':
+          description: Connection details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/YougileConnection'
+    patch:
+      tags: [Integrations]
+      summary: Update YouGile connection
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateYougileConnectionRequest'
+      responses:
+        '200':
+          description: Updated connection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/YougileConnection'
+    delete:
+      tags: [Integrations]
+      summary: Revoke YouGile connection
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      responses:
+        '204':
+          description: Connection revoked
+  /api/v1/integrations/yougile/connections/{id}/import/users:
+    post:
+      tags: [Integrations]
+      summary: Import users from YouGile
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      responses:
+        '200':
+          description: Import result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/YougileImportUsersResponse'
+  /api/v1/integrations/yougile/connections/{id}/import/structure:
+    post:
+      tags: [Integrations]
+      summary: Import projects, boards, and columns from YouGile
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      responses:
+        '200':
+          description: Import result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/YougileImportStructureResponse'
+  /api/v1/integrations/yougile/connections/{id}/users:
+    get:
+      tags: [Integrations]
+      summary: List imported YouGile users
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      responses:
+        '200':
+          description: Imported users
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/YougileUserListResponse'
+  /api/v1/integrations/yougile/connections/{id}/projects:
+    get:
+      tags: [Integrations]
+      summary: List imported YouGile projects
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      responses:
+        '200':
+          description: Imported projects
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/YougileProjectListResponse'
+  /api/v1/integrations/yougile/connections/{id}/boards:
+    get:
+      tags: [Integrations]
+      summary: List imported YouGile boards
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      responses:
+        '200':
+          description: Imported boards
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/YougileBoardListResponse'
+  /api/v1/integrations/yougile/connections/{id}/columns:
+    get:
+      tags: [Integrations]
+      summary: List imported YouGile columns
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      responses:
+        '200':
+          description: Imported columns
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/YougileColumnListResponse'
+  /api/v1/integrations/yougile/connections/{id}/mappings/auto-match:
+    post:
+      tags: [Integrations]
+      summary: Auto-match internal users to YouGile users by email
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AutoMatchYougileRequest'
+      responses:
+        '200':
+          description: Auto-match result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutoMatchYougileResponse'
+  /api/v1/integrations/yougile/connections/{id}/mappings:
+    get:
+      tags: [Integrations]
+      summary: List YouGile employee mappings
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      responses:
+        '200':
+          description: Mapping list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/YougileMappingListResponse'
+    post:
+      tags: [Integrations]
+      summary: Create or replace YouGile employee mapping
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateYougileMappingRequest'
+      responses:
+        '204':
+          description: Mapping stored
+  /api/v1/integrations/yougile/connections/{id}/mappings/{mappingId}:
+    delete:
+      tags: [Integrations]
+      summary: Delete YouGile employee mapping
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+        - in: path
+          name: mappingId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Mapping deleted
+  /api/v1/integrations/yougile/connections/{id}/sync:
+    post:
+      tags: [Integrations]
+      summary: Start YouGile sync job
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartYougileSyncRequest'
+      responses:
+        '200':
+          description: Sync job created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StartYougileSyncResponse'
+  /api/v1/integrations/yougile/connections/{id}/sync/backfill:
+    post:
+      tags: [Integrations]
+      summary: Start YouGile backfill job
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BackfillYougileRequest'
+      responses:
+        '200':
+          description: Backfill job created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StartYougileSyncResponse'
+  /api/v1/integrations/yougile/sync-jobs/{jobId}:
+    get:
+      tags: [Integrations]
+      summary: Get YouGile sync job status
+      parameters:
+        - in: path
+          name: jobId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Sync job status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/YougileSyncJob'
+
   /api/v1/notifications:
     get:
       tags: [Notifications]
@@ -3087,3 +3400,434 @@ components:
           type: string
           nullable: true
       required: [rating]
+    YougileConnection:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        company_id:
+          type: string
+          format: uuid
+          nullable: true
+        title:
+          type: string
+          nullable: true
+        api_base_url:
+          type: string
+        yougile_company_id:
+          type: string
+        api_key_last4:
+          type: string
+          nullable: true
+        status:
+          type: string
+        created_by:
+          type: string
+          format: uuid
+        last_sync_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_success_sync_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_error:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required: [id, api_base_url, yougile_company_id, status, created_by, created_at, updated_at]
+    YougileConnectionListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/YougileConnection'
+      required: [items]
+    CreateYougileConnectionRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          nullable: true
+        apiBaseUrl:
+          type: string
+        authMode:
+          type: string
+          enum: [api_key]
+        yougileCompanyId:
+          type: string
+        apiKey:
+          type: string
+      required: [authMode, yougileCompanyId, apiKey]
+    TestYougileKeyRequest:
+      type: object
+      properties:
+        apiBaseUrl:
+          type: string
+        apiKey:
+          type: string
+      required: [apiKey]
+    TestYougileKeyResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        companyAccessible:
+          type: boolean
+        rateLimitMode:
+          type: string
+        message:
+          type: string
+      required: [ok, companyAccessible, rateLimitMode, message]
+    CreateYougileKeyRequest:
+      type: object
+      properties:
+        login:
+          type: string
+        password:
+          type: string
+        companyId:
+          type: string
+      required: [login, password, companyId]
+    CreateYougileKeyResponse:
+      type: object
+      properties:
+        companyId:
+          type: string
+        apiKey:
+          type: string
+        warning:
+          type: string
+      required: [companyId, apiKey, warning]
+    DiscoverYougileCompaniesRequest:
+      type: object
+      properties:
+        login:
+          type: string
+        password:
+          type: string
+      required: [login, password]
+    UpdateYougileConnectionRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          nullable: true
+        status:
+          type: string
+          nullable: true
+    YougileImportUsersResponse:
+      type: object
+      properties:
+        imported:
+          type: integer
+        updated:
+          type: integer
+        failed:
+          type: integer
+      required: [imported, updated, failed]
+    YougileImportStructureResponse:
+      type: object
+      properties:
+        projectsImported:
+          type: integer
+        boardsImported:
+          type: integer
+        columnsImported:
+          type: integer
+      required: [projectsImported, boardsImported, columnsImported]
+    YougileUser:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        connection_id:
+          type: string
+          format: uuid
+        yougile_user_id:
+          type: string
+        email:
+          type: string
+          nullable: true
+        real_name:
+          type: string
+          nullable: true
+        is_admin:
+          type: boolean
+        status:
+          type: string
+          nullable: true
+        last_activity_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required: [id, connection_id, yougile_user_id, is_admin, created_at, updated_at]
+    YougileUserListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/YougileUser'
+      required: [items]
+    YougileProject:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        connection_id:
+          type: string
+          format: uuid
+        yougile_project_id:
+          type: string
+        title:
+          type: string
+        deleted:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required: [id, connection_id, yougile_project_id, title, deleted, created_at, updated_at]
+    YougileProjectListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/YougileProject'
+      required: [items]
+    YougileBoard:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        connection_id:
+          type: string
+          format: uuid
+        yougile_board_id:
+          type: string
+        yougile_project_id:
+          type: string
+        title:
+          type: string
+        deleted:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required: [id, connection_id, yougile_board_id, yougile_project_id, title, deleted, created_at, updated_at]
+    YougileBoardListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/YougileBoard'
+      required: [items]
+    YougileColumn:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        connection_id:
+          type: string
+          format: uuid
+        yougile_column_id:
+          type: string
+        yougile_board_id:
+          type: string
+        title:
+          type: string
+        color:
+          type: integer
+          nullable: true
+        deleted:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required: [id, connection_id, yougile_column_id, yougile_board_id, title, deleted, created_at, updated_at]
+    YougileColumnListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/YougileColumn'
+      required: [items]
+    AutoMatchYougileRequest:
+      type: object
+      properties:
+        strategy:
+          type: string
+          enum: [email]
+      required: [strategy]
+    AutoMatchYougileResponse:
+      type: object
+      properties:
+        matched:
+          type: integer
+        unmatchedInternal:
+          type: integer
+        unmatchedYougile:
+          type: integer
+      required: [matched, unmatchedInternal, unmatchedYougile]
+    YougileMapping:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        employee_user_id:
+          type: string
+          format: uuid
+        employee_name:
+          type: string
+        employee_email:
+          type: string
+        yougile_user_id:
+          type: string
+        yougile_real_name:
+          type: string
+          nullable: true
+        yougile_email:
+          type: string
+          nullable: true
+        match_source:
+          type: string
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required: [id, employee_user_id, employee_name, employee_email, yougile_user_id, match_source, is_active, created_at, updated_at]
+    YougileMappingListResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/YougileMapping'
+      required: [content]
+    CreateYougileMappingRequest:
+      type: object
+      properties:
+        employeeUserId:
+          type: string
+          format: uuid
+        yougileUserId:
+          type: string
+      required: [employeeUserId, yougileUserId]
+    StartYougileSyncRequest:
+      type: object
+      properties:
+        mode:
+          type: string
+          enum: [incremental, full]
+        includeUsers:
+          type: boolean
+        includeStructure:
+          type: boolean
+        includeTasks:
+          type: boolean
+        taskFilters:
+          type: object
+          additionalProperties: true
+      required: [mode]
+    BackfillYougileRequest:
+      type: object
+      properties:
+        from:
+          type: string
+          format: date
+        to:
+          type: string
+          format: date
+        employees:
+          type: array
+          items:
+            type: string
+            format: uuid
+      required: [from, to]
+    StartYougileSyncResponse:
+      type: object
+      properties:
+        jobId:
+          type: string
+          format: uuid
+        status:
+          type: string
+      required: [jobId, status]
+    YougileSyncJob:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        connection_id:
+          type: string
+          format: uuid
+        job_type:
+          type: string
+        status:
+          type: string
+        cursor:
+          type: object
+          additionalProperties: true
+        progress:
+          type: object
+          additionalProperties: true
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        finished_at:
+          type: string
+          format: date-time
+          nullable: true
+        attempt:
+          type: integer
+        next_retry_at:
+          type: string
+          format: date-time
+          nullable: true
+        error_text:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required: [id, connection_id, job_type, status, progress, attempt, created_at, updated_at]
