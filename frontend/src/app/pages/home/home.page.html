@@ -1,0 +1,36 @@
+<section class="home">
+  <header class="home__header">
+    <h1>Home</h1>
+    <p>Пользователь: {{ user()?.fullName }}</p>
+  </header>
+
+  <section class="home__block">
+    <h2>Рабочие столы по ролям</h2>
+    <div class="home__links">
+      @for (item of dashboardLinks(); track item.route) {
+        <a class="home__card" [routerLink]="item.route">{{ item.label }}</a>
+      }
+    </div>
+  </section>
+
+  <section class="home__block">
+    <h2>Быстрые переходы</h2>
+    <div class="home__links">
+      @for (item of featureLinks(); track item.route) {
+        <a class="home__card" [routerLink]="item.route">{{ item.label }}</a>
+      }
+    </div>
+  </section>
+
+  <section class="home__block">
+    <h2>Последние действия</h2>
+    <ul class="home__activity">
+      @for (action of recentActions(); track action.id) {
+        <li>
+          <a [routerLink]="action.route">{{ action.label }}</a>
+          <span>{{ action.at }}</span>
+        </li>
+      }
+    </ul>
+  </section>
+</section>

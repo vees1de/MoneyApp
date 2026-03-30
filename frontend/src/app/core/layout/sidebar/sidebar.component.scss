@@ -1,0 +1,35 @@
+:host {
+  display: block;
+  width: 260px;
+}
+
+.sidebar {
+  border-right: 1px solid #d8d8d8;
+  height: 100vh;
+  padding: 1rem;
+  position: sticky;
+  top: 0;
+}
+
+.sidebar__title {
+  font-size: 1rem;
+  margin: 0 0 1rem;
+}
+
+.sidebar__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.sidebar__link {
+  border: 1px solid transparent;
+  color: #1e1e1e;
+  padding: 0.5rem 0.65rem;
+  text-decoration: none;
+}
+
+.sidebar__link--active {
+  border-color: #1e1e1e;
+  font-weight: 600;
+}
