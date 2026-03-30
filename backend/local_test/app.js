@@ -93,6 +93,14 @@ document.getElementById('clearTokenBtn').addEventListener('click', () => {
   saveTokens('', '');
 });
 
+document.querySelectorAll('.demo-login').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    document.getElementById('authEmail').value = btn.dataset.email;
+    document.getElementById('authPassword').value = btn.dataset.password;
+    await document.getElementById('loginBtn').click();
+  });
+});
+
 // Send request
 sendBtn.addEventListener('click', sendRequest);
 urlInput.addEventListener('keydown', (e) => {
@@ -155,6 +163,34 @@ async function sendRequest() {
   try {
     const res = await fetch(url, options);
     const elapsed = Math.round(performance.now() - startTime);
+    const contentType = res.headers.get('content-type') || '';
+    const contentDisposition = res.headers.get('content-disposition') || '';
+
+    if (contentDisposition.includes('attachment') || contentType.includes('application/vnd.ms-excel')) {
+      const blob = await res.blob();
+      const size = blob.size;
+      const filenameMatch = contentDisposition.match(/filename="([^"]+)"/i);
+      const filename = filenameMatch ? filenameMatch[1] : 'download.xls';
+      const downloadUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = downloadUrl;
+      anchor.download = filename;
+      anchor.click();
+      URL.revokeObjectURL(downloadUrl);
+
+      responseHeader.style.display = 'flex';
+      responseStatus.textContent = `${res.status} ${res.statusText}`;
+      responseStatus.className = 'response-status';
+      if (res.status >= 200 && res.status < 300) responseStatus.classList.add('status-2xx');
+      else if (res.status >= 400 && res.status < 500) responseStatus.classList.add('status-4xx');
+      else if (res.status >= 500) responseStatus.classList.add('status-5xx');
+      responseTime.textContent = `${elapsed}ms`;
+      responseSize.textContent = formatBytes(size);
+      responseBody.innerHTML = `<pre>Downloaded file: ${filename}</pre>`;
+      addHistory(method, path, res.status);
+      return;
+    }
+
     const text = await res.text();
     const size = new Blob([text]).size;
 

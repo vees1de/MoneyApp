@@ -178,6 +178,22 @@ func NewRouter(container *Container) http.Handler {
 				r.With(middleware.RBAC("certificates.verify")).Post("/{id}/reject", container.CertificatesHandler.Reject)
 			})
 
+			r.Route("/course-requests", func(r chi.Router) {
+				r.Get("/", container.CourseRequestsHandler.List)
+				r.Get("/export/excel", container.CourseRequestsHandler.ExportExcel)
+				r.Post("/", container.CourseRequestsHandler.Create)
+				r.Get("/{id}", container.CourseRequestsHandler.Get)
+				r.Post("/{id}/approve-manager", container.CourseRequestsHandler.ApproveManager)
+				r.Post("/{id}/approve-hr", container.CourseRequestsHandler.ApproveHR)
+				r.Post("/{id}/reject", container.CourseRequestsHandler.Reject)
+				r.Post("/{id}/cancel", container.CourseRequestsHandler.Cancel)
+				r.Post("/{id}/start", container.CourseRequestsHandler.Start)
+				r.Post("/{id}/complete", container.CourseRequestsHandler.Complete)
+				r.Post("/{id}/certificate/upload", container.CourseRequestsHandler.UploadCertificate)
+				r.Post("/{id}/certificate/approve", container.CourseRequestsHandler.ApproveCertificate)
+				r.Post("/{id}/certificate/reject", container.CourseRequestsHandler.RejectCertificate)
+			})
+
 			r.Route("/external-requests", func(r chi.Router) {
 				r.Post("/", container.ExternalTrainingHandler.CreateRequest)
 				r.Get("/my", container.ExternalTrainingHandler.ListMine)

@@ -134,6 +134,47 @@
         <span class="method method-get">GET</span> my certificates
       </div>
 
+      <div class="sidebar-section">Course Requests</div>
+      <div class="sidebar-item" data-method="GET" data-path="/api/v1/course-requests">
+        <span class="method method-get">GET</span> list requests
+      </div>
+      <div class="sidebar-item" data-method="POST" data-path="/api/v1/course-requests" data-body='{"course_id":"","employee_comment":"Хочу пройти этот курс","deadline_at":""}'>
+        <span class="method method-post">POST</span> create request
+      </div>
+      <div class="sidebar-item" data-method="GET" data-path="/api/v1/course-requests/{id}">
+        <span class="method method-get">GET</span> get request
+      </div>
+      <div class="sidebar-item" data-method="POST" data-path="/api/v1/course-requests/{id}/approve-manager" data-body='{"comment":"Согласовано руководителем"}'>
+        <span class="method method-post">POST</span> approve manager
+      </div>
+      <div class="sidebar-item" data-method="POST" data-path="/api/v1/course-requests/{id}/approve-hr" data-body='{"comment":"Согласовано HR"}'>
+        <span class="method method-post">POST</span> approve hr
+      </div>
+      <div class="sidebar-item" data-method="POST" data-path="/api/v1/course-requests/{id}/reject" data-body='{"comment":"Отклонено"}'>
+        <span class="method method-post">POST</span> reject request
+      </div>
+      <div class="sidebar-item" data-method="POST" data-path="/api/v1/course-requests/{id}/cancel" data-body='{"comment":"Отказываюсь от курса"}'>
+        <span class="method method-post">POST</span> cancel request
+      </div>
+      <div class="sidebar-item" data-method="POST" data-path="/api/v1/course-requests/{id}/start">
+        <span class="method method-post">POST</span> start course
+      </div>
+      <div class="sidebar-item" data-method="POST" data-path="/api/v1/course-requests/{id}/complete" data-body='{"comment":"Курс завершен"}'>
+        <span class="method method-post">POST</span> complete course
+      </div>
+      <div class="sidebar-item" data-method="POST" data-path="/api/v1/course-requests/{id}/certificate/upload" data-body='{"certificate_no":"CERT-001","issued_by":"Demo Provider","notes":"Сертификат по курсу","storage_provider":"local","storage_key":"course-certificates/demo-certificate.pdf","original_name":"demo-certificate.pdf","mime_type":"application/pdf","size_bytes":20480}'>
+        <span class="method method-post">POST</span> upload certificate
+      </div>
+      <div class="sidebar-item" data-method="POST" data-path="/api/v1/course-requests/{id}/certificate/approve" data-body='{"comment":"Сертификат принят"}'>
+        <span class="method method-post">POST</span> approve certificate
+      </div>
+      <div class="sidebar-item" data-method="POST" data-path="/api/v1/course-requests/{id}/certificate/reject" data-body='{"comment":"Нужен корректный сертификат"}'>
+        <span class="method method-post">POST</span> reject certificate
+      </div>
+      <div class="sidebar-item" data-method="GET" data-path="/api/v1/course-requests/export/excel">
+        <span class="method method-get">GET</span> export excel
+      </div>
+
       <div class="sidebar-section">External Requests</div>
       <div class="sidebar-item" data-method="GET" data-path="/api/v1/external-requests/my">
         <span class="method method-get">GET</span> my requests
@@ -172,6 +213,11 @@
           <button class="btn-sm" id="clearTokenBtn">Clear Token</button>
           <span class="token-display" id="tokenDisplay">No token</span>
         </div>
+        <div class="auth-panel">
+          <button class="btn-sm demo-login" data-email="employee.demo@moneyapp.local" data-password="DemoEmployee123!">Demo Employee</button>
+          <button class="btn-sm demo-login" data-email="manager.demo@moneyapp.local" data-password="DemoManager123!">Demo Manager</button>
+          <button class="btn-sm demo-login" data-email="hr.demo@moneyapp.local" data-password="DemoHR123!">Demo HR</button>
+        </div>
 
         <!-- URL bar -->
         <div class="request-row">
@@ -192,6 +238,7 @@
           <button class="quick-btn" data-path="/api/v1/auth/me">me</button>
           <button class="quick-btn" data-path="/api/v1/admin/users">users</button>
           <button class="quick-btn" data-path="/api/v1/courses">courses</button>
+          <button class="quick-btn" data-path="/api/v1/course-requests">course requests</button>
           <button class="quick-btn" data-path="/api/v1/notifications">notifications</button>
           <button class="quick-btn" data-path="/api/v1/programs">programs</button>
         </div>
