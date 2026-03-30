@@ -1,17 +1,17 @@
 ﻿# Core Layout
 
-## Назначение
-Headless wireframe-layout для защищенной части приложения.
+## Purpose
+Protected shell with header-only navigation for desktop MVP.
 
-## Что сейчас реализовано
-- `AppShellComponent`: sidebar + кнопка "Вернуться назад" + `<router-outlet>`.
-- `SidebarComponent`: отрисовка пунктов навигации по доступным фичам пользователя.
+## Header
+- Back button
+- Notifications dropdown (Material menu)
+- Profile link
 
-## Поведение
-- На `login` shell не показывается.
-- На защищенных роутов используется shell.
-- Навигация строится динамически по `features[]`.
+## Navigation model
+- No sidebar.
+- Main movement through dashboard widgets.
+- Primary route: `/dashboard/test-role`.
 
-## Что уточнить далее
-- Финальная информационная архитектура sidebar для каждой роли.
-- Нужны ли grouped sections и pinned shortcuts.
+## Rendering
+All protected routes render through `AppShellComponent` + `<router-outlet>`.

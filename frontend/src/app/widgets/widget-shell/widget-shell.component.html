@@ -1,0 +1,21 @@
+﻿<mat-card>
+  <mat-card-header>
+    @if (listRoute()) {
+      <a [routerLink]="listRoute()">{{ title() }}</a>
+    } @else {
+      <mat-card-title>{{ title() }}</mat-card-title>
+    }
+  </mat-card-header>
+
+  <mat-card-content>
+    @if (loading()) {
+      <p>Loading...</p>
+    } @else if (error()) {
+      <p>Data did not load :(</p>
+    } @else if (empty()) {
+      <p>No data</p>
+    } @else {
+      <ng-content />
+    }
+  </mat-card-content>
+</mat-card>

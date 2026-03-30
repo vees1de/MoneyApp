@@ -1,14 +1,23 @@
-<div class="shell">
-  <app-sidebar />
+﻿<div class="shell">
+  <mat-toolbar>
+    <button mat-stroked-button type="button" (click)="goBack()">Назад</button>
+    <span class="spacer"></span>
 
-  <main class="shell__main">
-    <header class="shell__header">
-      <button type="button" class="shell__back" (click)="goBack()">Вернуться назад</button>
-      <span class="shell__user">{{ authState.currentUser()?.fullName }}</span>
-    </header>
+    <button mat-icon-button [matMenuTriggerFor]="notificationsMenu" matBadge="2" matBadgeSize="small">
+      <mat-icon>notifications</mat-icon>
+    </button>
+    <mat-menu #notificationsMenu="matMenu">
+      <button mat-menu-item>Новая заявка на согласование</button>
+      <button mat-menu-item>Дедлайн курса через 3 дня</button>
+    </mat-menu>
 
-    <section class="shell__content">
-      <router-outlet />
-    </section>
+    <a mat-button routerLink="/profile">
+      <mat-icon>person</mat-icon>
+      Профиль
+    </a>
+  </mat-toolbar>
+
+  <main class="shell__content">
+    <router-outlet />
   </main>
 </div>

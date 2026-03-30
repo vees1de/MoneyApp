@@ -1,48 +1,40 @@
-﻿# Project Context (MVP)
+﻿# Project Context (Widget-Based MVP)
 
-## Product Baseline
-- Формат: MVP за 2 дня.
-- Роли: `ADMINISTRATOR`, `HR_LND`, `MANAGER`, `EMPLOYEE`, `TRAINER`.
-- Язык: только RU.
-- Тема: одна.
-- Канал уведомлений: in-app.
-- Экспорт отчетов: Excel.
+## Key Navigation Decisions
+- `"" -> /dashboard`
+- `/dashboard -> /dashboard/test-role`
+- Main exploration goes through dashboard widgets (no sidebar)
+- Protected unknown routes redirect to `/dashboard`
 
-## Flow
-1. Пользователь проходит логин.
-2. Backend возвращает `roles[]` и `features[]`.
-3. Пользователь попадает на защищенную `home`.
-4. `home` показывает ролевые рабочие столы и доступные фичи.
-5. Переходы ограничиваются guard-ами по role/feature.
+## Dashboard Concept
+- `dashboard/test-role` is a showcase route with all available widgets
+- role-specific dashboards remain as separate routes (`/dashboard/hr`, etc.)
+- widgets are hardcoded per role page for now
 
-## Routing Decisions
-- `""` -> `/home`.
-- `home` не публичная (под `authGuard`).
-- Публичные страницы: `login`, `forbidden`, `error`, `not-found`.
-- Неизвестный URL -> `/dashboard`.
-- `/dashboard` сейчас ведет на home-экземпляр (главная защищенная точка входа).
+## Header for protected routes
+- notifications dropdown
+- profile link
+- back button
 
-## Layout Decisions
-- Защищенная зона работает через `AppShell`.
-- В shell есть:
-  - `Sidebar` (динамический по `features[]`)
-  - кнопка `Вернуться назад`
-  - контент через `<router-outlet>`
-- На `login` shell не отображается.
+## Widget Set (current)
+- Team overview
+- Upcoming events
+- Jira summary
+- Course requests (unsolved approvals)
+- Current learning (`enrollments/my` target)
+- Recommended courses (mock)
+- Quick actions
+- My requests
+- Work activity
+- Skillgraph excluded for now
 
-## Access Control
-- `authGuard`: проверка аутентификации.
-- `roleGuard`: проверка доступа по ролям.
-- `featureGuard`: проверка доступа по feature enum.
-- При отсутствии доступа -> `/forbidden`.
+## Data strategy (current stage)
+- layout and flow first
+- real backend binding later
+- block errors are shown as text (`Data did not load :(`)
+- skeleton states planned next step
 
-## Current Technical Assumptions
-- Auth/user state пока замокан в `AuthStateService`.
-- Интеграции (Outlook, workflow, аналитика) подключаются поверх текущего каркаса.
-- Все страницы подключены через lazy `loadComponent`.
-
-## Open Questions (Next Iteration)
-- Детальная карта feature-per-role (пункты sidebar и виджеты home).
-- Приоритет/дефолтный рабочий стол при множественных ролях.
-- Контракт реального backend для auth/session/permissions.
-- Состав "последних действий" и источник данных.
+## Backend-first notes
+- permissions come from `/api/v1/auth/me` as `user.permissions[]`
+- roles come from `/api/v1/auth/me` as `user.roles[]`
+- departments are currently available only through profile/related entities
