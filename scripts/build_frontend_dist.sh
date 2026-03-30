@@ -4,31 +4,52 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+FRONTEND_DIR="${REPO_ROOT}/frontend"
 OUTPUT_DIR="${1:-/opt/moneyapp/frontend/dist}"
-IMAGE_TAG="${IMAGE_TAG:-moneyapp-frontend-dist:build}"
-TMP_DIR="$(mktemp -d)"
-CONTAINER_ID=""
+ENV_FILE="${REPO_ROOT}/.env"
 
 cleanup() {
-  if [[ -n "${CONTAINER_ID}" ]]; then
-    docker rm -f "${CONTAINER_ID}" >/dev/null 2>&1 || true
-  fi
-  rm -rf "${TMP_DIR}"
+  :
 }
 trap cleanup EXIT
 
-mkdir -p "$(dirname "${OUTPUT_DIR}")"
+if ! command -v npm >/dev/null 2>&1; then
+  echo "npm is required" >&2
+  exit 1
+fi
 
-docker build \
-  --target frontend-dist \
-  -f "${REPO_ROOT}/deploy/Dockerfile" \
-  -t "${IMAGE_TAG}" \
-  "${REPO_ROOT}" >/dev/null
+if [[ ! -d "${FRONTEND_DIR}" ]]; then
+  echo "missing frontend directory: ${FRONTEND_DIR}" >&2
+  exit 1
+fi
 
-CONTAINER_ID="$(docker create "${IMAGE_TAG}")"
-docker cp "${CONTAINER_ID}:/." "${TMP_DIR}"
+if [[ -f "${ENV_FILE}" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  . "${ENV_FILE}"
+  set +a
+fi
+
+if [[ ! -d "${FRONTEND_DIR}/node_modules" ]]; then
+  echo "installing frontend dependencies"
+  (
+    cd "${FRONTEND_DIR}"
+    npm ci
+  )
+fi
+
+echo "building frontend in ${FRONTEND_DIR}"
+(
+  cd "${FRONTEND_DIR}"
+  npm run build
+)
+
+if [[ ! -d "${FRONTEND_DIR}/dist" ]]; then
+  echo "frontend build did not produce ${FRONTEND_DIR}/dist" >&2
+  exit 1
+fi
 
 rm -rf "${OUTPUT_DIR}"
 mkdir -p "${OUTPUT_DIR}"
-cp -R "${TMP_DIR}/." "${OUTPUT_DIR}/"
+cp -R "${FRONTEND_DIR}/dist/." "${OUTPUT_DIR}/"
 chmod -R a+rX "${OUTPUT_DIR}"

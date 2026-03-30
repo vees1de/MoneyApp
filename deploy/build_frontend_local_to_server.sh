@@ -31,7 +31,7 @@ fi
 
 SSH_TARGET="${1:-${DEFAULT_SSH_TARGET}}"
 
-for cmd in docker scp ssh; do
+for cmd in scp ssh; do
   if ! command -v "${cmd}" >/dev/null 2>&1; then
     echo "missing required command: ${cmd}" >&2
     exit 1

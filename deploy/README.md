@@ -28,6 +28,8 @@ For host nginx, the deploy flow expects the built frontend to be uploaded to `/r
 
 By default it uploads to `root@193.187.92.116:/root/MoneyApp/frontend/dist`.
 
+The local build runs directly from the checked out project with `npm`, without Docker.
+
 5. Run on the server:
 
 ```bash

@@ -37,8 +37,8 @@ set -euo pipefail
 
 cd "${REMOTE_DIR}"
 
-if ! command -v docker >/dev/null 2>&1; then
-  echo "docker is required on the server" >&2
+if ! command -v npm >/dev/null 2>&1; then
+  echo "npm is required on the server" >&2
   exit 1
 fi
 
