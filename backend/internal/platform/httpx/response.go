@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 )
 
@@ -45,6 +46,8 @@ func WriteError(w http.ResponseWriter, err error) {
 	appErr := Internal("internal_error")
 	if typed, ok := err.(*AppError); ok {
 		appErr = typed
+	} else if err != nil {
+		slog.Error("unhandled app error", "error", err.Error())
 	}
 
 	WriteJSON(w, appErr.Status, errorEnvelope{Error: appErr})
