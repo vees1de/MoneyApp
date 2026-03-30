@@ -33,6 +33,10 @@ type Course struct {
 	Language           *string    `json:"language,omitempty"`
 	IsMandatoryDefault bool       `json:"is_mandatory_default"`
 	Status             string     `json:"status"`
+	ExternalURL        *string    `json:"external_url,omitempty"`
+	Price              *string    `json:"price,omitempty"`
+	PriceCurrency      *string    `json:"price_currency,omitempty"`
+	NextStartDate      *time.Time `json:"next_start_date,omitempty"`
 	ThumbnailFileID    *uuid.UUID `json:"thumbnail_file_id,omitempty"`
 	CreatedBy          *uuid.UUID `json:"created_by,omitempty"`
 	UpdatedBy          *uuid.UUID `json:"updated_by,omitempty"`
@@ -69,6 +73,10 @@ type CreateCourseRequest struct {
 	DurationHours      *string    `json:"duration_hours,omitempty"`
 	Language           *string    `json:"language,omitempty"`
 	IsMandatoryDefault bool       `json:"is_mandatory_default"`
+	ExternalURL        *string    `json:"external_url,omitempty"`
+	Price              *string    `json:"price,omitempty"`
+	PriceCurrency      *string    `json:"price_currency,omitempty"`
+	NextStartDate      *time.Time `json:"next_start_date,omitempty"`
 	ThumbnailFileID    *uuid.UUID `json:"thumbnail_file_id,omitempty"`
 }
 
@@ -84,6 +92,10 @@ type UpdateCourseRequest struct {
 	DurationHours      *string    `json:"duration_hours,omitempty"`
 	Language           *string    `json:"language,omitempty"`
 	IsMandatoryDefault *bool      `json:"is_mandatory_default,omitempty"`
+	ExternalURL        *string    `json:"external_url,omitempty"`
+	Price              *string    `json:"price,omitempty"`
+	PriceCurrency      *string    `json:"price_currency,omitempty"`
+	NextStartDate      *time.Time `json:"next_start_date,omitempty"`
 	ThumbnailFileID    *uuid.UUID `json:"thumbnail_file_id,omitempty"`
 }
 
@@ -117,14 +129,17 @@ func (r *Repository) CreateCourse(ctx context.Context, item Course, exec ...db.D
 		insert into courses (
 			id, type, source_type, title, slug, short_description, description,
 			provider_id, category_id, direction_id, level, duration_hours, language,
-			is_mandatory_default, status, thumbnail_file_id, created_by, updated_by,
+			is_mandatory_default, status, external_url, price, price_currency, next_start_date,
+			thumbnail_file_id, created_by, updated_by,
 			published_at, archived_at, created_at, updated_at
 		)
 		values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, nullif($12, '')::numeric, $13,
-		        $14, $15, $16, $17, $18, $19, $20, $21, $22)
+		        $14, $15, $16, nullif($17, '')::numeric, $18, $19::date,
+		        $20, $21, $22, $23, $24, $25, $26)
 	`, item.ID, item.Type, item.SourceType, item.Title, item.Slug, item.ShortDescription, item.Description,
 		item.ProviderID, item.CategoryID, item.DirectionID, item.Level, item.DurationHours, item.Language,
-		item.IsMandatoryDefault, item.Status, item.ThumbnailFileID, item.CreatedBy, item.UpdatedBy,
+		item.IsMandatoryDefault, item.Status, item.ExternalURL, item.Price, item.PriceCurrency, item.NextStartDate,
+		item.ThumbnailFileID, item.CreatedBy, item.UpdatedBy,
 		item.PublishedAt, item.ArchivedAt, item.CreatedAt, item.UpdatedAt)
 	return err
 }
@@ -134,14 +149,16 @@ func (r *Repository) GetCourse(ctx context.Context, id uuid.UUID, exec ...db.DBT
 	err := r.base(exec...).QueryRowContext(ctx, `
 		select id, type, source_type, title, slug, short_description, description,
 		       provider_id, category_id, direction_id, level, duration_hours::text, language,
-		       is_mandatory_default, status, thumbnail_file_id, created_by, updated_by,
+		       is_mandatory_default, status, external_url, price::text, price_currency, next_start_date,
+		       thumbnail_file_id, created_by, updated_by,
 		       published_at, archived_at, created_at, updated_at
 		from courses
 		where id = $1
 	`, id).Scan(
 		&item.ID, &item.Type, &item.SourceType, &item.Title, &item.Slug, &item.ShortDescription, &item.Description,
 		&item.ProviderID, &item.CategoryID, &item.DirectionID, &item.Level, &item.DurationHours, &item.Language,
-		&item.IsMandatoryDefault, &item.Status, &item.ThumbnailFileID, &item.CreatedBy, &item.UpdatedBy,
+		&item.IsMandatoryDefault, &item.Status, &item.ExternalURL, &item.Price, &item.PriceCurrency, &item.NextStartDate,
+		&item.ThumbnailFileID, &item.CreatedBy, &item.UpdatedBy,
 		&item.PublishedAt, &item.ArchivedAt, &item.CreatedAt, &item.UpdatedAt,
 	)
 	return item, err
@@ -151,7 +168,8 @@ func (r *Repository) ListCourses(ctx context.Context, exec ...db.DBTX) ([]Course
 	rows, err := r.base(exec...).QueryContext(ctx, `
 		select id, type, source_type, title, slug, short_description, description,
 		       provider_id, category_id, direction_id, level, duration_hours::text, language,
-		       is_mandatory_default, status, thumbnail_file_id, created_by, updated_by,
+		       is_mandatory_default, status, external_url, price::text, price_currency, next_start_date,
+		       thumbnail_file_id, created_by, updated_by,
 		       published_at, archived_at, created_at, updated_at
 		from courses
 		order by created_at desc
@@ -167,7 +185,8 @@ func (r *Repository) ListCourses(ctx context.Context, exec ...db.DBTX) ([]Course
 		if err := rows.Scan(
 			&item.ID, &item.Type, &item.SourceType, &item.Title, &item.Slug, &item.ShortDescription, &item.Description,
 			&item.ProviderID, &item.CategoryID, &item.DirectionID, &item.Level, &item.DurationHours, &item.Language,
-			&item.IsMandatoryDefault, &item.Status, &item.ThumbnailFileID, &item.CreatedBy, &item.UpdatedBy,
+			&item.IsMandatoryDefault, &item.Status, &item.ExternalURL, &item.Price, &item.PriceCurrency, &item.NextStartDate,
+			&item.ThumbnailFileID, &item.CreatedBy, &item.UpdatedBy,
 			&item.PublishedAt, &item.ArchivedAt, &item.CreatedAt, &item.UpdatedAt,
 		); err != nil {
 			return nil, err
@@ -192,14 +211,19 @@ func (r *Repository) UpdateCourse(ctx context.Context, item Course, exec ...db.D
 		    language = $11,
 		    is_mandatory_default = $12,
 		    status = $13,
-		    thumbnail_file_id = $14,
-		    updated_by = $15,
-		    published_at = $16,
-		    archived_at = $17,
-		    updated_at = $18
+		    external_url = $14,
+		    price = nullif($15, '')::numeric,
+		    price_currency = $16,
+		    next_start_date = $17::date,
+		    thumbnail_file_id = $18,
+		    updated_by = $19,
+		    published_at = $20,
+		    archived_at = $21,
+		    updated_at = $22
 		where id = $1
 	`, item.ID, item.Title, item.Slug, item.ShortDescription, item.Description, item.ProviderID, item.CategoryID,
 		item.DirectionID, item.Level, item.DurationHours, item.Language, item.IsMandatoryDefault, item.Status,
+		item.ExternalURL, item.Price, item.PriceCurrency, item.NextStartDate,
 		item.ThumbnailFileID, item.UpdatedBy, item.PublishedAt, item.ArchivedAt, item.UpdatedAt)
 	return err
 }
@@ -246,8 +270,8 @@ func NewService(repo *Repository, appClock clock.Clock) *Service {
 	return &Service{repo: repo, clock: appClock}
 }
 
-func (s *Service) ListCourses(ctx context.Context) ([]Course, error) {
-	return s.repo.ListCourses(ctx)
+func (s *Service) ListCourses(ctx context.Context, principal platformauth.Principal, filters CourseListFilters) ([]Course, error) {
+	return s.repo.ListCoursesFiltered(ctx, filters)
 }
 
 func (s *Service) CreateCourse(ctx context.Context, principal platformauth.Principal, req CreateCourseRequest) (Course, error) {
@@ -268,6 +292,10 @@ func (s *Service) CreateCourse(ctx context.Context, principal platformauth.Princ
 		Language:           req.Language,
 		IsMandatoryDefault: req.IsMandatoryDefault,
 		Status:             "draft",
+		ExternalURL:        req.ExternalURL,
+		Price:              req.Price,
+		PriceCurrency:      req.PriceCurrency,
+		NextStartDate:      req.NextStartDate,
 		ThumbnailFileID:    req.ThumbnailFileID,
 		CreatedBy:          &principal.UserID,
 		UpdatedBy:          &principal.UserID,
@@ -326,6 +354,18 @@ func (s *Service) UpdateCourse(ctx context.Context, principal platformauth.Princ
 	}
 	if req.IsMandatoryDefault != nil {
 		item.IsMandatoryDefault = *req.IsMandatoryDefault
+	}
+	if req.ExternalURL != nil {
+		item.ExternalURL = req.ExternalURL
+	}
+	if req.Price != nil {
+		item.Price = req.Price
+	}
+	if req.PriceCurrency != nil {
+		item.PriceCurrency = req.PriceCurrency
+	}
+	if req.NextStartDate != nil {
+		item.NextStartDate = req.NextStartDate
 	}
 	if req.ThumbnailFileID != nil {
 		item.ThumbnailFileID = req.ThumbnailFileID
@@ -405,7 +445,17 @@ func principalFromContext(r *http.Request) (platformauth.Principal, error) {
 }
 
 func (h *Handler) ListCourses(w http.ResponseWriter, r *http.Request) {
-	items, err := h.service.ListCourses(r.Context())
+	principal, err := principalFromContext(r)
+	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	filters, err := parseCourseListFilters(r, principal)
+	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	items, err := h.service.ListCourses(r.Context(), principal, filters)
 	if err != nil {
 		httpx.WriteError(w, err)
 		return

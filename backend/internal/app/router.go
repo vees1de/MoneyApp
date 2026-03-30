@@ -160,6 +160,14 @@ func NewRouter(container *Container) http.Handler {
 				r.Post("/{id}/complete", container.LearningHandler.CompleteEnrollment)
 			})
 
+			r.Route("/learning-plan", func(r chi.Router) {
+				r.Get("/my", container.LearningPlanHandler.MyPlan)
+			})
+
+			r.Route("/recommendations", func(r chi.Router) {
+				r.Get("/courses", container.LearningPlanHandler.RecommendedCourses)
+			})
+
 			r.Route("/tests", func(r chi.Router) {
 				r.With(middleware.RBAC("courses.write")).Post("/", container.TestingHandler.CreateTest)
 				r.Get("/{id}", container.TestingHandler.GetTest)
@@ -196,7 +204,9 @@ func NewRouter(container *Container) http.Handler {
 
 			r.Route("/external-requests", func(r chi.Router) {
 				r.Post("/", container.ExternalTrainingHandler.CreateRequest)
+				r.Get("/", container.ExternalTrainingHandler.List)
 				r.Get("/my", container.ExternalTrainingHandler.ListMine)
+				r.Get("/pending-approvals", container.ExternalTrainingHandler.PendingApprovals)
 				r.Get("/{id}", container.ExternalTrainingHandler.GetRequest)
 				r.Patch("/{id}", container.ExternalTrainingHandler.UpdateRequest)
 				r.Post("/{id}/submit", container.ExternalTrainingHandler.Submit)
@@ -220,6 +230,19 @@ func NewRouter(container *Container) http.Handler {
 				r.Get("/", container.NotificationsHandler.List)
 				r.Post("/{id}/read", container.NotificationsHandler.MarkRead)
 				r.Post("/read-all", container.NotificationsHandler.MarkAllRead)
+			})
+
+			r.Route("/calendar", func(r chi.Router) {
+				r.Get("/events/upcoming", container.CalendarHandler.Upcoming)
+			})
+
+			r.Route("/dashboard", func(r chi.Router) {
+				r.Get("/employee", container.DashboardAPIHandler.Employee)
+				r.Get("/manager", container.DashboardAPIHandler.Manager)
+			})
+
+			r.Route("/jira", func(r chi.Router) {
+				r.Get("/board-summary", container.BoardSummaryHandler.Summary)
 			})
 
 			r.Route("/programs", func(r chi.Router) {

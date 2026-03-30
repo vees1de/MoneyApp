@@ -11,13 +11,17 @@ import (
 	adminmodule "moneyapp/backend/internal/modules/admin"
 	analyticsmodule "moneyapp/backend/internal/modules/analytics"
 	auditmodule "moneyapp/backend/internal/modules/audit"
+	boardsummarymodule "moneyapp/backend/internal/modules/board_summary"
+	calendarmodule "moneyapp/backend/internal/modules/calendar"
 	catalogmodule "moneyapp/backend/internal/modules/catalog"
 	certificatesmodule "moneyapp/backend/internal/modules/certificates"
 	courserequestsmodule "moneyapp/backend/internal/modules/course_requests"
+	dashboardapimodule "moneyapp/backend/internal/modules/dashboard_api"
 	externaltrainingmodule "moneyapp/backend/internal/modules/external_training"
 	githubmodule "moneyapp/backend/internal/modules/github_integration"
 	identitymodule "moneyapp/backend/internal/modules/identity"
 	learningmodule "moneyapp/backend/internal/modules/learning"
+	learningplanmodule "moneyapp/backend/internal/modules/learning_plan"
 	notificationsmodule "moneyapp/backend/internal/modules/notifications"
 	orgmodule "moneyapp/backend/internal/modules/org"
 	outlookmodule "moneyapp/backend/internal/modules/outlook"
@@ -84,6 +88,10 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 	universityRepo := universitymodule.NewRepository(database)
 	yougileRepo := yougilemodule.NewRepository(database)
 	githubRepo := githubmodule.NewRepository(database)
+	calendarRepo := calendarmodule.NewRepository(database)
+	learningPlanRepo := learningplanmodule.NewRepository(database)
+	boardSummaryRepo := boardsummarymodule.NewRepository(database)
+	dashboardAPIRepo := dashboardapimodule.NewRepository(database)
 
 	orgService := orgmodule.NewService(orgRepo)
 	identityService := identitymodule.NewService(database, identityRepo, orgService, outboxService, queue, jwtManager, appClock, cfg.Auth.AccessTokenTTL, cfg.Auth.RefreshTokenTTL)
@@ -94,6 +102,10 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 	certificatesService := certificatesmodule.NewService(database, certificatesRepo, outboxService, appClock)
 	courseRequestsService := courserequestsmodule.NewService(database, courseRequestsRepo, identityRepo, orgService, catalogService, learningRepo, certificatesRepo, appClock)
 	externalTrainingService := externaltrainingmodule.NewService(database, externalTrainingRepo, identityRepo, orgService, outboxService, queue, appClock)
+	calendarService := calendarmodule.NewService(calendarRepo)
+	learningPlanService := learningplanmodule.NewService(learningPlanRepo)
+	boardSummaryService := boardsummarymodule.NewService(boardSummaryRepo)
+	dashboardAPIService := dashboardapimodule.NewService(dashboardAPIRepo, calendarService, learningPlanService, externalTrainingService, courseRequestsService)
 	outlookService := outlookmodule.NewService(database, outlookRepo, queue, appClock)
 	notificationsService := notificationsmodule.NewService(notificationsRepo, appClock)
 	universityService := universitymodule.NewService(universityRepo, appClock)
@@ -126,6 +138,10 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 		CertificatesService:     certificatesService,
 		CourseRequestsService:   courseRequestsService,
 		ExternalTrainingService: externalTrainingService,
+		CalendarService:         calendarService,
+		LearningPlanService:     learningPlanService,
+		BoardSummaryService:     boardSummaryService,
+		DashboardAPIService:     dashboardAPIService,
 		OutlookService:          outlookService,
 		NotificationsService:    notificationsService,
 		UniversityService:       universityService,
@@ -142,6 +158,10 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 		CertificatesHandler:     certificatesmodule.NewHandler(certificatesService, validate),
 		CourseRequestsHandler:   courserequestsmodule.NewHandler(courseRequestsService, validate),
 		ExternalTrainingHandler: externaltrainingmodule.NewHandler(externalTrainingService, validate),
+		CalendarHandler:         calendarmodule.NewHandler(calendarService),
+		LearningPlanHandler:     learningplanmodule.NewHandler(learningPlanService),
+		BoardSummaryHandler:     boardsummarymodule.NewHandler(boardSummaryService),
+		DashboardAPIHandler:     dashboardapimodule.NewHandler(dashboardAPIService),
 		OutlookHandler:          outlookmodule.NewHandler(outlookService),
 		NotificationsHandler:    notificationsmodule.NewHandler(notificationsService),
 		UniversityHandler:       universitymodule.NewHandler(universityService, validate),

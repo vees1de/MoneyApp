@@ -11,13 +11,17 @@ import (
 	adminmodule "moneyapp/backend/internal/modules/admin"
 	analyticsmodule "moneyapp/backend/internal/modules/analytics"
 	auditmodule "moneyapp/backend/internal/modules/audit"
+	boardsummarymodule "moneyapp/backend/internal/modules/board_summary"
+	calendarmodule "moneyapp/backend/internal/modules/calendar"
 	catalogmodule "moneyapp/backend/internal/modules/catalog"
 	certificatesmodule "moneyapp/backend/internal/modules/certificates"
 	courserequestsmodule "moneyapp/backend/internal/modules/course_requests"
+	dashboardapimodule "moneyapp/backend/internal/modules/dashboard_api"
 	externaltrainingmodule "moneyapp/backend/internal/modules/external_training"
 	githubmodule "moneyapp/backend/internal/modules/github_integration"
 	identitymodule "moneyapp/backend/internal/modules/identity"
 	learningmodule "moneyapp/backend/internal/modules/learning"
+	learningplanmodule "moneyapp/backend/internal/modules/learning_plan"
 	notificationsmodule "moneyapp/backend/internal/modules/notifications"
 	orgmodule "moneyapp/backend/internal/modules/org"
 	outlookmodule "moneyapp/backend/internal/modules/outlook"
@@ -51,6 +55,10 @@ type Container struct {
 	CertificatesService     *certificatesmodule.Service
 	CourseRequestsService   *courserequestsmodule.Service
 	ExternalTrainingService *externaltrainingmodule.Service
+	CalendarService         *calendarmodule.Service
+	LearningPlanService     *learningplanmodule.Service
+	BoardSummaryService     *boardsummarymodule.Service
+	DashboardAPIService     *dashboardapimodule.Service
 	OutlookService          *outlookmodule.Service
 	NotificationsService    *notificationsmodule.Service
 	UniversityService       *universitymodule.Service
@@ -68,6 +76,10 @@ type Container struct {
 	CertificatesHandler     *certificatesmodule.Handler
 	CourseRequestsHandler   *courserequestsmodule.Handler
 	ExternalTrainingHandler *externaltrainingmodule.Handler
+	CalendarHandler         *calendarmodule.Handler
+	LearningPlanHandler     *learningplanmodule.Handler
+	BoardSummaryHandler     *boardsummarymodule.Handler
+	DashboardAPIHandler     *dashboardapimodule.Handler
 	OutlookHandler          *outlookmodule.Handler
 	NotificationsHandler    *notificationsmodule.Handler
 	UniversityHandler       *universitymodule.Handler

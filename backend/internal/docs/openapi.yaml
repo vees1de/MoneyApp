@@ -301,6 +301,86 @@ paths:
     get:
       tags: [Catalog]
       summary: List courses
+      parameters:
+        - in: query
+          name: q
+          schema:
+            type: string
+        - in: query
+          name: type
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: true
+        - in: query
+          name: status
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: true
+        - in: query
+          name: direction_id
+          schema:
+            type: array
+            items:
+              type: string
+              format: uuid
+          style: form
+          explode: true
+        - in: query
+          name: category_id
+          schema:
+            type: array
+            items:
+              type: string
+              format: uuid
+          style: form
+          explode: true
+        - in: query
+          name: level
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: true
+        - in: query
+          name: language
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: true
+        - in: query
+          name: source_type
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: true
+        - in: query
+          name: is_mandatory_default
+          schema:
+            type: boolean
+        - in: query
+          name: sort
+          schema:
+            type: string
+            enum: [relevance, newest, updated, title_asc, title_desc, duration_asc, duration_desc]
+        - in: query
+          name: limit
+          schema:
+            type: integer
+        - in: query
+          name: offset
+          schema:
+            type: integer
       responses:
         '200':
           description: Courses
@@ -517,6 +597,38 @@ paths:
               schema:
                 $ref: '#/components/schemas/Enrollment'
 
+  /api/v1/learning-plan/my:
+    get:
+      tags: [Learning]
+      summary: Get current user learning plan
+      responses:
+        '200':
+          description: Learning plan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyLearningPlan'
+  /api/v1/recommendations/courses:
+    get:
+      tags: [Learning]
+      summary: Get recommended courses for current user
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+        - in: query
+          name: offset
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Recommended courses
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecommendedCourseListResponse'
+
   /api/v1/tests:
     post:
       tags: [Testing]
@@ -676,6 +788,43 @@ paths:
                 $ref: '#/components/schemas/Certificate'
 
   /api/v1/external-requests:
+    get:
+      tags: [External Training]
+      summary: List external training requests with filters
+      parameters:
+        - in: query
+          name: scope
+          schema:
+            type: string
+            enum: [my, team, all]
+        - in: query
+          name: status
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: true
+        - in: query
+          name: assignee
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: limit
+          schema:
+            type: integer
+        - in: query
+          name: offset
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: External request list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExternalRequestListResponse'
     post:
       tags: [External Training]
       summary: Create external training request draft
@@ -703,6 +852,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ExternalRequestListResponse'
+  /api/v1/external-requests/pending-approvals:
+    get:
+      tags: [External Training]
+      summary: List current user pending external approvals
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+        - in: query
+          name: offset
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Pending approval list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExternalRequestPendingApprovalListResponse'
   /api/v1/external-requests/{id}:
     get:
       tags: [External Training]
@@ -1290,6 +1459,66 @@ paths:
       responses:
         '204':
           description: Notifications marked as read
+
+  /api/v1/calendar/events/upcoming:
+    get:
+      tags: [Calendar]
+      summary: Get upcoming calendar events
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Upcoming event list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpcomingCalendarEventListResponse'
+  /api/v1/dashboard/employee:
+    get:
+      tags: [Dashboard]
+      summary: Employee dashboard
+      responses:
+        '200':
+          description: Employee dashboard payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeDashboard'
+  /api/v1/dashboard/manager:
+    get:
+      tags: [Dashboard]
+      summary: Manager dashboard
+      responses:
+        '200':
+          description: Manager dashboard payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManagerDashboard'
+  /api/v1/jira/board-summary:
+    get:
+      tags: [Integrations]
+      summary: Get normalized board summary
+      parameters:
+        - in: query
+          name: connection_id
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: board_id
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Board summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BoardSummary'
 
   /api/v1/programs:
     get:
@@ -2029,6 +2258,128 @@ components:
           items:
             $ref: '#/components/schemas/Enrollment'
       required: [items]
+    LearningPlanItem:
+      type: object
+      properties:
+        enrollment_id:
+          type: string
+          format: uuid
+        course_id:
+          type: string
+          format: uuid
+        assignment_id:
+          type: string
+          format: uuid
+          nullable: true
+        source:
+          type: string
+        status:
+          type: string
+        title:
+          type: string
+        short_description:
+          type: string
+          nullable: true
+        deadline_at:
+          type: string
+          format: date-time
+          nullable: true
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        completion_percent:
+          type: string
+        is_mandatory:
+          type: boolean
+        reason:
+          type: string
+          nullable: true
+        enrollment_created_at:
+          type: string
+          format: date-time
+      required: [enrollment_id, course_id, source, status, title, completion_percent, is_mandatory, enrollment_created_at]
+    RecommendedCourseItem:
+      type: object
+      properties:
+        course_id:
+          type: string
+          format: uuid
+        enrollment_id:
+          type: string
+          format: uuid
+        assignment_id:
+          type: string
+          format: uuid
+          nullable: true
+        title:
+          type: string
+        short_description:
+          type: string
+          nullable: true
+        status:
+          type: string
+        deadline_at:
+          type: string
+          format: date-time
+          nullable: true
+        completion_percent:
+          type: string
+        reason:
+          type: string
+          nullable: true
+        enrollment_created_at:
+          type: string
+          format: date-time
+      required: [course_id, enrollment_id, title, status, completion_percent, enrollment_created_at]
+    RecommendedCourseListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecommendedCourseItem'
+      required: [items]
+    LearningPlanSummary:
+      type: object
+      properties:
+        total:
+          type: integer
+        in_progress:
+          type: integer
+        upcoming:
+          type: integer
+        completed_recently:
+          type: integer
+        recommended:
+          type: integer
+      required: [total, in_progress, upcoming, completed_recently, recommended]
+    MyLearningPlan:
+      type: object
+      properties:
+        summary:
+          $ref: '#/components/schemas/LearningPlanSummary'
+        in_progress:
+          type: array
+          items:
+            $ref: '#/components/schemas/LearningPlanItem'
+        upcoming:
+          type: array
+          items:
+            $ref: '#/components/schemas/LearningPlanItem'
+        completed_recently:
+          type: array
+          items:
+            $ref: '#/components/schemas/LearningPlanItem'
+        recommended:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecommendedCourseItem'
+      required: [summary, in_progress, upcoming, completed_recently, recommended]
     Test:
       type: object
       properties:
@@ -2365,6 +2716,38 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ExternalRequest'
+      required: [items]
+    PendingApprovalStep:
+      type: object
+      properties:
+        step_id:
+          type: string
+          format: uuid
+        role_code:
+          type: string
+        due_at:
+          type: string
+          format: date-time
+          nullable: true
+        approver_user_id:
+          type: string
+          format: uuid
+      required: [step_id, role_code, approver_user_id]
+    ExternalRequestPendingApprovalItem:
+      type: object
+      properties:
+        request:
+          $ref: '#/components/schemas/ExternalRequest'
+        current_step:
+          $ref: '#/components/schemas/PendingApprovalStep'
+      required: [request, current_step]
+    ExternalRequestPendingApprovalListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExternalRequestPendingApprovalItem'
       required: [items]
     ApprovalWorkflow:
       type: object
@@ -3831,3 +4214,234 @@ components:
           type: string
           format: date-time
       required: [id, connection_id, job_type, status, progress, attempt, created_at, updated_at]
+    UpcomingCalendarEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        source_type:
+          type: string
+        source_id:
+          type: string
+          format: uuid
+        provider:
+          type: string
+        external_event_id:
+          type: string
+          nullable: true
+        title:
+          type: string
+        start_at:
+          type: string
+          format: date-time
+        end_at:
+          type: string
+          format: date-time
+        timezone:
+          type: string
+          nullable: true
+        status:
+          type: string
+        meeting_url:
+          type: string
+          nullable: true
+        location:
+          type: string
+          nullable: true
+      required: [id, source_type, source_id, provider, title, start_at, end_at, status]
+    UpcomingCalendarEventListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/UpcomingCalendarEvent'
+      required: [items]
+    EmployeeDashboardStats:
+      type: object
+      properties:
+        active_enrollments:
+          type: integer
+        recommended_courses:
+          type: integer
+        open_external_requests:
+          type: integer
+      required: [active_enrollments, recommended_courses, open_external_requests]
+    TeamPreviewItem:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        first_name:
+          type: string
+        last_name:
+          type: string
+        position_title:
+          type: string
+          nullable: true
+        department_id:
+          type: string
+          format: uuid
+          nullable: true
+      required: [user_id, first_name, last_name]
+    ManagerCourseRequestPreviewItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        request_no:
+          type: string
+        course_id:
+          type: string
+          format: uuid
+        course_title:
+          type: string
+        employee_user_id:
+          type: string
+          format: uuid
+        employee_full_name:
+          type: string
+        status:
+          type: string
+        display_status:
+          type: string
+        status_label:
+          type: string
+        deadline_at:
+          type: string
+          format: date-time
+          nullable: true
+        requested_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required: [id, request_no, course_id, course_title, employee_user_id, employee_full_name, status, display_status, status_label, requested_at, updated_at]
+    EmployeeDashboard:
+      type: object
+      properties:
+        stats:
+          $ref: '#/components/schemas/EmployeeDashboardStats'
+        upcoming_events:
+          type: array
+          items:
+            $ref: '#/components/schemas/UpcomingCalendarEvent'
+        recommended_courses:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecommendedCourseItem'
+        learning_plan:
+          $ref: '#/components/schemas/MyLearningPlan'
+        external_requests_preview:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExternalRequest'
+      required: [stats, upcoming_events, recommended_courses, learning_plan, external_requests_preview]
+    ManagerDashboardStats:
+      type: object
+      properties:
+        team_size:
+          type: integer
+        pending_external_approvals:
+          type: integer
+        team_external_requests:
+          type: integer
+        team_course_requests:
+          type: integer
+      required: [team_size, pending_external_approvals, team_external_requests, team_course_requests]
+    ManagerDashboard:
+      type: object
+      properties:
+        stats:
+          $ref: '#/components/schemas/ManagerDashboardStats'
+        team_preview:
+          type: array
+          items:
+            $ref: '#/components/schemas/TeamPreviewItem'
+        pending_external_approvals:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExternalRequestPendingApprovalItem'
+        team_external_requests:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExternalRequest'
+        team_course_requests:
+          type: array
+          items:
+            $ref: '#/components/schemas/ManagerCourseRequestPreviewItem'
+      required: [stats, team_preview, pending_external_approvals, team_external_requests, team_course_requests]
+    BoardSummaryMetrics:
+      type: object
+      properties:
+        boards_total:
+          type: integer
+        tasks_total:
+          type: integer
+        active_total:
+          type: integer
+        completed_total:
+          type: integer
+        overdue_total:
+          type: integer
+      required: [boards_total, tasks_total, active_total, completed_total, overdue_total]
+    BoardSummaryBoardItem:
+      type: object
+      properties:
+        board_id:
+          type: string
+        title:
+          type: string
+        tasks_total:
+          type: integer
+        active_total:
+          type: integer
+        completed_total:
+          type: integer
+        overdue_total:
+          type: integer
+      required: [board_id, title, tasks_total, active_total, completed_total, overdue_total]
+    BoardSummaryTask:
+      type: object
+      properties:
+        task_id:
+          type: string
+        board_id:
+          type: string
+          nullable: true
+        board_title:
+          type: string
+          nullable: true
+        title:
+          type: string
+        deadline_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed:
+          type: boolean
+        archived:
+          type: boolean
+      required: [task_id, title, completed, archived]
+    BoardSummary:
+      type: object
+      properties:
+        source:
+          type: string
+        status:
+          type: string
+        summary:
+          $ref: '#/components/schemas/BoardSummaryMetrics'
+        boards:
+          type: array
+          items:
+            $ref: '#/components/schemas/BoardSummaryBoardItem'
+        overdue_tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/BoardSummaryTask'
+      required: [source, status, summary, boards, overdue_tasks]
