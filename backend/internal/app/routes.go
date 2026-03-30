@@ -13,6 +13,7 @@ func NewRouter(container *Container) http.Handler {
 	router := chi.NewRouter()
 
 	router.Use(middleware.RequestID)
+	router.Use(middleware.CORSLocalhost4200)
 	router.Use(middleware.Recovery(container.Logger))
 	router.Use(middleware.Logging(container.Logger))
 
