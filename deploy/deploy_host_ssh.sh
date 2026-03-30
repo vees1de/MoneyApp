@@ -84,7 +84,7 @@ fi
 git -C "${REMOTE_DIR}" fetch --prune origin
 git -C "${REMOTE_DIR}" checkout -B "${DEPLOY_GIT_REF}" "origin/${DEPLOY_GIT_REF}"
 git -C "${REMOTE_DIR}" reset --hard "origin/${DEPLOY_GIT_REF}"
-git -C "${REMOTE_DIR}" clean -fd
+git -C "${REMOTE_DIR}" clean -fd -e frontend/dist
 REMOTE
 
 # ── Upload .env ────────────────────────────────────────────────────────────

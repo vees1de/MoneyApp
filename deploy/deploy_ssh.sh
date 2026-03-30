@@ -2,18 +2,20 @@
 
 set -euo pipefail
 
+readonly DEFAULT_SSH_TARGET="root@193.187.92.116"
 readonly DEFAULT_REMOTE_DIR="/root/MoneyApp"
 readonly DEPLOY_REPO_URL="https://github.com/vees1de/MoneyApp.git"
 readonly DEPLOY_GIT_REF="main"
 
 usage() {
-  cat <<'EOF'
+  cat <<EOF
 Usage:
-  ./deploy/deploy_ssh.sh user@server
+  ./deploy/deploy_ssh.sh [user@server]
 
 The script expects a filled .env file in the repo root.
 It makes the server clone/fetch/reset the git repository,
-uploads .env, and runs docker compose up --build -d remotely.
+uploads .env, preserves uploaded frontend/dist, and runs docker compose up --build -d remotely.
+Default target: ${DEFAULT_SSH_TARGET}
 EOF
 }
 
@@ -22,13 +24,8 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   exit 0
 fi
 
-SSH_TARGET="${1:-}"
+SSH_TARGET="${1:-${DEFAULT_SSH_TARGET}}"
 REMOTE_DIR="${DEFAULT_REMOTE_DIR}"
-
-if [[ -z "${SSH_TARGET}" ]]; then
-  usage
-  exit 1
-fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
@@ -81,7 +78,7 @@ fi
 git -C "${REMOTE_DIR}" fetch --prune origin
 git -C "${REMOTE_DIR}" checkout -B "${DEPLOY_GIT_REF}" "origin/${DEPLOY_GIT_REF}"
 git -C "${REMOTE_DIR}" reset --hard "origin/${DEPLOY_GIT_REF}"
-git -C "${REMOTE_DIR}" clean -fd
+git -C "${REMOTE_DIR}" clean -fd -e frontend/dist
 EOF
 
 echo "uploading .env"
@@ -103,8 +100,11 @@ if ! docker compose version >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "building frontend/dist for nginx"
-bash scripts/build_frontend_dist.sh /root/MoneyApp/frontend/dist
+if [[ ! -f "./frontend/dist/index.html" ]]; then
+  echo "missing ./frontend/dist/index.html on the server" >&2
+  echo "run ./deploy/build_frontend_local_to_server.sh or ./deploy/build_frontend_on_server.sh first" >&2
+  exit 1
+fi
 
 docker compose up --build -d
 EOF

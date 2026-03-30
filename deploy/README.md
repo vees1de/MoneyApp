@@ -6,7 +6,7 @@ Deployment is reduced to one Docker Compose stack:
 - `migrate`
 - `backend`
 
-For host nginx, the deploy flow copies the built frontend directly to `/root/MoneyApp/frontend/dist`.
+For host nginx, the deploy flow expects the built frontend to be uploaded to `/root/MoneyApp/frontend/dist`.
 
 ## Manual deploy on a server
 
@@ -14,13 +14,21 @@ For host nginx, the deploy flow copies the built frontend directly to `/root/Mon
 2. Fill at least:
    - `POSTGRES_PASSWORD`
    - `AUTH_JWT_SECRET`
-3. Build static frontend files for nginx:
+3. Build static frontend files locally:
 
 ```bash
 ./scripts/build_frontend_dist.sh
 ```
 
-4. Run on the server:
+4. Upload the built frontend from the local machine:
+
+```bash
+./deploy/build_frontend_local_to_server.sh
+```
+
+By default it uploads to `root@193.187.92.116:/root/MoneyApp/frontend/dist`.
+
+5. Run on the server:
 
 ```bash
 docker compose up --build -d
@@ -37,17 +45,24 @@ If you want the server to pull the repo itself over git and only upload `.env`, 
 
 ```bash
 chmod +x deploy/deploy_ssh.sh
-./deploy/deploy_ssh.sh user@server
+./deploy/deploy_ssh.sh
 ```
 
-The CI deploy flow now updates the server with `git clone` / `git fetch` / `git reset --hard`, uploads the root `.env`, and runs `docker compose up --build -d backend` remotely.
-The repo URL, branch, SSH port, and deploy path are hardcoded for this project.
+The script preserves the uploaded `frontend/dist`, uploads the root `.env`, and runs the compose deploy remotely.
+The repo URL, branch, deploy path, and default SSH target are hardcoded for this project.
 
-To build only the static frontend on the server over SSH, use:
+To build the static frontend locally and upload it over SSH, use:
 
 ```bash
-chmod +x deploy/build_frontend_ssh.sh
-./deploy/build_frontend_ssh.sh user@server
+chmod +x deploy/build_frontend_local_to_server.sh
+./deploy/build_frontend_local_to_server.sh
+```
+
+To build the static frontend directly on the server over SSH, use:
+
+```bash
+chmod +x deploy/build_frontend_on_server.sh
+./deploy/build_frontend_on_server.sh
 ```
 
 ## GitHub Actions CI/CD

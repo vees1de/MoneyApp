@@ -36,20 +36,6 @@ export interface ApiMeResponse {
   user: ApiUser
 }
 
-export interface ApiCicdSmokeCheck {
-  id: string
-  user_id: string
-  session_id: string
-  request_id: string
-  trigger: string
-  created_at: string
-}
-
-export interface ApiCicdSmokeResponse {
-  check: ApiCicdSmokeCheck
-  total_runs: number
-}
-
 export interface ApiAccount {
   id: string
   user_id: string
