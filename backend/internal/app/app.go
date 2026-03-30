@@ -14,6 +14,7 @@ import (
 	catalogmodule "moneyapp/backend/internal/modules/catalog"
 	certificatesmodule "moneyapp/backend/internal/modules/certificates"
 	externaltrainingmodule "moneyapp/backend/internal/modules/external_training"
+	githubmodule "moneyapp/backend/internal/modules/github_integration"
 	identitymodule "moneyapp/backend/internal/modules/identity"
 	learningmodule "moneyapp/backend/internal/modules/learning"
 	notificationsmodule "moneyapp/backend/internal/modules/notifications"
@@ -21,6 +22,7 @@ import (
 	outlookmodule "moneyapp/backend/internal/modules/outlook"
 	testingmodule "moneyapp/backend/internal/modules/testing"
 	universitymodule "moneyapp/backend/internal/modules/university"
+	yougilemodule "moneyapp/backend/internal/modules/yougile"
 	platformauth "moneyapp/backend/internal/platform/auth"
 	"moneyapp/backend/internal/platform/clock"
 	"moneyapp/backend/internal/platform/db"
@@ -78,6 +80,8 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 	outlookRepo := outlookmodule.NewRepository(database)
 	notificationsRepo := notificationsmodule.NewRepository(database)
 	universityRepo := universitymodule.NewRepository(database)
+	yougileRepo := yougilemodule.NewRepository(database)
+	githubRepo := githubmodule.NewRepository(database)
 
 	orgService := orgmodule.NewService(orgRepo)
 	identityService := identitymodule.NewService(database, identityRepo, orgService, outboxService, queue, jwtManager, appClock, cfg.Auth.AccessTokenTTL, cfg.Auth.RefreshTokenTTL)
@@ -92,11 +96,13 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 	universityService := universitymodule.NewService(universityRepo, appClock)
 	analyticsService := analyticsmodule.NewService(database, queue)
 	auditService := auditmodule.NewService(database)
+	yougileService := yougilemodule.NewService(database, yougileRepo, queue, appClock)
+	githubService := githubmodule.NewService(database, githubRepo, queue, appClock)
 	healthService := corehealth.NewService(map[string]corehealth.CheckFunc{
 		"postgres": database.PingContext,
 	})
 
-	registerWorkerHandlers(queue, log)
+	registerWorkerHandlers(queue, log, yougileService, githubService)
 
 	container := &Container{
 		Config:                  cfg,
@@ -121,6 +127,8 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 		UniversityService:       universityService,
 		AnalyticsService:        analyticsService,
 		AuditService:            auditService,
+		YougileService:          yougileService,
+		GitHubService:           githubService,
 		HealthHandler:           corehealth.NewHandler(healthService),
 		IdentityHandler:         identitymodule.NewHandler(identityService, validate),
 		AdminHandler:            adminmodule.NewHandler(adminService, validate),
@@ -134,6 +142,8 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 		UniversityHandler:       universitymodule.NewHandler(universityService, validate),
 		AnalyticsHandler:        analyticsmodule.NewHandler(analyticsService),
 		AuditHandler:            auditmodule.NewHandler(auditService),
+		YougileHandler:          yougilemodule.NewHandler(yougileService, validate),
+		GitHubHandler:           githubmodule.NewHandler(githubService, validate),
 	}
 
 	return container, nil
@@ -167,7 +177,7 @@ func (a *App) Run(ctx context.Context) error {
 	return nil
 }
 
-func registerWorkerHandlers(queue *platformworker.Queue, logger *slog.Logger) {
+func registerWorkerHandlers(queue *platformworker.Queue, logger *slog.Logger, yougileService *yougilemodule.Service, githubService *githubmodule.Service) {
 	queue.Register("send_password_reset", func(ctx context.Context, job platformworker.Job) error {
 		logger.Info("process job", "job_type", job.JobType, "queue", job.Queue, "payload", string(job.Payload))
 		return nil
@@ -187,5 +197,11 @@ func registerWorkerHandlers(queue *platformworker.Queue, logger *slog.Logger) {
 	queue.Register("export_pdf", func(ctx context.Context, job platformworker.Job) error {
 		logger.Info("process job", "job_type", job.JobType, "queue", job.Queue, "payload", string(job.Payload))
 		return nil
+	})
+	queue.Register("yougile_sync", func(ctx context.Context, job platformworker.Job) error {
+		return yougileService.ProcessSyncJob(ctx, job)
+	})
+	queue.Register("github_sync", func(ctx context.Context, job platformworker.Job) error {
+		return githubService.ProcessSyncJob(ctx, job)
 	})
 }

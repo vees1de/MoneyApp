@@ -347,7 +347,132 @@ Budget limits:
 - тренер отмечает attendance
 - участники отправляют feedback
 
-## 13. Аналитика и отчеты
+## 13. YouGile интеграция
+
+Для YouGile лучше делать отдельный settings flow для HR/admin.
+
+### Шаг 1. Подключение
+
+- `POST /api/v1/integrations/yougile/connections/test-key`
+- `POST /api/v1/integrations/yougile/connections`
+
+Если ключа еще нет:
+- `POST /api/v1/integrations/yougile/discover-companies`
+- `POST /api/v1/integrations/yougile/connections/create-key`
+
+### Шаг 2. Импорт справочников
+
+- `POST /api/v1/integrations/yougile/connections/{id}/import/users`
+- `POST /api/v1/integrations/yougile/connections/{id}/import/structure`
+
+Локальные данные потом читать отсюда:
+- `GET /api/v1/integrations/yougile/connections/{id}/users`
+- `GET /api/v1/integrations/yougile/connections/{id}/projects`
+- `GET /api/v1/integrations/yougile/connections/{id}/boards`
+- `GET /api/v1/integrations/yougile/connections/{id}/columns`
+
+### Шаг 3. Сопоставление сотрудников
+
+- `POST /api/v1/integrations/yougile/connections/{id}/mappings/auto-match`
+- `GET /api/v1/integrations/yougile/connections/{id}/mappings`
+- `POST /api/v1/integrations/yougile/connections/{id}/mappings`
+- `DELETE /api/v1/integrations/yougile/connections/{id}/mappings/{mappingId}`
+
+Практически:
+- сначала попытаться `auto-match` по email
+- потом на фронте показать unmatched пользователей
+- для unmatched дать ручной mapping
+
+### Шаг 4. Sync
+
+- `POST /api/v1/integrations/yougile/connections/{id}/sync`
+- `GET /api/v1/integrations/yougile/sync-jobs/{jobId}`
+- `POST /api/v1/integrations/yougile/connections/{id}/sync/backfill`
+
+Что важно сейчас:
+- users и structure sync уже поддержаны
+- tasks sync в текущем backend пока scaffolded, но job-контур и storage уже есть
+
+### UI рекомендации
+
+- сделать отдельный экран connection details
+- там показывать status, last sync, last error
+- import и sync actions лучше запускать явными кнопками
+- progress экрана строить по `sync-jobs/{jobId}`
+
+## 14. GitHub интеграция
+
+Это отдельный engineering dashboard flow. Его лучше не смешивать с HR-оценкой сотрудника.
+
+### Подключение
+
+- `POST /api/v1/integrations/github/connections/test`
+- `POST /api/v1/integrations/github/connections`
+- `GET /api/v1/integrations/github/connections`
+- `GET /api/v1/integrations/github/connections/{connectionId}`
+- `PATCH /api/v1/integrations/github/connections/{connectionId}`
+- `DELETE /api/v1/integrations/github/connections/{connectionId}`
+
+Текущий MVP auth mode:
+- `pat`
+
+### Mapping сотрудников
+
+- `GET /api/v1/integrations/github/connections/{connectionId}/mappings`
+- `POST /api/v1/integrations/github/connections/{connectionId}/mappings`
+- `POST /api/v1/integrations/github/connections/{connectionId}/mappings/auto-match`
+- `DELETE /api/v1/integrations/github/connections/{connectionId}/mappings/{mappingId}`
+
+Стратегии автосопоставления:
+- `email`
+- `login`
+- `domain`
+
+### Импорт и sync
+
+- `POST /api/v1/integrations/github/connections/{connectionId}/import/users`
+- `POST /api/v1/integrations/github/connections/{connectionId}/import/repos`
+- `POST /api/v1/integrations/github/connections/{connectionId}/import/languages`
+- `POST /api/v1/integrations/github/connections/{connectionId}/sync`
+- `GET /api/v1/integrations/github/sync-jobs/{jobId}`
+
+### Данные GitHub
+
+- `GET /api/v1/integrations/github/users`
+- `GET /api/v1/integrations/github/repositories`
+- `GET /api/v1/integrations/github/repositories/{repoId}`
+- `GET /api/v1/integrations/github/repositories/{repoId}/languages`
+- `GET /api/v1/integrations/github/repositories/{repoId}/contributors`
+
+### Метрики по сотруднику
+
+- `GET /api/v1/integrations/github/employees/{employeeUserId}/profile?connectionId=...`
+- `GET /api/v1/integrations/github/employees/{employeeUserId}/languages?connectionId=...`
+- `GET /api/v1/integrations/github/employees/{employeeUserId}/stats?connectionId=...`
+- `GET /api/v1/integrations/github/employees/{employeeUserId}/activity?connectionId=...`
+
+Что реально можно использовать уже сейчас:
+- language profile
+- repositories count
+- active repositories count
+- stars / forks
+- avg repo freshness
+- primary languages
+- `engineeringActivityScore`
+
+Важно:
+- `engineeringActivityScore` это не performance review
+- это engineering activity footprint, собранный из свежести repo, активных repo и delivery signals
+
+### Командная аналитика
+
+- `GET /api/v1/integrations/github/analytics/team?connectionId=...`
+- `GET /api/v1/integrations/github/analytics/languages?connectionId=...`
+- `GET /api/v1/integrations/github/analytics/top-languages?connectionId=...`
+- `GET /api/v1/integrations/github/analytics/repository-health?connectionId=...`
+- `GET /api/v1/integrations/github/analytics/repository-ownership?connectionId=...`
+
+## 15. Аналитика и отчеты
 
 HR dashboard:
 - `GET /api/v1/analytics/dashboard/hr`
@@ -369,7 +494,7 @@ Exports:
 - dashboard endpoints лучше грузить лениво по вкладкам
 - export endpoints лучше вызывать через явную кнопку "Сформировать"
 
-## 14. Аудит
+## 16. Аудит
 
 Экран для admin/audit:
 
@@ -380,7 +505,7 @@ Exports:
 - разборов кто и когда одобрил заявку
 - compliance и traceability screens
 
-## 15. Рекомендуемый frontend bootstrap по экранам
+## 17. Рекомендуемый frontend bootstrap по экранам
 
 ### После входа сотрудника
 
@@ -407,7 +532,7 @@ Exports:
 - заявки, доступные на согласование
 - `GET /api/v1/notifications`
 
-## 16. Что уже можно интегрировать, а что пока считать beta
+## 18. Что уже можно интегрировать, а что пока считать beta
 
 Можно интегрировать как основной контракт:
 - auth
@@ -422,13 +547,17 @@ Exports:
 - programs / groups / sessions
 - analytics endpoints
 - audit logs
+- yougile connection / import / mapping / sync API
+- github connection / mapping / repos / languages / employee stats API
 
 Пока лучше считать beta/scaffold:
 - Outlook connect/sync
 - фоновые job handlers
 - outbox processing вне самой транзакционной записи
+- YouGile tasks ingestion и webhook processing
+- GitHub PR/review/commit daily enrichment через GraphQL или extended REST backfill
 
-## 17. Где смотреть точные payloads
+## 19. Где смотреть точные payloads
 
 Точные схемы request/response уже описаны в Swagger:
 

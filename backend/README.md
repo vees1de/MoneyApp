@@ -86,6 +86,8 @@ Key groups:
 - `/approval-workflows`
 - `/budget-limits`
 - `/integrations/outlook`
+- `/integrations/yougile`
+- `/integrations/github`
 - `/notifications`
 - `/programs`
 - `/analytics`

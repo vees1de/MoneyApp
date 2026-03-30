@@ -53,6 +53,77 @@ func NewRouter(container *Container) http.Handler {
 
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.AuthRequired(container.JWT))
+			r.Use(middleware.RBAC("settings.manage"))
+
+			r.Route("/integrations/yougile", func(r chi.Router) {
+				r.Post("/connections", container.YougileHandler.CreateConnection)
+				r.Post("/connections/test-key", container.YougileHandler.TestKey)
+				r.Post("/connections/create-key", container.YougileHandler.CreateKey)
+				r.Post("/discover-companies", container.YougileHandler.DiscoverCompanies)
+				r.Get("/connections", container.YougileHandler.ListConnections)
+				r.Get("/connections/{id}", container.YougileHandler.GetConnection)
+				r.Patch("/connections/{id}", container.YougileHandler.UpdateConnection)
+				r.Delete("/connections/{id}", container.YougileHandler.DeleteConnection)
+				r.Post("/connections/{id}/import/users", container.YougileHandler.ImportUsers)
+				r.Post("/connections/{id}/import/structure", container.YougileHandler.ImportStructure)
+				r.Get("/connections/{id}/users", container.YougileHandler.ListUsers)
+				r.Get("/connections/{id}/projects", container.YougileHandler.ListProjects)
+				r.Get("/connections/{id}/boards", container.YougileHandler.ListBoards)
+				r.Get("/connections/{id}/columns", container.YougileHandler.ListColumns)
+				r.Post("/connections/{id}/mappings/auto-match", container.YougileHandler.AutoMatch)
+				r.Get("/connections/{id}/mappings", container.YougileHandler.ListMappings)
+				r.Post("/connections/{id}/mappings", container.YougileHandler.CreateMapping)
+				r.Delete("/connections/{id}/mappings/{mappingId}", container.YougileHandler.DeleteMapping)
+				r.Post("/connections/{id}/sync", container.YougileHandler.StartSync)
+				r.Get("/sync-jobs/{jobId}", container.YougileHandler.GetSyncJob)
+				r.Post("/connections/{id}/sync/backfill", container.YougileHandler.Backfill)
+			})
+		})
+
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.AuthRequired(container.JWT))
+			r.Use(middleware.RBAC("settings.manage"))
+
+			r.Route("/integrations/github", func(r chi.Router) {
+				r.Get("/connections", container.GitHubHandler.ListConnections)
+				r.Post("/connections", container.GitHubHandler.CreateConnection)
+				r.Post("/connections/test", container.GitHubHandler.TestConnection)
+				r.Get("/connections/{connectionId}", container.GitHubHandler.GetConnection)
+				r.Patch("/connections/{connectionId}", container.GitHubHandler.UpdateConnection)
+				r.Delete("/connections/{connectionId}", container.GitHubHandler.DeleteConnection)
+
+				r.Post("/connections/{connectionId}/import/users", container.GitHubHandler.ImportUsers)
+				r.Post("/connections/{connectionId}/import/repos", container.GitHubHandler.ImportRepos)
+				r.Post("/connections/{connectionId}/import/languages", container.GitHubHandler.ImportLanguages)
+				r.Post("/connections/{connectionId}/sync", container.GitHubHandler.StartSync)
+				r.Get("/sync-jobs/{jobId}", container.GitHubHandler.GetSyncJob)
+
+				r.Get("/connections/{connectionId}/mappings", container.GitHubHandler.ListMappings)
+				r.Post("/connections/{connectionId}/mappings", container.GitHubHandler.CreateMapping)
+				r.Post("/connections/{connectionId}/mappings/auto-match", container.GitHubHandler.AutoMatchMappings)
+				r.Delete("/connections/{connectionId}/mappings/{mappingId}", container.GitHubHandler.DeleteMapping)
+
+				r.Get("/users", container.GitHubHandler.ListGithubUsers)
+				r.Get("/repositories", container.GitHubHandler.ListRepositories)
+				r.Get("/repositories/{repoId}", container.GitHubHandler.GetRepository)
+				r.Get("/repositories/{repoId}/languages", container.GitHubHandler.GetRepositoryLanguages)
+				r.Get("/repositories/{repoId}/contributors", container.GitHubHandler.GetRepositoryContributors)
+
+				r.Get("/employees/{employeeUserId}/profile", container.GitHubHandler.GetEmployeeProfile)
+				r.Get("/employees/{employeeUserId}/languages", container.GitHubHandler.GetEmployeeLanguages)
+				r.Get("/employees/{employeeUserId}/stats", container.GitHubHandler.GetEmployeeStats)
+				r.Get("/employees/{employeeUserId}/activity", container.GitHubHandler.GetEmployeeActivity)
+
+				r.Get("/analytics/team", container.GitHubHandler.GetTeamAnalytics)
+				r.Get("/analytics/languages", container.GitHubHandler.GetLanguageAnalytics)
+				r.Get("/analytics/top-languages", container.GitHubHandler.GetTopLanguages)
+				r.Get("/analytics/repository-health", container.GitHubHandler.GetRepositoryHealth)
+				r.Get("/analytics/repository-ownership", container.GitHubHandler.GetRepositoryOwnership)
+			})
+		})
+
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.AuthRequired(container.JWT))
 
 			r.Route("/admin", func(r chi.Router) {
 				r.With(middleware.RBAC("users.read")).Get("/users", container.AdminHandler.ListUsers)
