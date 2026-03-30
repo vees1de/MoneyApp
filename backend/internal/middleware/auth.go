@@ -28,3 +28,30 @@ func AuthRequired(jwt *platformauth.JWTManager) func(http.Handler) http.Handler 
 		})
 	}
 }
+
+func RBAC(permissionCode string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			principal, ok := platformauth.PrincipalFromContext(r.Context())
+			if !ok {
+				httpx.WriteError(w, httpx.Unauthorized("unauthorized", "authorization required"))
+				return
+			}
+
+			if !principal.HasPermission(permissionCode) {
+				httpx.WriteError(w, httpx.Forbidden("forbidden", "permission denied"))
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+func DepartmentScope() func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			next.ServeHTTP(w, r)
+		})
+	}
+}

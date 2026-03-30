@@ -1,18 +1,43 @@
 # MoneyApp Backend
 
-Go backend for the Personal Life OS finance MVP.
+Go backend for the LMS/L&D modular monolith.
 
-## Stack
+## Runtime
 
 - Go 1.26
 - `net/http` + `chi`
 - PostgreSQL
-- `pgx` stdlib driver
-- `slog`
-- `validator`
-- JWT access tokens + refresh sessions in DB
+- JWT access tokens + DB-backed refresh sessions
+- DB-backed outbox + background jobs
+- `cmd/api` for HTTP
+- `cmd/worker` for jobs, notifications, integrations, exports
 
-## Run
+## Domain modules
+
+- `identity`
+- `org`
+- `admin`
+- `catalog`
+- `learning`
+- `testing`
+- `certificates`
+- `external_training`
+- `outlook`
+- `notifications`
+- `university`
+- `analytics`
+- `audit`
+
+## Database
+
+The old finance schema was removed. The backend now expects a fresh PostgreSQL database and applies the LMS baseline migrations from [migrations](/Users/vees1de/repos/MoneyApp/backend/migrations).
+
+Important rollout note:
+- this is a full product pivot
+- old finance data is not migrated
+- use a fresh database or drop the old volume before startup
+
+## Local run
 
 1. Start PostgreSQL:
 
@@ -20,109 +45,67 @@ Go backend for the Personal Life OS finance MVP.
 docker compose up -d postgres
 ```
 
-2. Apply SQL files from [migrations](/Users/vees1de/repos/MoneyApp/backend/migrations).
-
-3. Export local env vars:
+2. Apply migrations:
 
 ```bash
-export APP_ENV=development
-export HTTP_ADDR=:8080
-export FRONTEND_DIST_DIR='../frontend/dist'
-export POSTGRES_HOST='localhost'
-export POSTGRES_PORT='5432'
-export POSTGRES_DB='moneyapp'
-export POSTGRES_USER='postgres'
-export POSTGRES_PASSWORD='postgres'
-export AUTH_JWT_SECRET='local-dev-secret'
-export AUTH_JWT_ISSUER='moneyapp'
-export AUTH_ACCESS_TOKEN_TTL='15m'
-export AUTH_REFRESH_TOKEN_TTL='720h'
-export AUTH_ALLOW_INSECURE_DEV_AUTH='true'
-export TELEGRAM_BOT_TOKEN='set-bot-token-here'
-export YANDEX_CLIENT_ID='your-yandex-client-id'
-export YANDEX_CLIENT_SECRET='your-yandex-client-secret'
-export YANDEX_REDIRECT_URI='https://bims.su/auth/yandex/callback'
+docker compose run --rm migrate
 ```
 
-4. Start the API:
+3. Start the API:
 
 ```bash
 go run ./cmd/api
 ```
 
-Optional frontend integration:
+4. Start the worker in another shell:
 
 ```bash
-cd ../frontend
-npm install
-export VITE_TELEGRAM_BOT_USERNAME='your_bot_username'
-export VITE_YANDEX_CLIENT_ID='your-yandex-client-id'
-export VITE_YANDEX_REDIRECT_URI='https://bims.su/auth/yandex/callback'
-npm run build
-cd ../backend
-export FRONTEND_DIST_DIR='../frontend/dist'
-go run ./cmd/api
+go run ./cmd/worker
 ```
 
-With `FRONTEND_DIST_DIR` set, the backend serves the built SPA and falls back to `index.html` for non-API routes.
+Or start the whole stack:
 
-Server health checks:
+```bash
+docker compose up --build -d
+```
 
+## API
+
+Main API base path:
+- `/api/v1`
+
+Key groups:
+- `/auth`
+- `/admin/users`
+- `/courses`
+- `/assignments`
+- `/enrollments`
+- `/tests`
+- `/certificates`
+- `/external-requests`
+- `/approval-workflows`
+- `/budget-limits`
+- `/integrations/outlook`
+- `/notifications`
+- `/programs`
+- `/analytics`
+- `/audit-logs`
+
+Health:
 - `GET /healthz`
 - `GET /readyz`
 
-`/readyz` checks PostgreSQL.
-
-Main API base path:
-
-- `/api/v1`
-
-Swagger:
-
+Docs:
 - `GET /swagger`
 - `GET /swagger.json`
-- raw spec: `GET /openapi.yaml`
+- `GET /openapi.yaml`
 
-Swagger generation:
+Frontend integration docs:
+- [FRONTEND_API_GUIDE.md](/Users/vees1de/repos/MoneyApp/backend/FRONTEND_API_GUIDE.md)
+- Source of truth for generated clients: `GET /openapi.yaml`
 
-```bash
-go generate ./internal/docs
-```
+## Notes
 
-Or for the whole backend:
-
-```bash
-go generate ./...
-```
-
-## Quick API test
-
-1. Configure `TELEGRAM_BOT_TOKEN` on the backend and `VITE_TELEGRAM_BOT_USERNAME` on the frontend using your bot from `@BotFather`.
-2. Configure `YANDEX_CLIENT_ID`, `YANDEX_CLIENT_SECRET`, and `YANDEX_REDIRECT_URI=https://bims.su/auth/yandex/callback` on the backend, and set `VITE_YANDEX_CLIENT_ID` plus `VITE_YANDEX_REDIRECT_URI=https://bims.su/auth/yandex/callback` on the frontend.
-3. Run `/setdomain` in `@BotFather` for your site domain, and register the exact redirect URI in Yandex OAuth settings.
-4. Open the login page in the browser and complete provider login.
-5. Copy `tokens.access_token` from the browser session or the auth response.
-6. Click `Authorize` in Swagger UI and paste:
-
-```text
-Bearer <access_token>
-```
-
-7. Test protected endpoints like:
-
-- `GET /api/v1/accounts`
-- `POST /api/v1/finance/transactions`
-- `GET /api/v1/dashboard/finance`
-
-## Structure
-
-- `internal/core` contains auth, users, sessions, audit, links, and health.
-- `internal/modules/finance` contains accounts, categories, transactions, and summary.
-- `internal/modules/review`, `internal/modules/savings`, and `internal/modules/dashboard` contain product workflows.
-- `internal/platform` contains infrastructure helpers.
-- `internal/app` is the composition root.
-
-## Infra usage
-
-- The backend only depends on PostgreSQL.
-- The frontend build can be embedded into the backend container or served from `FRONTEND_DIST_DIR`.
+- Numeric values are returned as strings.
+- Timestamps are RFC3339.
+- The current frontend in this repository still targets the legacy finance product and is not API-compatible with this backend rewrite.

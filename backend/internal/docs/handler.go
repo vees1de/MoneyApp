@@ -17,7 +17,7 @@ var swaggerTemplate = template.Must(template.New("swagger").Parse(`<!doctype htm
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>MoneyApp API Docs</title>
+    <title>MoneyApp Learning Platform API Docs</title>
     <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
     <style>
       html, body {
@@ -34,7 +34,7 @@ var swaggerTemplate = template.Must(template.New("swagger").Parse(`<!doctype htm
     <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
     <script>
       window.ui = SwaggerUIBundle({
-        spec: {{ .SpecJSON }},
+        url: "/openapi.yaml",
         dom_id: "#swagger-ui",
         deepLinking: true,
         displayRequestDuration: true,
@@ -62,8 +62,6 @@ func SwaggerJSON(w http.ResponseWriter, _ *http.Request) {
 func SwaggerUI(_ string) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_ = swaggerTemplate.Execute(w, map[string]any{
-			"SpecJSON": template.JS(swaggerJSON),
-		})
+		_ = swaggerTemplate.Execute(w, nil)
 	}
 }

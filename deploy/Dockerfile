@@ -33,6 +33,7 @@ RUN go mod download
 
 COPY backend/ ./
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /bin/server ./cmd/api
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /bin/worker ./cmd/worker
 
 
 FROM alpine:3.20
@@ -42,6 +43,7 @@ RUN apk add --no-cache ca-certificates tzdata wget
 WORKDIR /app
 
 COPY --from=backend-builder /bin/server ./server
+COPY --from=backend-builder /bin/worker ./worker
 COPY --from=backend-builder /app/backend/migrations ./migrations
 COPY --from=frontend-dist / ./frontend-dist
 

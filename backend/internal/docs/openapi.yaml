@@ -1,31 +1,35 @@
 openapi: 3.1.0
 info:
-  title: MoneyApp Finance Core API
-  version: 1.0.0
-  summary: Personal Life OS finance MVP backend
+  title: MoneyApp Learning Platform API
+  version: 2.1.0
+  summary: Frontend-oriented contract for the LMS/L&D backend
   description: |
-    HTTP API for the MoneyApp finance core.
+    HTTP API for the MoneyApp Learning Platform backend.
 
-    Notes for local testing:
-    - All money values are strings, not numbers, to preserve decimal precision.
-    - Telegram auth expects a signed payload from the Telegram Login Widget and verifies it using `TELEGRAM_BOT_TOKEN`.
-    - In development, when `AUTH_ALLOW_INSECURE_DEV_AUTH=true`, Telegram and Yandex auth endpoints can work in pass-through mode.
-    - Protected endpoints use Bearer auth with the access token returned by login.
+    This spec is written for frontend integration:
+    - all timestamps are RFC3339 strings
+    - all numeric values coming from PostgreSQL are serialized as strings
+    - protected routes require `Authorization: Bearer <access_token>`
+    - role- and permission-based UI should use `/api/v1/auth/me`
 servers:
   - url: http://localhost:8080
-    description: Local development server
+    description: Local development
 tags:
   - name: Health
   - name: Auth
-  - name: Users
-  - name: Accounts
-  - name: Categories
-  - name: Transactions
-  - name: Transfers
-  - name: Savings
-  - name: Weekly Review
-  - name: Dashboard
-  - name: Links
+  - name: Admin
+  - name: Catalog
+  - name: Learning
+  - name: Testing
+  - name: Certificates
+  - name: External Training
+  - name: Workflows
+  - name: Budget
+  - name: Integrations
+  - name: Notifications
+  - name: University
+  - name: Analytics
+  - name: Audit
 security:
   - bearerAuth: []
 paths:
@@ -36,11 +40,11 @@ paths:
       security: []
       responses:
         '200':
-          description: Application is alive
+          description: Service is alive
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HealthResponse'
+                $ref: '#/components/schemas/StatusResponse'
   /readyz:
     get:
       tags: [Health]
@@ -48,82 +52,63 @@ paths:
       security: []
       responses:
         '200':
-          description: Application is ready
+          description: Dependencies are ready
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HealthResponse'
+                $ref: '#/components/schemas/ReadyResponse'
+        '503':
+          description: Dependency is degraded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadyResponse'
 
-  /api/v1/auth/telegram:
+  /api/v1/auth/register:
     post:
       tags: [Auth]
-      summary: Login with Telegram
-      description: |
-        Accepts a signed payload from the Telegram Login Widget and returns JWT + refresh tokens.
-      operationId: authTelegram
+      summary: Self-register a new employee
+      description: Creates the user, a default employee profile, assigns the `employee` role, and returns tokens.
       security: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/TelegramLoginRequest'
-            examples:
-              widget:
-                value:
-                  provider_user_id: '987654321'
-                  username: veeside
-                  first_name: Vee
-                  last_name: Side
-                  photo_url: https://example.com/avatar.png
-                  auth_date: 1711111111
-                  hash: 0d3d830abf3f6a7f0f1f72dd9a1b88e7e0b1b6d9bc52f3d441fa4f0e7fa7c2ce
+              $ref: '#/components/schemas/RegisterRequest'
       responses:
-        '200':
-          description: Authenticated successfully
+        '201':
+          description: Registered and authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-
-  /api/v1/auth/yandex:
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/v1/auth/login:
     post:
       tags: [Auth]
-      summary: Login with Yandex
-      description: |
-        In development mode, this endpoint accepts provider identity fields directly.
-      operationId: authYandex
+      summary: Login with email and password
       security: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/YandexLoginRequest'
-            examples:
-              localDev:
-                value:
-                  provider_user_id: yandex_10001
-                  email: dev@example.com
-                  display_name: Dev User
-                  avatar_url: https://example.com/avatar.png
+              $ref: '#/components/schemas/LoginRequest'
       responses:
         '200':
-          description: Authenticated successfully
+          description: Authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /api/v1/auth/refresh:
     post:
       tags: [Auth]
-      summary: Refresh access token pair
-      operationId: authRefresh
+      summary: Refresh access and refresh tokens
       security: []
       requestBody:
         required: true
@@ -133,40 +118,64 @@ paths:
               $ref: '#/components/schemas/RefreshRequest'
       responses:
         '200':
-          description: Refreshed successfully
+          description: Token pair rotated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
-
   /api/v1/auth/logout:
     post:
       tags: [Auth]
-      summary: Revoke refresh token session
-      operationId: authLogout
+      summary: Revoke refresh session
       security: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/LogoutRequest'
+              $ref: '#/components/schemas/RefreshRequest'
       responses:
         '204':
           description: Logged out
+  /api/v1/auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Start password reset flow
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+      responses:
+        '204':
+          description: Reset request accepted
+  /api/v1/auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: Finish password reset flow
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '204':
+          description: Password updated
         '400':
           $ref: '#/components/responses/BadRequest'
-
   /api/v1/auth/me:
     get:
       tags: [Auth]
-      summary: Current authenticated user
-      operationId: authMe
+      summary: Get current user, roles, permissions, and employee profile
       responses:
         '200':
-          description: Current user
+          description: Authenticated principal snapshot
           content:
             application/json:
               schema:
@@ -174,746 +183,1034 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /api/v1/users/me:
+  /api/v1/admin/users:
     get:
-      tags: [Users]
-      summary: Current user profile
-      operationId: usersMe
+      tags: [Admin]
+      summary: List all users
+      description: Frontend admin panel entry point for user management.
       responses:
         '200':
-          description: Current user profile
+          description: Users
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MeResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /api/v1/users/preferences:
-    patch:
-      tags: [Users]
-      summary: Update user preferences
-      operationId: updateUserPreferences
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdatePreferencesRequest'
-            examples:
-              default:
-                value:
-                  timezone: Asia/Yakutsk
-                  base_currency: RUB
-                  onboarding_completed: true
-                  weekly_review_weekday: 1
-                  weekly_review_hour: 19
-      responses:
-        '200':
-          description: Updated user profile
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MeResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /api/v1/accounts:
-    get:
-      tags: [Accounts]
-      summary: List accounts
-      operationId: listAccounts
-      responses:
-        '200':
-          description: Accounts list
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AccountsListResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-    post:
-      tags: [Accounts]
-      summary: Create account
-      operationId: createAccount
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateAccountRequest'
-            examples:
-              cash:
-                value:
-                  name: Main Card
-                  kind: bank_card
-                  currency: RUB
-                  opening_balance: '42300.00'
-      responses:
-        '201':
-          description: Created account
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Account'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /api/v1/accounts/{id}:
-    get:
-      tags: [Accounts]
-      summary: Get account by ID
-      operationId: getAccount
-      parameters:
-        - $ref: '#/components/parameters/EntityID'
-      responses:
-        '200':
-          description: Account details
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Account'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-    patch:
-      tags: [Accounts]
-      summary: Update account
-      operationId: updateAccount
-      parameters:
-        - $ref: '#/components/parameters/EntityID'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateAccountRequest'
-      responses:
-        '200':
-          description: Updated account
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Account'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-  /api/v1/finance/categories:
-    get:
-      tags: [Categories]
-      summary: List system and user categories
-      operationId: listCategories
-      responses:
-        '200':
-          description: Category list
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CategoriesListResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-    post:
-      tags: [Categories]
-      summary: Create custom category
-      operationId: createCategory
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateCategoryRequest'
-            examples:
-              expense:
-                value:
-                  kind: expense
-                  name: Pets
-                  color: '#FFB703'
-                  icon: paw-print
-      responses:
-        '201':
-          description: Created category
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Category'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /api/v1/finance/categories/{id}:
-    patch:
-      tags: [Categories]
-      summary: Update category
-      operationId: updateCategory
-      parameters:
-        - $ref: '#/components/parameters/EntityID'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateCategoryRequest'
-      responses:
-        '200':
-          description: Updated category
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Category'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+                $ref: '#/components/schemas/UserListResponse'
         '403':
           $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-    delete:
-      tags: [Categories]
-      summary: Archive category
-      operationId: deleteCategory
+    post:
+      tags: [Admin]
+      summary: Create user from admin panel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: Created user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserView'
+  /api/v1/admin/users/{id}:
+    get:
+      tags: [Admin]
+      summary: Get one user
       parameters:
         - $ref: '#/components/parameters/EntityID'
+      responses:
+        '200':
+          description: User details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserView'
+    patch:
+      tags: [Admin]
+      summary: Update user profile and status
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserView'
+  /api/v1/admin/users/{id}/roles:
+    post:
+      tags: [Admin]
+      summary: Assign role to user
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignRoleRequest'
       responses:
         '204':
-          description: Category archived
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-  /api/v1/finance/transactions:
-    get:
-      tags: [Transactions]
-      summary: List transactions
-      operationId: listTransactions
-      parameters:
-        - name: account
-          in: query
-          schema:
-            type: string
-            format: uuid
-        - name: category
-          in: query
-          schema:
-            type: string
-            format: uuid
-        - name: type
-          in: query
-          schema:
-            $ref: '#/components/schemas/TransactionType'
-        - name: posting_state
-          in: query
-          schema:
-            $ref: '#/components/schemas/TransactionPostingState'
-        - name: source
-          in: query
-          schema:
-            $ref: '#/components/schemas/TransactionSource'
-        - name: linked_entity_type
-          in: query
-          schema:
-            type: string
-        - name: linked_entity_id
-          in: query
-          schema:
-            type: string
-            format: uuid
-        - name: date_from
-          in: query
-          schema:
-            type: string
-            format: date-time
-        - name: date_to
-          in: query
-          schema:
-            type: string
-            format: date-time
-        - name: include_deleted
-          in: query
-          schema:
-            type: boolean
-        - $ref: '#/components/parameters/Limit'
-        - $ref: '#/components/parameters/Offset'
-      responses:
-        '200':
-          description: Transaction list
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TransactionsListResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-    post:
-      tags: [Transactions]
-      summary: Create transaction
-      operationId: createTransaction
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateTransactionRequest'
-            examples:
-              expense:
-                value:
-                  account_id: 11111111-1111-1111-1111-111111111111
-                  type: expense
-                  category_id: 0c3518d6-9e34-4ab2-8e5c-4558b2fbf101
-                  amount: '1450.00'
-                  currency: RUB
-                  title: Groceries
-                  note: Weekly supermarket run
-                  occurred_at: '2026-03-22T09:00:00Z'
-              transfer:
-                value:
-                  account_id: 11111111-1111-1111-1111-111111111111
-                  transfer_account_id: 22222222-2222-2222-2222-222222222222
-                  type: transfer
-                  amount: '5000.00'
-                  currency: RUB
-                  occurred_at: '2026-03-22T10:00:00Z'
-      responses:
-        '201':
-          description: Created transaction
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Transaction'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /api/v1/finance/transactions/{id}:
-    get:
-      tags: [Transactions]
-      summary: Get transaction by ID
-      operationId: getTransaction
-      parameters:
-        - $ref: '#/components/parameters/EntityID'
-      responses:
-        '200':
-          description: Transaction details
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Transaction'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-    patch:
-      tags: [Transactions]
-      summary: Update transaction
-      operationId: updateTransaction
-      parameters:
-        - $ref: '#/components/parameters/EntityID'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateTransactionRequest'
-      responses:
-        '200':
-          description: Updated transaction
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Transaction'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
+          description: Role assigned
+  /api/v1/admin/users/{id}/roles/{roleId}:
     delete:
-      tags: [Transactions]
-      summary: Soft delete transaction
-      operationId: deleteTransaction
+      tags: [Admin]
+      summary: Remove role from user
       parameters:
         - $ref: '#/components/parameters/EntityID'
-        - name: reason
-          in: query
-          schema:
-            type: string
-      responses:
-        '204':
-          description: Deleted transaction
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /api/v1/finance/transactions/{id}/restore:
-    post:
-      tags: [Transactions]
-      summary: Restore soft deleted transaction
-      operationId: restoreTransaction
-      parameters:
-        - $ref: '#/components/parameters/EntityID'
-      responses:
-        '200':
-          description: Restored transaction
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Transaction'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-
-  /api/v1/finance/transfers:
-    post:
-      tags: [Transfers]
-      summary: Create account transfer
-      operationId: createTransfer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateTransferRequest'
-      responses:
-        '201':
-          description: Created transfer
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Transaction'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /api/v1/finance/transfers/{id}:
-    patch:
-      tags: [Transfers]
-      summary: Update transfer
-      operationId: updateTransfer
-      parameters:
-        - $ref: '#/components/parameters/EntityID'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateTransferRequest'
-      responses:
-        '200':
-          description: Updated transfer
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Transaction'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-    delete:
-      tags: [Transfers]
-      summary: Soft delete transfer
-      operationId: deleteTransfer
-      parameters:
-        - $ref: '#/components/parameters/EntityID'
-        - name: reason
-          in: query
-          schema:
-            type: string
-      responses:
-        '204':
-          description: Deleted transfer
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-  /api/v1/finance/transfers/{id}/restore:
-    post:
-      tags: [Transfers]
-      summary: Restore soft deleted transfer
-      operationId: restoreTransfer
-      parameters:
-        - $ref: '#/components/parameters/EntityID'
-      responses:
-        '200':
-          description: Restored transfer
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Transaction'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-
-  /api/v1/savings/goals:
-    get:
-      tags: [Savings]
-      summary: List savings goals
-      operationId: listSavingsGoals
-      responses:
-        '200':
-          description: Savings goals
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SavingsGoalsListResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-    post:
-      tags: [Savings]
-      summary: Create savings goal
-      operationId: createSavingsGoal
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateGoalRequest'
-            examples:
-              goal:
-                value:
-                  title: Emergency Fund
-                  target_amount: '150000.00'
-                  current_amount: '38000.00'
-                  currency: RUB
-                  target_date: '2026-12-31T00:00:00Z'
-                  priority: high
-      responses:
-        '201':
-          description: Created savings goal
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SavingsGoal'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /api/v1/savings/goals/{id}:
-    patch:
-      tags: [Savings]
-      summary: Update savings goal
-      operationId: updateSavingsGoal
-      parameters:
-        - $ref: '#/components/parameters/EntityID'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateGoalRequest'
-      responses:
-        '200':
-          description: Updated savings goal
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SavingsGoal'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-  /api/v1/savings/summary:
-    get:
-      tags: [Savings]
-      summary: Savings summary and safe-to-spend
-      operationId: getSavingsSummary
-      responses:
-        '200':
-          description: Savings summary
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SavingsSummary'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /api/v1/reviews/weekly/current:
-    get:
-      tags: [Weekly Review]
-      summary: Get or prepare current weekly review
-      operationId: getCurrentWeeklyReview
-      responses:
-        '200':
-          description: Current weekly review
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/WeeklyReview'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /api/v1/reviews/weekly/{id}/submit-balance:
-    post:
-      tags: [Weekly Review]
-      summary: Submit actual balance for weekly review
-      operationId: submitWeeklyReviewBalance
-      parameters:
-        - $ref: '#/components/parameters/EntityID'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SubmitBalanceRequest'
-            examples:
-              discrepancy:
-                value:
-                  actual_balance: '42300.00'
-      responses:
-        '200':
-          description: Updated weekly review
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/WeeklyReview'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-  /api/v1/reviews/weekly/{id}/resolve:
-    post:
-      tags: [Weekly Review]
-      summary: Mark weekly review as resolved
-      operationId: resolveWeeklyReview
-      parameters:
-        - $ref: '#/components/parameters/EntityID'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ResolveRequest'
-            examples:
-              manual:
-                value:
-                  resolution_note: Manual verification completed after checking latest transactions
-      responses:
-        '200':
-          description: Resolved weekly review
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/WeeklyReview'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-  /api/v1/reviews/weekly/{id}/skip:
-    post:
-      tags: [Weekly Review]
-      summary: Skip weekly review
-      operationId: skipWeeklyReview
-      parameters:
-        - $ref: '#/components/parameters/EntityID'
-      responses:
-        '200':
-          description: Skipped weekly review
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/WeeklyReview'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-  /api/v1/dashboard/finance:
-    get:
-      tags: [Dashboard]
-      summary: Finance dashboard aggregate
-      operationId: getFinanceDashboard
-      responses:
-        '200':
-          description: Finance dashboard snapshot
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/FinanceDashboard'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /api/v1/links:
-    post:
-      tags: [Links]
-      summary: Create typed entity link
-      operationId: createLink
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateLinkRequest'
-            examples:
-              transactionNote:
-                value:
-                  source_type: transaction
-                  source_id: 33333333-3333-3333-3333-333333333333
-                  target_type: note
-                  target_id: 44444444-4444-4444-4444-444444444444
-                  relation: relates_to
-                  meta:
-                    label: Why I bought this
-      responses:
-        '201':
-          description: Link created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/EntityLink'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /api/v1/links/by-entity:
-    get:
-      tags: [Links]
-      summary: List links for entity
-      operationId: listLinksByEntity
-      parameters:
-        - name: entity_type
-          in: query
-          required: true
-          schema:
-            type: string
-          description: Entity type, for example `transaction`, `note`, `income`, `expense`
-        - name: entity_id
-          in: query
+        - in: path
+          name: roleId
           required: true
           schema:
             type: string
             format: uuid
       responses:
+        '204':
+          description: Role removed
+  /api/v1/admin/roles:
+    get:
+      tags: [Admin]
+      summary: List roles
+      responses:
         '200':
-          description: Links for entity
+          description: Role list
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LinksListResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+                $ref: '#/components/schemas/RoleListResponse'
+  /api/v1/admin/permissions:
+    get:
+      tags: [Admin]
+      summary: List permissions
+      responses:
+        '200':
+          description: Permission list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PermissionListResponse'
+
+  /api/v1/courses:
+    get:
+      tags: [Catalog]
+      summary: List courses
+      responses:
+        '200':
+          description: Courses
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseListResponse'
+    post:
+      tags: [Catalog]
+      summary: Create draft course
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCourseRequest'
+      responses:
+        '201':
+          description: Draft course created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+  /api/v1/courses/{id}:
+    get:
+      tags: [Catalog]
+      summary: Get course
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      responses:
+        '200':
+          description: Course
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+    patch:
+      tags: [Catalog]
+      summary: Update course
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCourseRequest'
+      responses:
+        '200':
+          description: Updated course
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+  /api/v1/courses/{id}/publish:
+    post:
+      tags: [Catalog]
+      summary: Publish course
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      responses:
+        '200':
+          description: Published course
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+  /api/v1/courses/{id}/archive:
+    post:
+      tags: [Catalog]
+      summary: Archive course
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      responses:
+        '200':
+          description: Archived course
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+  /api/v1/courses/{id}/materials:
+    get:
+      tags: [Catalog]
+      summary: List course materials
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      responses:
+        '200':
+          description: Material list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseMaterialListResponse'
+    post:
+      tags: [Catalog]
+      summary: Create course material
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCourseMaterialRequest'
+      responses:
+        '201':
+          description: Material created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseMaterial'
+
+  /api/v1/assignments:
+    get:
+      tags: [Learning]
+      summary: List assignments
+      responses:
+        '200':
+          description: Assignments
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssignmentListResponse'
+    post:
+      tags: [Learning]
+      summary: Create assignment and generate enrollments
+      description: Use this when HR or manager assigns training to a user, department, or group.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAssignmentRequest'
+      responses:
+        '201':
+          description: Assignment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Assignment'
+  /api/v1/enrollments/my:
+    get:
+      tags: [Learning]
+      summary: List current user enrollments
+      responses:
+        '200':
+          description: Enrollments
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrollmentListResponse'
+  /api/v1/enrollments/{id}:
+    get:
+      tags: [Learning]
+      summary: Get enrollment
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      responses:
+        '200':
+          description: Enrollment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Enrollment'
+  /api/v1/enrollments/{id}/start:
+    post:
+      tags: [Learning]
+      summary: Mark enrollment as started
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      responses:
+        '200':
+          description: Enrollment updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Enrollment'
+  /api/v1/enrollments/{id}/progress:
+    post:
+      tags: [Learning]
+      summary: Update module progress
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateEnrollmentProgressRequest'
+      responses:
+        '200':
+          description: Enrollment updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Enrollment'
+  /api/v1/enrollments/{id}/complete:
+    post:
+      tags: [Learning]
+      summary: Complete enrollment
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompleteEnrollmentRequest'
+      responses:
+        '200':
+          description: Enrollment completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Enrollment'
+
+  /api/v1/tests:
+    post:
+      tags: [Testing]
+      summary: Create test
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTestRequest'
+      responses:
+        '201':
+          description: Test created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Test'
+  /api/v1/tests/{id}:
+    get:
+      tags: [Testing]
+      summary: Get test with questions and options
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      responses:
+        '200':
+          description: Test
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Test'
+  /api/v1/tests/{id}/attempts:
+    post:
+      tags: [Testing]
+      summary: Start attempt
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartAttemptRequest'
+      responses:
+        '201':
+          description: Attempt started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestAttempt'
+  /api/v1/test-attempts/{id}/answers:
+    post:
+      tags: [Testing]
+      summary: Save answers for an attempt
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveAnswersRequest'
+      responses:
+        '204':
+          description: Answers saved
+  /api/v1/test-attempts/{id}/submit:
+    post:
+      tags: [Testing]
+      summary: Submit attempt and calculate result
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      responses:
+        '200':
+          description: Attempt checked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestAttempt'
+  /api/v1/tests/{id}/results:
+    get:
+      tags: [Testing]
+      summary: List aggregated test results
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      responses:
+        '200':
+          description: Result list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestResultListResponse'
+
+  /api/v1/certificates/upload:
+    post:
+      tags: [Certificates]
+      summary: Upload certificate metadata
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadCertificateRequest'
+      responses:
+        '201':
+          description: Certificate created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Certificate'
+  /api/v1/certificates/my:
+    get:
+      tags: [Certificates]
+      summary: List current user certificates
+      responses:
+        '200':
+          description: Certificate list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CertificateListResponse'
+  /api/v1/certificates/{id}/verify:
+    post:
+      tags: [Certificates]
+      summary: Verify certificate
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommentRequest'
+      responses:
+        '200':
+          description: Certificate verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Certificate'
+  /api/v1/certificates/{id}/reject:
+    post:
+      tags: [Certificates]
+      summary: Reject certificate
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommentRequest'
+      responses:
+        '200':
+          description: Certificate rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Certificate'
+
+  /api/v1/external-requests:
+    post:
+      tags: [External Training]
+      summary: Create external training request draft
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateExternalRequestRequest'
+      responses:
+        '201':
+          description: Draft created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExternalRequest'
+  /api/v1/external-requests/my:
+    get:
+      tags: [External Training]
+      summary: List current user external requests
+      responses:
+        '200':
+          description: External request list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExternalRequestListResponse'
+  /api/v1/external-requests/{id}:
+    get:
+      tags: [External Training]
+      summary: Get external request
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      responses:
+        '200':
+          description: External request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExternalRequest'
+    patch:
+      tags: [External Training]
+      summary: Update external request draft or revision
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateExternalRequestRequest'
+      responses:
+        '200':
+          description: Updated external request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExternalRequest'
+  /api/v1/external-requests/{id}/submit:
+    post:
+      tags: [External Training]
+      summary: Submit request into approval flow
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      responses:
+        '200':
+          description: Submitted request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExternalRequest'
+  /api/v1/external-requests/{id}/approve:
+    post:
+      tags: [External Training]
+      summary: Approve current approval step
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommentRequest'
+      responses:
+        '200':
+          description: Request status updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExternalRequest'
+  /api/v1/external-requests/{id}/reject:
+    post:
+      tags: [External Training]
+      summary: Reject current approval step
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommentRequest'
+      responses:
+        '200':
+          description: Request rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExternalRequest'
+  /api/v1/external-requests/{id}/request-revision:
+    post:
+      tags: [External Training]
+      summary: Return request to author for revision
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommentRequest'
+      responses:
+        '200':
+          description: Request sent to revision
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExternalRequest'
+  /api/v1/external-requests/{id}/upload-certificate:
+    post:
+      tags: [External Training]
+      summary: Upload certificate file metadata after external training
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadRequestCertificateRequest'
+      responses:
+        '200':
+          description: Request updated to `certificate_uploaded`
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExternalRequest'
+
+  /api/v1/approval-workflows:
+    get:
+      tags: [Workflows]
+      summary: List approval workflows
+      responses:
+        '200':
+          description: Workflow list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalWorkflowListResponse'
+    post:
+      tags: [Workflows]
+      summary: Create approval workflow
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateApprovalWorkflowRequest'
+      responses:
+        '201':
+          description: Workflow created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalWorkflow'
+
+  /api/v1/budget-limits:
+    get:
+      tags: [Budget]
+      summary: List budget limits
+      responses:
+        '200':
+          description: Budget limit list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetLimitListResponse'
+    post:
+      tags: [Budget]
+      summary: Create budget limit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBudgetLimitRequest'
+      responses:
+        '201':
+          description: Budget limit created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetLimit'
+
+  /api/v1/integrations/outlook/connect:
+    get:
+      tags: [Integrations]
+      summary: Get pseudo-OAuth connect link for Outlook
+      responses:
+        '200':
+          description: Connect payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OutlookConnectResponse'
+  /api/v1/integrations/outlook/callback:
+    get:
+      tags: [Integrations]
+      summary: Simulated callback endpoint for Outlook account linking
+      security: []
+      parameters:
+        - in: query
+          name: state
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: email
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: account_id
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: code
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Outlook account linked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OutlookStatusAccount'
+  /api/v1/integrations/outlook/disconnect:
+    post:
+      tags: [Integrations]
+      summary: Disconnect Outlook integration
+      responses:
+        '204':
+          description: Integration disconnected
+  /api/v1/integrations/outlook/status:
+    get:
+      tags: [Integrations]
+      summary: Get Outlook integration status
+      responses:
+        '200':
+          description: Integration status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OutlookStatusResponse'
+  /api/v1/integrations/outlook/sync:
+    post:
+      tags: [Integrations]
+      summary: Queue manual Outlook sync
+      responses:
+        '204':
+          description: Sync queued
+
+  /api/v1/notifications:
+    get:
+      tags: [Notifications]
+      summary: List current user notifications
+      responses:
+        '200':
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationListResponse'
+  /api/v1/notifications/{id}/read:
+    post:
+      tags: [Notifications]
+      summary: Mark one notification as read
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      responses:
+        '204':
+          description: Notification marked as read
+  /api/v1/notifications/read-all:
+    post:
+      tags: [Notifications]
+      summary: Mark all current user notifications as read
+      responses:
+        '204':
+          description: Notifications marked as read
+
+  /api/v1/programs:
+    get:
+      tags: [University]
+      summary: List internal programs
+      responses:
+        '200':
+          description: Program list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProgramListResponse'
+    post:
+      tags: [University]
+      summary: Create internal program
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProgramRequest'
+      responses:
+        '201':
+          description: Program created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Program'
+  /api/v1/programs/{id}:
+    get:
+      tags: [University]
+      summary: Get program
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      responses:
+        '200':
+          description: Program
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Program'
+  /api/v1/programs/{id}/groups:
+    post:
+      tags: [University]
+      summary: Create training group inside program
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTrainingGroupRequest'
+      responses:
+        '201':
+          description: Group created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrainingGroup'
+  /api/v1/groups/{id}/participants:
+    post:
+      tags: [University]
+      summary: Add participant to group
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddParticipantRequest'
+      responses:
+        '204':
+          description: Participant added
+  /api/v1/groups/{id}/sessions:
+    post:
+      tags: [University]
+      summary: Create session in group
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUniversitySessionRequest'
+      responses:
+        '201':
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UniversitySession'
+  /api/v1/sessions/{id}/trainer-feedback:
+    post:
+      tags: [University]
+      summary: Save trainer feedback
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrainerFeedbackRequest'
+      responses:
+        '204':
+          description: Feedback saved
+  /api/v1/sessions/{id}/participant-feedback:
+    post:
+      tags: [University]
+      summary: Save participant feedback
+      parameters:
+        - $ref: '#/components/parameters/EntityID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParticipantFeedbackRequest'
+      responses:
+        '204':
+          description: Feedback saved
+
+  /api/v1/analytics/dashboard/hr:
+    get:
+      tags: [Analytics]
+      summary: HR dashboard
+      responses:
+        '200':
+          description: HR summary cards
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericObject'
+  /api/v1/analytics/dashboard/manager:
+    get:
+      tags: [Analytics]
+      summary: Manager dashboard
+      responses:
+        '200':
+          description: Manager summary cards
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericObject'
+  /api/v1/analytics/compliance:
+    get:
+      tags: [Analytics]
+      summary: Mandatory training compliance
+      responses:
+        '200':
+          description: Compliance dataset
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemListGenericResponse'
+  /api/v1/analytics/external-requests:
+    get:
+      tags: [Analytics]
+      summary: External request funnel
+      responses:
+        '200':
+          description: Funnel data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemListGenericResponse'
+  /api/v1/analytics/budget:
+    get:
+      tags: [Analytics]
+      summary: Budget dashboard summary
+      responses:
+        '200':
+          description: Budget summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericObject'
+  /api/v1/analytics/trainers:
+    get:
+      tags: [Analytics]
+      summary: Trainer activity
+      responses:
+        '200':
+          description: Trainer metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemListGenericResponse'
+  /api/v1/reports/export/excel:
+    get:
+      tags: [Analytics]
+      summary: Queue Excel export
+      responses:
+        '202':
+          description: Export queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericObject'
+  /api/v1/reports/export/pdf:
+    get:
+      tags: [Analytics]
+      summary: Queue PDF export
+      responses:
+        '202':
+          description: Export queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericObject'
+
+  /api/v1/audit-logs:
+    get:
+      tags: [Audit]
+      summary: List audit logs
+      parameters:
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        '200':
+          description: Audit entries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditLogListResponse'
 
 components:
   securitySchemes:
@@ -921,181 +1218,89 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-
   parameters:
     EntityID:
-      name: id
       in: path
+      name: id
       required: true
       schema:
         type: string
         format: uuid
-    Limit:
-      name: limit
-      in: query
-      required: false
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 200
-        default: 50
-    Offset:
-      name: offset
-      in: query
-      required: false
-      schema:
-        type: integer
-        minimum: 0
-        default: 0
-
   responses:
     BadRequest:
-      description: Invalid request payload or query parameters
+      description: Invalid payload or state transition
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorEnvelope'
     Unauthorized:
-      description: Missing or invalid access token
+      description: Missing or invalid token
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorEnvelope'
     Forbidden:
-      description: Request is authenticated but not allowed
+      description: Missing permission
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorEnvelope'
     NotFound:
-      description: Resource not found
+      description: Entity not found
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorEnvelope'
-
+    Conflict:
+      description: Business conflict or invalid state
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
   schemas:
-    Money:
-      type: string
-      description: Decimal monetary value serialized as string
-      pattern: '^-?\d+(\.\d{2})?$'
-      examples: ['42300.00']
-
-    Meta:
+    ErrorEnvelope:
       type: object
-      additionalProperties: true
-
-    HealthResponse:
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              nullable: true
+          required: [code, message]
+      required: [error]
+    StatusResponse:
       type: object
-      required: [status]
       properties:
         status:
           type: string
-          example: ok
-
-    Error:
-      type: object
-      required: [code, message]
-      properties:
-        code:
-          type: string
-          example: validation_error
-        message:
-          type: string
-          example: account not found
-        details:
-          oneOf:
-            - type: object
-              additionalProperties: true
-            - type: array
-              items: {}
-            - type: string
-            - type: 'null'
-
-    ErrorEnvelope:
-      type: object
-      required: [error]
-      properties:
-        error:
-          $ref: '#/components/schemas/Error'
-
-    User:
-      type: object
-      required:
-        - id
-        - timezone
-        - base_currency
-        - onboarding_completed
-        - weekly_review_weekday
-        - weekly_review_hour
-        - created_at
-        - updated_at
-      properties:
-        id:
-          type: string
-          format: uuid
-        email:
-          type: string
-          format: email
-          nullable: true
-        display_name:
-          type: string
-          nullable: true
-        avatar_url:
-          type: string
-          format: uri
-          nullable: true
-        timezone:
-          type: string
-          example: Asia/Yakutsk
-        base_currency:
-          type: string
-          example: RUB
-        onboarding_completed:
-          type: boolean
-        weekly_review_weekday:
-          type: integer
-          minimum: 1
-          maximum: 7
-        weekly_review_hour:
-          type: integer
-          minimum: 0
-          maximum: 23
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-
-    MeResponse:
-      type: object
-      required: [user]
-      properties:
-        user:
-          $ref: '#/components/schemas/User'
-
-    UpdatePreferencesRequest:
+      required: [status]
+    ReadyResponse:
       type: object
       properties:
-        timezone:
+        status:
           type: string
-        base_currency:
-          type: string
-        onboarding_completed:
-          type: boolean
-        weekly_review_weekday:
-          type: integer
-          minimum: 1
-          maximum: 7
-        weekly_review_hour:
-          type: integer
-          minimum: 0
-          maximum: 23
-
+        dependencies:
+          type: object
+          additionalProperties:
+            type: string
+      required: [status, dependencies]
+    GenericObject:
+      type: object
+      additionalProperties: true
+    ItemListGenericResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/GenericObject'
+      required: [items]
     Tokens:
       type: object
-      required: [access_token, refresh_token, expires_in]
       properties:
         access_token:
           type: string
@@ -1103,27 +1308,1178 @@ components:
           type: string
         expires_in:
           type: integer
-          format: int64
-          example: 900
-
+      required: [access_token, refresh_token, expires_in]
+    EmployeeProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        employee_no:
+          type: string
+          nullable: true
+        first_name:
+          type: string
+        last_name:
+          type: string
+        middle_name:
+          type: string
+          nullable: true
+        position_title:
+          type: string
+          nullable: true
+        department_id:
+          type: string
+          format: uuid
+          nullable: true
+        employment_status:
+          type: string
+        timezone:
+          type: string
+          nullable: true
+        outlook_email:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - user_id
+        - first_name
+        - last_name
+        - employment_status
+        - created_at
+        - updated_at
+    UserView:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        status:
+          type: string
+        is_email_verified:
+          type: boolean
+        last_login_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        roles:
+          type: array
+          items:
+            type: string
+        permissions:
+          type: array
+          items:
+            type: string
+        employee_profile:
+          $ref: '#/components/schemas/EmployeeProfile'
+      required:
+        - id
+        - email
+        - status
+        - is_email_verified
+        - created_at
+        - updated_at
+        - roles
+        - permissions
     AuthResponse:
       type: object
-      required: [user, tokens]
       properties:
         user:
-          $ref: '#/components/schemas/User'
+          $ref: '#/components/schemas/UserView'
         tokens:
           $ref: '#/components/schemas/Tokens'
         meta:
-          $ref: '#/components/schemas/Meta'
-
-    TelegramLoginRequest:
+          type: object
+          additionalProperties: true
+      required: [user, tokens]
+    MeResponse:
       type: object
-      required: [provider_user_id]
       properties:
-        provider_user_id:
+        user:
+          $ref: '#/components/schemas/UserView'
+      required: [user]
+    UserListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserView'
+      required: [items]
+    Role:
+      type: object
+      properties:
+        id:
           type: string
-        username:
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        is_system:
+          type: boolean
+      required: [id, code, name, is_system]
+    RoleListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+      required: [items]
+    Permission:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        module:
+          type: string
+        action:
+          type: string
+        description:
+          type: string
+          nullable: true
+      required: [id, code, module, action]
+    PermissionListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Permission'
+      required: [items]
+    Course:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+        source_type:
+          type: string
+        title:
+          type: string
+        slug:
+          type: string
+          nullable: true
+        short_description:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        provider_id:
+          type: string
+          format: uuid
+          nullable: true
+        category_id:
+          type: string
+          format: uuid
+          nullable: true
+        direction_id:
+          type: string
+          format: uuid
+          nullable: true
+        level:
+          type: string
+          nullable: true
+        duration_hours:
+          type: string
+          nullable: true
+        language:
+          type: string
+          nullable: true
+        is_mandatory_default:
+          type: boolean
+        status:
+          type: string
+        thumbnail_file_id:
+          type: string
+          format: uuid
+          nullable: true
+        created_by:
+          type: string
+          format: uuid
+          nullable: true
+        updated_by:
+          type: string
+          format: uuid
+          nullable: true
+        published_at:
+          type: string
+          format: date-time
+          nullable: true
+        archived_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - type
+        - source_type
+        - title
+        - is_mandatory_default
+        - status
+        - created_at
+        - updated_at
+    CourseListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Course'
+      required: [items]
+    CourseMaterial:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        course_id:
+          type: string
+          format: uuid
+        type:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        file_id:
+          type: string
+          format: uuid
+          nullable: true
+        external_url:
+          type: string
+          nullable: true
+        sort_order:
+          type: integer
+        is_required:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+      required: [id, course_id, type, title, sort_order, is_required, created_at]
+    CourseMaterialListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CourseMaterial'
+      required: [items]
+    Assignment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        course_id:
+          type: string
+          format: uuid
+        assignment_type:
+          type: string
+        target_type:
+          type: string
+        target_id:
+          type: string
+          format: uuid
+        assigned_by:
+          type: string
+          format: uuid
+        priority:
+          type: string
+        reason:
+          type: string
+          nullable: true
+        start_at:
+          type: string
+          format: date-time
+          nullable: true
+        deadline_at:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required: [id, course_id, assignment_type, target_type, target_id, assigned_by, priority, status, created_at, updated_at]
+    AssignmentListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Assignment'
+      required: [items]
+    Enrollment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        course_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        assignment_id:
+          type: string
+          format: uuid
+          nullable: true
+        source:
+          type: string
+        status:
+          type: string
+        enrolled_at:
+          type: string
+          format: date-time
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        deadline_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_activity_at:
+          type: string
+          format: date-time
+          nullable: true
+        completion_percent:
+          type: string
+        is_mandatory:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - course_id
+        - user_id
+        - source
+        - status
+        - enrolled_at
+        - completion_percent
+        - is_mandatory
+        - created_at
+        - updated_at
+    EnrollmentListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Enrollment'
+      required: [items]
+    Test:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        course_id:
+          type: string
+          format: uuid
+          nullable: true
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        attempts_limit:
+          type: integer
+          nullable: true
+        passing_score:
+          type: string
+        shuffle_questions:
+          type: boolean
+        shuffle_answers:
+          type: boolean
+        status:
+          type: string
+        created_by:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        questions:
+          type: array
+          items:
+            $ref: '#/components/schemas/TestQuestion'
+      required:
+        - id
+        - title
+        - passing_score
+        - shuffle_questions
+        - shuffle_answers
+        - status
+        - created_by
+        - created_at
+        - updated_at
+    TestQuestion:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        test_id:
+          type: string
+          format: uuid
+        type:
+          type: string
+        text:
+          type: string
+        explanation:
+          type: string
+          nullable: true
+        sort_order:
+          type: integer
+        points:
+          type: string
+        is_required:
+          type: boolean
+        options:
+          type: array
+          items:
+            $ref: '#/components/schemas/TestAnswerOption'
+      required: [id, test_id, type, text, sort_order, points, is_required]
+    TestAnswerOption:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        question_id:
+          type: string
+          format: uuid
+        text:
+          type: string
+        is_correct:
+          type: boolean
+        sort_order:
+          type: integer
+      required: [id, question_id, text, is_correct, sort_order]
+    TestAttempt:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        test_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        enrollment_id:
+          type: string
+          format: uuid
+          nullable: true
+        attempt_no:
+          type: integer
+        status:
+          type: string
+        started_at:
+          type: string
+          format: date-time
+        submitted_at:
+          type: string
+          format: date-time
+          nullable: true
+        checked_at:
+          type: string
+          format: date-time
+          nullable: true
+        score:
+          type: string
+          nullable: true
+        passed:
+          type: boolean
+          nullable: true
+      required: [id, test_id, user_id, attempt_no, status, started_at]
+    TestResult:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        test_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        best_attempt_id:
+          type: string
+          format: uuid
+        best_score:
+          type: string
+        passed:
+          type: boolean
+        completed_at:
+          type: string
+          format: date-time
+      required: [id, test_id, user_id, best_attempt_id, best_score, passed, completed_at]
+    TestResultListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TestResult'
+      required: [items]
+    Certificate:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        course_id:
+          type: string
+          format: uuid
+          nullable: true
+        enrollment_id:
+          type: string
+          format: uuid
+          nullable: true
+        certificate_no:
+          type: string
+          nullable: true
+        issued_by:
+          type: string
+          nullable: true
+        issued_at:
+          type: string
+          format: date-time
+          nullable: true
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          type: string
+        file_id:
+          type: string
+          format: uuid
+        uploaded_at:
+          type: string
+          format: date-time
+        verified_at:
+          type: string
+          format: date-time
+          nullable: true
+        verified_by:
+          type: string
+          format: uuid
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+      required: [id, user_id, status, file_id, uploaded_at]
+    CertificateListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Certificate'
+      required: [items]
+    ExternalRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        request_no:
+          type: string
+        employee_user_id:
+          type: string
+          format: uuid
+        department_id:
+          type: string
+          format: uuid
+          nullable: true
+        title:
+          type: string
+        provider_id:
+          type: string
+          format: uuid
+          nullable: true
+        provider_name:
+          type: string
+          nullable: true
+        course_url:
+          type: string
+          nullable: true
+        program_description:
+          type: string
+          nullable: true
+        planned_start_date:
+          type: string
+          format: date-time
+          nullable: true
+        planned_end_date:
+          type: string
+          format: date-time
+          nullable: true
+        duration_hours:
+          type: string
+          nullable: true
+        cost_amount:
+          type: string
+        currency:
+          type: string
+        business_goal:
+          type: string
+          nullable: true
+        employee_comment:
+          type: string
+          nullable: true
+        manager_comment:
+          type: string
+          nullable: true
+        hr_comment:
+          type: string
+          nullable: true
+        status:
+          type: string
+        calendar_conflict_status:
+          type: string
+          nullable: true
+        budget_check_status:
+          type: string
+          nullable: true
+        current_approval_step_id:
+          type: string
+          format: uuid
+          nullable: true
+        approved_at:
+          type: string
+          format: date-time
+          nullable: true
+        rejected_at:
+          type: string
+          format: date-time
+          nullable: true
+        sent_to_revision_at:
+          type: string
+          format: date-time
+          nullable: true
+        training_started_at:
+          type: string
+          format: date-time
+          nullable: true
+        training_completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        certificate_uploaded_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - request_no
+        - employee_user_id
+        - title
+        - cost_amount
+        - currency
+        - status
+        - created_at
+        - updated_at
+    ExternalRequestListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExternalRequest'
+      required: [items]
+    ApprovalWorkflow:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        entity_type:
+          type: string
+        name:
+          type: string
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApprovalWorkflowStep'
+      required: [id, entity_type, name, is_active, created_at, updated_at]
+    ApprovalWorkflowStep:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        workflow_id:
+          type: string
+          format: uuid
+        step_order:
+          type: integer
+        role_code:
+          type: string
+        approver_source:
+          type: string
+        approver_user_id:
+          type: string
+          format: uuid
+          nullable: true
+        sla_hours:
+          type: integer
+          nullable: true
+        is_required:
+          type: boolean
+      required: [id, workflow_id, step_order, role_code, approver_source, is_required]
+    ApprovalWorkflowListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApprovalWorkflow'
+      required: [items]
+    BudgetLimit:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        scope_type:
+          type: string
+        scope_id:
+          type: string
+          format: uuid
+          nullable: true
+        period_year:
+          type: integer
+        period_month:
+          type: integer
+          nullable: true
+        limit_amount:
+          type: string
+        currency:
+          type: string
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required: [id, scope_type, period_year, limit_amount, currency, is_active, created_at, updated_at]
+    BudgetLimitListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/BudgetLimit'
+      required: [items]
+    OutlookConnectResponse:
+      type: object
+      properties:
+        auth_url:
+          type: string
+        state:
+          type: string
+      required: [auth_url, state]
+    OutlookStatusAccount:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        external_account_id:
+          type: string
+        email:
+          type: string
+        token_expires_at:
+          type: string
+          format: date-time
+        scope:
+          type: string
+          nullable: true
+        status:
+          type: string
+        last_sync_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required: [id, user_id, external_account_id, email, token_expires_at, status, created_at, updated_at]
+    OutlookStatusResponse:
+      type: object
+      properties:
+        connected:
+          type: boolean
+        account:
+          $ref: '#/components/schemas/OutlookStatusAccount'
+      required: [connected]
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        channel:
+          type: string
+        type:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+        status:
+          type: string
+        related_entity_type:
+          type: string
+          nullable: true
+        related_entity_id:
+          type: string
+          format: uuid
+          nullable: true
+        scheduled_at:
+          type: string
+          format: date-time
+          nullable: true
+        sent_at:
+          type: string
+          format: date-time
+          nullable: true
+        read_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+      required: [id, user_id, channel, type, title, body, status, created_at]
+    NotificationListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+      required: [items]
+    Program:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        direction_id:
+          type: string
+          format: uuid
+          nullable: true
+        status:
+          type: string
+        created_by:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required: [id, title, status, created_by, created_at, updated_at]
+    ProgramListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Program'
+      required: [items]
+    TrainingGroup:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        program_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        capacity:
+          type: integer
+          nullable: true
+        status:
+          type: string
+        enrollment_open_at:
+          type: string
+          format: date-time
+          nullable: true
+        enrollment_close_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required: [id, program_id, name, status, created_at, updated_at]
+    UniversitySession:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        group_id:
+          type: string
+          format: uuid
+        trainer_user_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        start_at:
+          type: string
+          format: date-time
+        end_at:
+          type: string
+          format: date-time
+        location:
+          type: string
+          nullable: true
+        meeting_url:
+          type: string
+          nullable: true
+        status:
+          type: string
+        calendar_event_id:
+          type: string
+          format: uuid
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required: [id, group_id, trainer_user_id, title, start_at, end_at, status, created_at, updated_at]
+    AuditLog:
+      type: object
+      properties:
+        id:
+          type: string
+        actor_user_id:
+          type: string
+          nullable: true
+        user_id:
+          type: string
+          nullable: true
+        entity_type:
+          type: string
+        entity_id:
+          type: string
+          nullable: true
+        action:
+          type: string
+        meta:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+      required: [id, entity_type, action, created_at]
+    AuditLogListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditLog'
+      required: [items]
+
+    RegisterRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        first_name:
+          type: string
+        last_name:
+          type: string
+        middle_name:
+          type: string
+          nullable: true
+        position_title:
+          type: string
+          nullable: true
+      required: [email, password, first_name, last_name]
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+      required: [email, password]
+    RefreshRequest:
+      type: object
+      properties:
+        refresh_token:
+          type: string
+      required: [refresh_token]
+    ForgotPasswordRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+      required: [email]
+    ResetPasswordRequest:
+      type: object
+      properties:
+        token:
+          type: string
+        new_password:
+          type: string
+          minLength: 8
+      required: [token, new_password]
+    CreateUserRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        status:
+          type: string
+          nullable: true
+        first_name:
+          type: string
+        last_name:
+          type: string
+        middle_name:
+          type: string
+          nullable: true
+        position_title:
+          type: string
+          nullable: true
+        department_id:
+          type: string
+          format: uuid
+          nullable: true
+        timezone:
+          type: string
+          nullable: true
+        role_codes:
+          type: array
+          items:
+            type: string
+        password:
+          type: string
+          nullable: true
+      required: [email, first_name, last_name]
+    UpdateUserRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          nullable: true
+        status:
           type: string
           nullable: true
         first_name:
@@ -1132,759 +2488,602 @@ components:
         last_name:
           type: string
           nullable: true
-        photo_url:
+        middle_name:
           type: string
-          format: uri
           nullable: true
-        auth_date:
+        position_title:
+          type: string
+          nullable: true
+        department_id:
+          type: string
+          format: uuid
+          nullable: true
+        timezone:
+          type: string
+          nullable: true
+        outlook_email:
+          type: string
+          nullable: true
+    AssignRoleRequest:
+      type: object
+      properties:
+        role_code:
+          type: string
+      required: [role_code]
+    CreateCourseRequest:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [internal, external]
+        source_type:
+          type: string
+          enum: [catalog, requested, imported]
+        title:
+          type: string
+        slug:
+          type: string
+          nullable: true
+        short_description:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        provider_id:
+          type: string
+          format: uuid
+          nullable: true
+        category_id:
+          type: string
+          format: uuid
+          nullable: true
+        direction_id:
+          type: string
+          format: uuid
+          nullable: true
+        level:
+          type: string
+          nullable: true
+        duration_hours:
+          type: string
+          nullable: true
+        language:
+          type: string
+          nullable: true
+        is_mandatory_default:
+          type: boolean
+        thumbnail_file_id:
+          type: string
+          format: uuid
+          nullable: true
+      required: [type, source_type, title]
+    UpdateCourseRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          nullable: true
+        slug:
+          type: string
+          nullable: true
+        short_description:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        provider_id:
+          type: string
+          format: uuid
+          nullable: true
+        category_id:
+          type: string
+          format: uuid
+          nullable: true
+        direction_id:
+          type: string
+          format: uuid
+          nullable: true
+        level:
+          type: string
+          nullable: true
+        duration_hours:
+          type: string
+          nullable: true
+        language:
+          type: string
+          nullable: true
+        is_mandatory_default:
+          type: boolean
+          nullable: true
+        thumbnail_file_id:
+          type: string
+          format: uuid
+          nullable: true
+    CreateCourseMaterialRequest:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [file, link, video, scorm, pdf]
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        file_id:
+          type: string
+          format: uuid
+          nullable: true
+        external_url:
+          type: string
+          nullable: true
+        sort_order:
           type: integer
-          format: int64
-          default: 0
-        hash:
-          type: string
-          nullable: true
-
-    YandexLoginRequest:
-      type: object
-      required: [provider_user_id]
-      properties:
-        code:
-          type: string
-          nullable: true
-        id_token:
-          type: string
-          nullable: true
-        provider_user_id:
-          type: string
-          nullable: true
-        email:
-          type: string
-          format: email
-          nullable: true
-        display_name:
-          type: string
-          nullable: true
-        avatar_url:
-          type: string
-          format: uri
-          nullable: true
-
-    RefreshRequest:
-      type: object
-      required: [refresh_token]
-      properties:
-        refresh_token:
-          type: string
-
-    LogoutRequest:
-      type: object
-      required: [refresh_token]
-      properties:
-        refresh_token:
-          type: string
-
-    AccountKind:
-      type: string
-      enum: [cash, bank_card, bank_account, savings, virtual]
-
-    Account:
-      type: object
-      required:
-        - id
-        - user_id
-        - name
-        - kind
-        - currency
-        - opening_balance
-        - current_balance
-        - is_archived
-        - created_at
-        - updated_at
-      properties:
-        id:
-          type: string
-          format: uuid
-        user_id:
-          type: string
-          format: uuid
-        name:
-          type: string
-        kind:
-          $ref: '#/components/schemas/AccountKind'
-        currency:
-          type: string
-        opening_balance:
-          $ref: '#/components/schemas/Money'
-        current_balance:
-          $ref: '#/components/schemas/Money'
-        is_archived:
+        is_required:
           type: boolean
-        last_recalculated_at:
-          type: string
-          format: date-time
-          nullable: true
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-
-    CreateAccountRequest:
-      type: object
-      required: [name, kind, currency]
-      properties:
-        name:
-          type: string
-        kind:
-          $ref: '#/components/schemas/AccountKind'
-        currency:
-          type: string
-          minLength: 3
-          maxLength: 3
-        opening_balance:
-          $ref: '#/components/schemas/Money'
-
-    UpdateAccountRequest:
+      required: [type, title]
+    CreateAssignmentRequest:
       type: object
       properties:
-        name:
-          type: string
-        kind:
-          $ref: '#/components/schemas/AccountKind'
-        is_archived:
-          type: boolean
-
-    AccountsListResponse:
-      type: object
-      required: [items]
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/Account'
-
-    CategoryKind:
-      type: string
-      enum: [income, expense]
-
-    Category:
-      type: object
-      required:
-        - id
-        - kind
-        - name
-        - is_system
-        - is_archived
-        - created_at
-        - updated_at
-      properties:
-        id:
+        course_id:
           type: string
           format: uuid
-        user_id:
+        assignment_type:
+          type: string
+          enum: [individual, department, group, role_based]
+        target_type:
+          type: string
+          enum: [user, department, group]
+        target_id:
           type: string
           format: uuid
-          nullable: true
-        kind:
-          $ref: '#/components/schemas/CategoryKind'
-        name:
-          type: string
-        color:
-          type: string
-          nullable: true
-        icon:
-          type: string
-          nullable: true
-        parent_id:
-          type: string
-          format: uuid
-          nullable: true
-        is_system:
-          type: boolean
-        is_archived:
-          type: boolean
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-
-    CreateCategoryRequest:
-      type: object
-      required: [kind, name]
-      properties:
-        kind:
-          $ref: '#/components/schemas/CategoryKind'
-        name:
-          type: string
-        color:
-          type: string
-          nullable: true
-        icon:
-          type: string
-          nullable: true
-        parent_id:
-          type: string
-          format: uuid
-          nullable: true
-
-    UpdateCategoryRequest:
-      type: object
-      properties:
-        name:
-          type: string
-        color:
-          type: string
-          nullable: true
-        icon:
-          type: string
-          nullable: true
-        parent_id:
-          type: string
-          format: uuid
-          nullable: true
-        is_archived:
-          type: boolean
-
-    CategoriesListResponse:
-      type: object
-      required: [items]
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/Category'
-
-    TransactionType:
-      type: string
-      enum: [income, expense, transfer, correction]
-
-    TransactionDirection:
-      type: string
-      enum: [inflow, outflow, internal]
-
-    TransactionPostingState:
-      type: string
-      enum: [draft, posted]
-
-    TransactionSource:
-      type: string
-      enum: [manual, recurring, review, system]
-
-    Transaction:
-      type: object
-      required:
-        - id
-        - user_id
-        - account_id
-        - type
-        - amount
-        - currency
-        - direction
-        - occurred_at
-        - created_at
-        - updated_at
-      properties:
-        id:
-          type: string
-          format: uuid
-        user_id:
-          type: string
-          format: uuid
-        account_id:
-          type: string
-          format: uuid
-        transfer_account_id:
-          type: string
-          format: uuid
-          nullable: true
-        type:
-          $ref: '#/components/schemas/TransactionType'
-        category_id:
-          type: string
-          format: uuid
-          nullable: true
-        amount:
-          $ref: '#/components/schemas/Money'
-        currency:
-          type: string
-        direction:
-          $ref: '#/components/schemas/TransactionDirection'
-        posting_state:
-          $ref: '#/components/schemas/TransactionPostingState'
-        source:
-          $ref: '#/components/schemas/TransactionSource'
-        title:
-          type: string
-          nullable: true
-        note:
-          type: string
-          nullable: true
-        is_mandatory:
-          type: boolean
-        is_subscription:
-          type: boolean
-        deleted_at:
-          type: string
-          format: date-time
-          nullable: true
-        delete_reason:
-          type: string
-          nullable: true
-        restored_at:
-          type: string
-          format: date-time
-          nullable: true
-        occurred_at:
-          type: string
-          format: date-time
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-
-    CreateTransactionRequest:
-      type: object
-      required: [account_id, type, amount, currency]
-      properties:
-        account_id:
-          type: string
-          format: uuid
-        transfer_account_id:
-          type: string
-          format: uuid
-          nullable: true
-        type:
-          $ref: '#/components/schemas/TransactionType'
-        category_id:
-          type: string
-          format: uuid
-          nullable: true
-        amount:
-          $ref: '#/components/schemas/Money'
-        currency:
-          type: string
-          minLength: 3
-          maxLength: 3
-        direction:
-          $ref: '#/components/schemas/TransactionDirection'
-        title:
-          type: string
-          nullable: true
-        note:
-          type: string
-          nullable: true
-        is_mandatory:
-          type: boolean
-        is_subscription:
-          type: boolean
-        occurred_at:
-          type: string
-          format: date-time
-
-    UpdateTransactionRequest:
-      type: object
-      properties:
-        account_id:
-          type: string
-          format: uuid
-        transfer_account_id:
-          type: string
-          format: uuid
-          nullable: true
-        type:
-          $ref: '#/components/schemas/TransactionType'
-        category_id:
-          type: string
-          format: uuid
-          nullable: true
-        amount:
-          $ref: '#/components/schemas/Money'
-        currency:
-          type: string
-        direction:
-          $ref: '#/components/schemas/TransactionDirection'
-        title:
-          type: string
-          nullable: true
-        note:
-          type: string
-          nullable: true
-        is_mandatory:
-          type: boolean
-        is_subscription:
-          type: boolean
-        occurred_at:
-          type: string
-          format: date-time
-
-    TransactionsListResponse:
-      type: object
-      required: [items]
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/Transaction'
-
-    CreateTransferRequest:
-      type: object
-      required: [from_account_id, to_account_id, amount, currency]
-      properties:
-        from_account_id:
-          type: string
-          format: uuid
-        to_account_id:
-          type: string
-          format: uuid
-        amount:
-          $ref: '#/components/schemas/Money'
-        currency:
-          type: string
-          minLength: 3
-          maxLength: 3
-        title:
-          type: string
-          nullable: true
-        note:
-          type: string
-          nullable: true
-        occurred_at:
-          type: string
-          format: date-time
-
-    UpdateTransferRequest:
-      type: object
-      properties:
-        from_account_id:
-          type: string
-          format: uuid
-        to_account_id:
-          type: string
-          format: uuid
-        amount:
-          $ref: '#/components/schemas/Money'
-        currency:
-          type: string
-        title:
-          type: string
-          nullable: true
-        note:
-          type: string
-          nullable: true
-        occurred_at:
-          type: string
-          format: date-time
-
-    SavingsGoalPriority:
-      type: string
-      enum: [low, medium, high]
-
-    SavingsGoalStatus:
-      type: string
-      enum: [active, paused, completed, archived]
-
-    SavingsGoal:
-      type: object
-      required:
-        - id
-        - user_id
-        - title
-        - target_amount
-        - current_amount
-        - currency
-        - priority
-        - status
-        - created_at
-        - updated_at
-      properties:
-        id:
-          type: string
-          format: uuid
-        user_id:
-          type: string
-          format: uuid
-        title:
-          type: string
-        target_amount:
-          $ref: '#/components/schemas/Money'
-        current_amount:
-          $ref: '#/components/schemas/Money'
-        currency:
-          type: string
-        target_date:
-          type: string
-          format: date-time
-          nullable: true
         priority:
-          $ref: '#/components/schemas/SavingsGoalPriority'
+          type: string
+          enum: [mandatory, recommended]
+        reason:
+          type: string
+          nullable: true
+        start_at:
+          type: string
+          format: date-time
+          nullable: true
+        deadline_at:
+          type: string
+          format: date-time
+          nullable: true
+      required: [course_id, assignment_type, target_type, target_id, priority]
+    UpdateEnrollmentProgressRequest:
+      type: object
+      properties:
+        course_module_id:
+          type: string
+          format: uuid
         status:
-          $ref: '#/components/schemas/SavingsGoalStatus'
-        created_at:
           type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-
-    CreateGoalRequest:
-      type: object
-      required: [title, currency]
-      properties:
-        title:
-          type: string
-        target_amount:
-          $ref: '#/components/schemas/Money'
-        current_amount:
-          $ref: '#/components/schemas/Money'
-        currency:
-          type: string
-          minLength: 3
-          maxLength: 3
-        target_date:
-          type: string
-          format: date-time
-          nullable: true
-        priority:
-          $ref: '#/components/schemas/SavingsGoalPriority'
-
-    UpdateGoalRequest:
-      type: object
-      properties:
-        title:
-          type: string
-        target_amount:
-          $ref: '#/components/schemas/Money'
-        current_amount:
-          $ref: '#/components/schemas/Money'
-        target_date:
-          type: string
-          format: date-time
-          nullable: true
-        priority:
-          $ref: '#/components/schemas/SavingsGoalPriority'
-        status:
-          $ref: '#/components/schemas/SavingsGoalStatus'
-
-    GoalProgress:
-      type: object
-      required: [goal, progress_percent, recommended_monthly_contribution]
-      properties:
-        goal:
-          $ref: '#/components/schemas/SavingsGoal'
+          enum: [not_started, in_progress, completed]
         progress_percent:
           type: string
-          example: '38'
-        recommended_monthly_contribution:
-          $ref: '#/components/schemas/Money'
-
-    SavingsSummary:
-      type: object
-      required: [total_target, total_current, reserved_this_month, safe_to_spend, goals]
-      properties:
-        total_target:
-          $ref: '#/components/schemas/Money'
-        total_current:
-          $ref: '#/components/schemas/Money'
-        reserved_this_month:
-          $ref: '#/components/schemas/Money'
-        safe_to_spend:
-          $ref: '#/components/schemas/Money'
-        goals:
-          type: array
-          items:
-            $ref: '#/components/schemas/GoalProgress'
-
-    SavingsGoalsListResponse:
-      type: object
-      required: [items]
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/SavingsGoal'
-
-    WeeklyReviewStatus:
-      type: string
-      enum: [pending, matched, discrepancy_found, resolved, skipped]
-
-    WeeklyReview:
-      type: object
-      required:
-        - id
-        - user_id
-        - period_start
-        - period_end
-        - expected_balance
-        - status
-        - created_at
-      properties:
-        id:
-          type: string
-          format: uuid
-        user_id:
-          type: string
-          format: uuid
-        account_id:
-          type: string
-          format: uuid
-          nullable: true
-        period_start:
-          type: string
-          format: date-time
-        period_end:
-          type: string
-          format: date-time
-        expected_balance:
-          $ref: '#/components/schemas/Money'
-        actual_balance:
-          $ref: '#/components/schemas/Money'
-        delta:
-          $ref: '#/components/schemas/Money'
-        status:
-          $ref: '#/components/schemas/WeeklyReviewStatus'
-        resolution_note:
-          type: string
-          nullable: true
-        created_at:
-          type: string
-          format: date-time
         completed_at:
           type: string
           format: date-time
           nullable: true
-
-    SubmitBalanceRequest:
-      type: object
-      required: [actual_balance]
-      properties:
-        actual_balance:
-          $ref: '#/components/schemas/Money'
-
-    ResolveRequest:
+      required: [course_module_id, status, progress_percent]
+    CompleteEnrollmentRequest:
       type: object
       properties:
-        resolution_note:
+        completion_type:
+          type: string
+          enum: [auto, manual, certificate_verified, trainer_confirmed]
+        score:
           type: string
           nullable: true
-
-    TopCategory:
-      type: object
-      required: [name, amount]
-      properties:
-        category_id:
+        notes:
           type: string
           nullable: true
-        name:
-          type: string
-        amount:
-          $ref: '#/components/schemas/Money'
-
-    FinanceDashboard:
+      required: [completion_type]
+    CreateTestRequest:
       type: object
-      required:
-        - current_balance
-        - monthly_income
-        - monthly_expense
-        - saved_this_month
-        - safe_to_spend
-        - top_categories
-        - savings
-        - weekly_review
-        - insights
       properties:
-        current_balance:
-          $ref: '#/components/schemas/Money'
-        monthly_income:
-          $ref: '#/components/schemas/Money'
-        monthly_expense:
-          $ref: '#/components/schemas/Money'
-        saved_this_month:
-          $ref: '#/components/schemas/Money'
-        safe_to_spend:
-          $ref: '#/components/schemas/Money'
-        top_categories:
+        course_id:
+          type: string
+          format: uuid
+          nullable: true
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        attempts_limit:
+          type: integer
+          nullable: true
+        passing_score:
+          type: string
+        shuffle_questions:
+          type: boolean
+        shuffle_answers:
+          type: boolean
+        status:
+          type: string
+          nullable: true
+        questions:
           type: array
           items:
-            $ref: '#/components/schemas/TopCategory'
-        savings:
+            $ref: '#/components/schemas/CreateTestQuestionRequest'
+      required: [title, passing_score]
+    CreateTestQuestionRequest:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [single_choice, multiple_choice, text, number, true_false]
+        text:
+          type: string
+        explanation:
+          type: string
+          nullable: true
+        sort_order:
+          type: integer
+        points:
+          type: string
+        is_required:
+          type: boolean
+        options:
           type: array
           items:
-            $ref: '#/components/schemas/GoalProgress'
-        weekly_review:
-          $ref: '#/components/schemas/WeeklyReview'
-        insights:
+            $ref: '#/components/schemas/CreateTestAnswerOptionRequest'
+      required: [type, text, points]
+    CreateTestAnswerOptionRequest:
+      type: object
+      properties:
+        text:
+          type: string
+        is_correct:
+          type: boolean
+        sort_order:
+          type: integer
+      required: [text]
+    StartAttemptRequest:
+      type: object
+      properties:
+        enrollment_id:
+          type: string
+          format: uuid
+          nullable: true
+    SaveAnswersRequest:
+      type: object
+      properties:
+        answers:
+          type: array
+          items:
+            $ref: '#/components/schemas/TestAnswerInput'
+      required: [answers]
+    TestAnswerInput:
+      type: object
+      properties:
+        question_id:
+          type: string
+          format: uuid
+        answer_text:
+          type: string
+          nullable: true
+        selected_option_id:
+          type: string
+          format: uuid
+          nullable: true
+        selected_option_ids:
           type: array
           items:
             type: string
-
-    CreateLinkRequest:
+            format: uuid
+      required: [question_id]
+    UploadCertificateRequest:
       type: object
-      required: [source_type, source_id, target_type, target_id, relation]
       properties:
-        source_type:
-          type: string
-        source_id:
+        course_id:
           type: string
           format: uuid
-        target_type:
-          type: string
-        target_id:
+          nullable: true
+        enrollment_id:
           type: string
           format: uuid
-        relation:
+          nullable: true
+        certificate_no:
           type: string
-        meta:
-          $ref: '#/components/schemas/Meta'
-
-    EntityLink:
+          nullable: true
+        issued_by:
+          type: string
+          nullable: true
+        issued_at:
+          type: string
+          format: date-time
+          nullable: true
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        storage_provider:
+          type: string
+          enum: [s3, local, minio]
+        storage_key:
+          type: string
+        original_name:
+          type: string
+        mime_type:
+          type: string
+        size_bytes:
+          type: integer
+      required: [storage_provider, storage_key, original_name, mime_type, size_bytes]
+    CreateExternalRequestRequest:
       type: object
-      required:
-        - id
-        - user_id
-        - source_type
-        - source_id
-        - target_type
-        - target_id
-        - relation
-        - created_at
       properties:
-        id:
+        title:
+          type: string
+        provider_id:
           type: string
           format: uuid
+          nullable: true
+        provider_name:
+          type: string
+          nullable: true
+        course_url:
+          type: string
+          nullable: true
+        program_description:
+          type: string
+          nullable: true
+        planned_start_date:
+          type: string
+          format: date-time
+          nullable: true
+        planned_end_date:
+          type: string
+          format: date-time
+          nullable: true
+        duration_hours:
+          type: string
+          nullable: true
+        cost_amount:
+          type: string
+        currency:
+          type: string
+        business_goal:
+          type: string
+          nullable: true
+        employee_comment:
+          type: string
+          nullable: true
+      required: [title, cost_amount, currency]
+    UpdateExternalRequestRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          nullable: true
+        provider_id:
+          type: string
+          format: uuid
+          nullable: true
+        provider_name:
+          type: string
+          nullable: true
+        course_url:
+          type: string
+          nullable: true
+        program_description:
+          type: string
+          nullable: true
+        planned_start_date:
+          type: string
+          format: date-time
+          nullable: true
+        planned_end_date:
+          type: string
+          format: date-time
+          nullable: true
+        duration_hours:
+          type: string
+          nullable: true
+        cost_amount:
+          type: string
+          nullable: true
+        currency:
+          type: string
+          nullable: true
+        business_goal:
+          type: string
+          nullable: true
+        employee_comment:
+          type: string
+          nullable: true
+        manager_comment:
+          type: string
+          nullable: true
+        hr_comment:
+          type: string
+          nullable: true
+    CommentRequest:
+      type: object
+      properties:
+        comment:
+          type: string
+          nullable: true
+    UploadRequestCertificateRequest:
+      type: object
+      properties:
+        storage_provider:
+          type: string
+          enum: [s3, local, minio]
+        storage_key:
+          type: string
+        original_name:
+          type: string
+        mime_type:
+          type: string
+        size_bytes:
+          type: integer
+      required: [storage_provider, storage_key, original_name, mime_type, size_bytes]
+    CreateBudgetLimitRequest:
+      type: object
+      properties:
+        scope_type:
+          type: string
+          enum: [company, department, employee]
+        scope_id:
+          type: string
+          format: uuid
+          nullable: true
+        period_year:
+          type: integer
+        period_month:
+          type: integer
+          nullable: true
+        limit_amount:
+          type: string
+        currency:
+          type: string
+        is_active:
+          type: boolean
+      required: [scope_type, period_year, limit_amount, currency]
+    CreateApprovalWorkflowRequest:
+      type: object
+      properties:
+        entity_type:
+          type: string
+        name:
+          type: string
+        is_active:
+          type: boolean
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/CreateApprovalWorkflowStepRequest'
+      required: [entity_type, name, steps]
+    CreateApprovalWorkflowStepRequest:
+      type: object
+      properties:
+        step_order:
+          type: integer
+        role_code:
+          type: string
+        approver_source:
+          type: string
+          enum: [line_manager, specific_role, department_head, static_user]
+        approver_user_id:
+          type: string
+          format: uuid
+          nullable: true
+        sla_hours:
+          type: integer
+          nullable: true
+        is_required:
+          type: boolean
+      required: [step_order, role_code, approver_source]
+    CreateProgramRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        direction_id:
+          type: string
+          format: uuid
+          nullable: true
+        status:
+          type: string
+          nullable: true
+      required: [title]
+    CreateTrainingGroupRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        capacity:
+          type: integer
+          nullable: true
+        status:
+          type: string
+          nullable: true
+        enrollment_open_at:
+          type: string
+          format: date-time
+          nullable: true
+        enrollment_close_at:
+          type: string
+          format: date-time
+          nullable: true
+      required: [name]
+    AddParticipantRequest:
+      type: object
+      properties:
         user_id:
           type: string
           format: uuid
-        source_type:
+        status:
           type: string
-        source_id:
+          nullable: true
+      required: [user_id]
+    CreateUniversitySessionRequest:
+      type: object
+      properties:
+        trainer_user_id:
           type: string
           format: uuid
-        target_type:
+        title:
           type: string
-        target_id:
+        description:
           type: string
-          format: uuid
-        relation:
-          type: string
-        meta:
-          oneOf:
-            - type: object
-              additionalProperties: true
-            - type: string
-        created_at:
+          nullable: true
+        start_at:
           type: string
           format: date-time
-
-    LinksListResponse:
+        end_at:
+          type: string
+          format: date-time
+        location:
+          type: string
+          nullable: true
+        meeting_url:
+          type: string
+          nullable: true
+        status:
+          type: string
+          nullable: true
+      required: [trainer_user_id, title, start_at, end_at]
+    TrainerFeedbackRequest:
       type: object
-      required: [items]
       properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/EntityLink'
+        participant_user_id:
+          type: string
+          format: uuid
+        attendance_status:
+          type: string
+          enum: [attended, absent, excused]
+        score:
+          type: string
+          nullable: true
+        comment:
+          type: string
+          nullable: true
+      required: [participant_user_id, attendance_status]
+    ParticipantFeedbackRequest:
+      type: object
+      properties:
+        program_id:
+          type: string
+          format: uuid
+          nullable: true
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comment:
+          type: string
+          nullable: true
+      required: [rating]

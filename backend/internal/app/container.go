@@ -7,62 +7,63 @@ import (
 	"github.com/go-playground/validator/v10"
 
 	"moneyapp/backend/internal/config"
-	coreaudit "moneyapp/backend/internal/core/audit"
-	coreauth "moneyapp/backend/internal/core/auth"
-	corecicd "moneyapp/backend/internal/core/cicd"
 	corehealth "moneyapp/backend/internal/core/health"
-	corejobs "moneyapp/backend/internal/core/jobs"
-	corelinks "moneyapp/backend/internal/core/links"
-	coreusers "moneyapp/backend/internal/core/users"
-	dashboardmodule "moneyapp/backend/internal/modules/dashboard"
-	financeaccounts "moneyapp/backend/internal/modules/finance/accounts"
-	financecategories "moneyapp/backend/internal/modules/finance/categories"
-	financesummary "moneyapp/backend/internal/modules/finance/summary"
-	financetransactions "moneyapp/backend/internal/modules/finance/transactions"
-	financetransfers "moneyapp/backend/internal/modules/finance/transfers"
-	reviewmodule "moneyapp/backend/internal/modules/review"
-	savingsmodule "moneyapp/backend/internal/modules/savings"
+	adminmodule "moneyapp/backend/internal/modules/admin"
+	analyticsmodule "moneyapp/backend/internal/modules/analytics"
+	auditmodule "moneyapp/backend/internal/modules/audit"
+	catalogmodule "moneyapp/backend/internal/modules/catalog"
+	certificatesmodule "moneyapp/backend/internal/modules/certificates"
+	externaltrainingmodule "moneyapp/backend/internal/modules/external_training"
+	identitymodule "moneyapp/backend/internal/modules/identity"
+	learningmodule "moneyapp/backend/internal/modules/learning"
+	notificationsmodule "moneyapp/backend/internal/modules/notifications"
+	orgmodule "moneyapp/backend/internal/modules/org"
+	outlookmodule "moneyapp/backend/internal/modules/outlook"
+	testingmodule "moneyapp/backend/internal/modules/testing"
+	universitymodule "moneyapp/backend/internal/modules/university"
 	platformauth "moneyapp/backend/internal/platform/auth"
 	"moneyapp/backend/internal/platform/clock"
-	platformjobs "moneyapp/backend/internal/platform/jobs"
+	"moneyapp/backend/internal/platform/outbox"
+	platformworker "moneyapp/backend/internal/platform/worker"
 )
 
 type Container struct {
-	Config     *config.Config
-	Logger     *slog.Logger
-	DB         *sql.DB
-	Clock      clock.Clock
-	JWT        *platformauth.JWTManager
-	Dispatcher *platformjobs.Dispatcher
-	Scheduler  *platformjobs.Scheduler
-	Validator  *validator.Validate
+	Config    *config.Config
+	Logger    *slog.Logger
+	DB        *sql.DB
+	Clock     clock.Clock
+	JWT       *platformauth.JWTManager
+	Outbox    *outbox.Service
+	Queue     *platformworker.Queue
+	Validator *validator.Validate
 
-	HealthService      *corehealth.Service
-	UserService        *coreusers.Service
-	AuthService        *coreauth.Service
-	CICDService        *corecicd.Service
-	AuditService       *coreaudit.Service
-	LinksService       *corelinks.Service
-	JobService         *corejobs.Service
-	AccountService     *financeaccounts.Service
-	CategoryService    *financecategories.Service
-	TransactionService *financetransactions.Service
-	TransferService    *financetransfers.Service
-	SummaryService     *financesummary.Service
-	SavingsService     *savingsmodule.Service
-	ReviewService      *reviewmodule.Service
-	DashboardService   *dashboardmodule.Service
+	HealthService *corehealth.Service
 
-	HealthHandler      *corehealth.Handler
-	AuthHandler        *coreauth.Handler
-	CICDHandler        *corecicd.Handler
-	UserHandler        *coreusers.Handler
-	LinksHandler       *corelinks.Handler
-	AccountHandler     *financeaccounts.Handler
-	CategoryHandler    *financecategories.Handler
-	TransactionHandler *financetransactions.Handler
-	TransferHandler    *financetransfers.Handler
-	SavingsHandler     *savingsmodule.Handler
-	ReviewHandler      *reviewmodule.Handler
-	DashboardHandler   *dashboardmodule.Handler
+	OrgService              *orgmodule.Service
+	IdentityService         *identitymodule.Service
+	AdminService            *adminmodule.Service
+	CatalogService          *catalogmodule.Service
+	LearningService         *learningmodule.Service
+	TestingService          *testingmodule.Service
+	CertificatesService     *certificatesmodule.Service
+	ExternalTrainingService *externaltrainingmodule.Service
+	OutlookService          *outlookmodule.Service
+	NotificationsService    *notificationsmodule.Service
+	UniversityService       *universitymodule.Service
+	AnalyticsService        *analyticsmodule.Service
+	AuditService            *auditmodule.Service
+
+	HealthHandler           *corehealth.Handler
+	IdentityHandler         *identitymodule.Handler
+	AdminHandler            *adminmodule.Handler
+	CatalogHandler          *catalogmodule.Handler
+	LearningHandler         *learningmodule.Handler
+	TestingHandler          *testingmodule.Handler
+	CertificatesHandler     *certificatesmodule.Handler
+	ExternalTrainingHandler *externaltrainingmodule.Handler
+	OutlookHandler          *outlookmodule.Handler
+	NotificationsHandler    *notificationsmodule.Handler
+	UniversityHandler       *universitymodule.Handler
+	AnalyticsHandler        *analyticsmodule.Handler
+	AuditHandler            *auditmodule.Handler
 }

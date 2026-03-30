@@ -2,34 +2,32 @@ package app
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"time"
 
 	"moneyapp/backend/internal/config"
-	coreaudit "moneyapp/backend/internal/core/audit"
-	coreauth "moneyapp/backend/internal/core/auth"
-	corecicd "moneyapp/backend/internal/core/cicd"
 	corehealth "moneyapp/backend/internal/core/health"
-	corejobs "moneyapp/backend/internal/core/jobs"
-	corelinks "moneyapp/backend/internal/core/links"
-	coresessions "moneyapp/backend/internal/core/sessions"
-	coreusers "moneyapp/backend/internal/core/users"
-	"moneyapp/backend/internal/integrations/telegram"
-	"moneyapp/backend/internal/integrations/yandex"
-	dashboardmodule "moneyapp/backend/internal/modules/dashboard"
-	financeaccounts "moneyapp/backend/internal/modules/finance/accounts"
-	financecategories "moneyapp/backend/internal/modules/finance/categories"
-	financesummary "moneyapp/backend/internal/modules/finance/summary"
-	financetransactions "moneyapp/backend/internal/modules/finance/transactions"
-	financetransfers "moneyapp/backend/internal/modules/finance/transfers"
-	reviewmodule "moneyapp/backend/internal/modules/review"
-	savingsmodule "moneyapp/backend/internal/modules/savings"
+	adminmodule "moneyapp/backend/internal/modules/admin"
+	analyticsmodule "moneyapp/backend/internal/modules/analytics"
+	auditmodule "moneyapp/backend/internal/modules/audit"
+	catalogmodule "moneyapp/backend/internal/modules/catalog"
+	certificatesmodule "moneyapp/backend/internal/modules/certificates"
+	externaltrainingmodule "moneyapp/backend/internal/modules/external_training"
+	identitymodule "moneyapp/backend/internal/modules/identity"
+	learningmodule "moneyapp/backend/internal/modules/learning"
+	notificationsmodule "moneyapp/backend/internal/modules/notifications"
+	orgmodule "moneyapp/backend/internal/modules/org"
+	outlookmodule "moneyapp/backend/internal/modules/outlook"
+	testingmodule "moneyapp/backend/internal/modules/testing"
+	universitymodule "moneyapp/backend/internal/modules/university"
 	platformauth "moneyapp/backend/internal/platform/auth"
 	"moneyapp/backend/internal/platform/clock"
 	"moneyapp/backend/internal/platform/db"
-	"moneyapp/backend/internal/platform/jobs"
 	"moneyapp/backend/internal/platform/logger"
+	"moneyapp/backend/internal/platform/outbox"
 	"moneyapp/backend/internal/platform/validation"
+	platformworker "moneyapp/backend/internal/platform/worker"
 )
 
 type App struct {
@@ -38,102 +36,9 @@ type App struct {
 }
 
 func New(cfg *config.Config) (*App, error) {
-	log := logger.New(cfg.Environment)
-	database, err := db.Open(context.Background(), cfg.Database)
+	container, err := NewContainer(cfg)
 	if err != nil {
 		return nil, err
-	}
-
-	dispatcher := jobs.NewDispatcher(log)
-	scheduler := jobs.NewScheduler(log, dispatcher)
-	appClock := clock.RealClock{}
-	jwtManager := platformauth.NewJWTManager(cfg.Auth.JWTSecret, cfg.Auth.JWTIssuer, cfg.Auth.AccessTokenTTL)
-	validate := validation.New()
-
-	userRepo := coreusers.NewRepository(database)
-	sessionRepo := coresessions.NewRepository(database)
-	auditRepo := coreaudit.NewRepository(database)
-	authRepo := coreauth.NewRepository(database)
-	cicdRepo := corecicd.NewRepository(database)
-	linksRepo := corelinks.NewRepository(database)
-	accountRepo := financeaccounts.NewRepository(database)
-	categoryRepo := financecategories.NewRepository(database)
-	transactionRepo := financetransactions.NewRepository(database)
-	summaryRepo := financesummary.NewRepository(database)
-	savingsRepo := savingsmodule.NewRepository(database)
-	reviewRepo := reviewmodule.NewRepository(database)
-	dashboardRepo := dashboardmodule.NewRepository(database)
-
-	auditService := coreaudit.NewService(auditRepo, appClock)
-	userService := coreusers.NewService(database, userRepo)
-	sessionService := coresessions.NewService(database, sessionRepo, jwtManager, appClock, cfg.Auth.AccessTokenTTL, cfg.Auth.RefreshTokenTTL)
-	authService := coreauth.NewService(
-		database,
-		cfg.Auth,
-		appClock,
-		authRepo,
-		userRepo,
-		sessionService,
-		auditService,
-		telegram.NewVerifier(cfg.Integrations.Telegram.BotToken, cfg.Auth.AllowInsecureDevAuth),
-		yandex.NewVerifier(
-			cfg.Integrations.Yandex.ClientID,
-			cfg.Integrations.Yandex.ClientSecret,
-			cfg.Integrations.Yandex.RedirectURI,
-			cfg.Auth.AllowInsecureDevAuth,
-		),
-	)
-	cicdService := corecicd.NewService(cicdRepo, appClock)
-	linksService := corelinks.NewService(linksRepo, appClock)
-	accountService := financeaccounts.NewService(database, accountRepo, auditService, appClock)
-	categoryService := financecategories.NewService(categoryRepo, auditService, appClock)
-	transactionService := financetransactions.NewService(database, transactionRepo, accountRepo, categoryRepo, auditService, appClock)
-	transferService := financetransfers.NewService(transactionService)
-	summaryService := financesummary.NewService(summaryRepo)
-	savingsService := savingsmodule.NewService(savingsRepo, summaryRepo, auditService, appClock)
-	reviewService := reviewmodule.NewService(reviewRepo, accountRepo, transactionRepo, auditService, appClock)
-	dashboardService := dashboardmodule.NewService(dashboardRepo, summaryService, savingsService, reviewService, appClock)
-	jobService := corejobs.NewService(scheduler)
-	healthService := corehealth.NewService(map[string]corehealth.CheckFunc{
-		"postgres": database.PingContext,
-	})
-
-	container := &Container{
-		Config:             cfg,
-		Logger:             log,
-		DB:                 database,
-		Clock:              appClock,
-		JWT:                jwtManager,
-		Dispatcher:         dispatcher,
-		Scheduler:          scheduler,
-		Validator:          validate,
-		HealthService:      healthService,
-		UserService:        userService,
-		AuthService:        authService,
-		CICDService:        cicdService,
-		AuditService:       auditService,
-		LinksService:       linksService,
-		JobService:         jobService,
-		AccountService:     accountService,
-		CategoryService:    categoryService,
-		TransactionService: transactionService,
-		TransferService:    transferService,
-		SummaryService:     summaryService,
-		SavingsService:     savingsService,
-		ReviewService:      reviewService,
-		DashboardService:   dashboardService,
-		HealthHandler:      corehealth.NewHandler(healthService),
-		AuthHandler:        coreauth.NewHandler(authService, validate),
-		CICDHandler:        corecicd.NewHandler(cicdService),
-		UserHandler:        coreusers.NewHandler(userService, validate),
-		LinksHandler:       corelinks.NewHandler(linksService, validate),
-		AccountHandler:     financeaccounts.NewHandler(accountService, validate),
-		CategoryHandler:    financecategories.NewHandler(categoryService, validate),
-		TransactionHandler: financetransactions.NewHandler(transactionService, validate),
-		TransferHandler:    financetransfers.NewHandler(transferService, validate),
-		SavingsHandler:     savingsmodule.NewHandler(savingsService, validate),
-		ReviewHandler:      reviewmodule.NewHandler(reviewService, validate),
-		DashboardHandler:   dashboardmodule.NewHandler(dashboardService),
 	}
 
 	server := &http.Server{
@@ -150,9 +55,91 @@ func New(cfg *config.Config) (*App, error) {
 	}, nil
 }
 
-func (a *App) Run(ctx context.Context) error {
-	a.container.Scheduler.Start(ctx)
+func NewContainer(cfg *config.Config) (*Container, error) {
+	log := logger.New(cfg.Environment)
+	database, err := db.Open(context.Background(), cfg.Database)
+	if err != nil {
+		return nil, err
+	}
 
+	appClock := clock.RealClock{}
+	jwtManager := platformauth.NewJWTManager(cfg.Auth.JWTSecret, cfg.Auth.JWTIssuer, cfg.Auth.AccessTokenTTL)
+	validate := validation.New()
+	outboxService := outbox.NewService()
+	queue := platformworker.NewQueue(database, log)
+
+	orgRepo := orgmodule.NewRepository(database)
+	identityRepo := identitymodule.NewRepository(database)
+	catalogRepo := catalogmodule.NewRepository(database)
+	learningRepo := learningmodule.NewRepository(database)
+	testingRepo := testingmodule.NewRepository(database)
+	certificatesRepo := certificatesmodule.NewRepository(database)
+	externalTrainingRepo := externaltrainingmodule.NewRepository(database)
+	outlookRepo := outlookmodule.NewRepository(database)
+	notificationsRepo := notificationsmodule.NewRepository(database)
+	universityRepo := universitymodule.NewRepository(database)
+
+	orgService := orgmodule.NewService(orgRepo)
+	identityService := identitymodule.NewService(database, identityRepo, orgService, outboxService, queue, jwtManager, appClock, cfg.Auth.AccessTokenTTL, cfg.Auth.RefreshTokenTTL)
+	adminService := adminmodule.NewService(database, identityRepo, orgService, appClock)
+	catalogService := catalogmodule.NewService(catalogRepo, appClock)
+	learningService := learningmodule.NewService(database, learningRepo, orgService, catalogService, outboxService, appClock)
+	testingService := testingmodule.NewService(database, testingRepo, appClock)
+	certificatesService := certificatesmodule.NewService(database, certificatesRepo, outboxService, appClock)
+	externalTrainingService := externaltrainingmodule.NewService(database, externalTrainingRepo, identityRepo, orgService, outboxService, queue, appClock)
+	outlookService := outlookmodule.NewService(database, outlookRepo, queue, appClock)
+	notificationsService := notificationsmodule.NewService(notificationsRepo, appClock)
+	universityService := universitymodule.NewService(universityRepo, appClock)
+	analyticsService := analyticsmodule.NewService(database, queue)
+	auditService := auditmodule.NewService(database)
+	healthService := corehealth.NewService(map[string]corehealth.CheckFunc{
+		"postgres": database.PingContext,
+	})
+
+	registerWorkerHandlers(queue, log)
+
+	container := &Container{
+		Config:                  cfg,
+		Logger:                  log,
+		DB:                      database,
+		Clock:                   appClock,
+		JWT:                     jwtManager,
+		Outbox:                  outboxService,
+		Queue:                   queue,
+		Validator:               validate,
+		HealthService:           healthService,
+		OrgService:              orgService,
+		IdentityService:         identityService,
+		AdminService:            adminService,
+		CatalogService:          catalogService,
+		LearningService:         learningService,
+		TestingService:          testingService,
+		CertificatesService:     certificatesService,
+		ExternalTrainingService: externalTrainingService,
+		OutlookService:          outlookService,
+		NotificationsService:    notificationsService,
+		UniversityService:       universityService,
+		AnalyticsService:        analyticsService,
+		AuditService:            auditService,
+		HealthHandler:           corehealth.NewHandler(healthService),
+		IdentityHandler:         identitymodule.NewHandler(identityService, validate),
+		AdminHandler:            adminmodule.NewHandler(adminService, validate),
+		CatalogHandler:          catalogmodule.NewHandler(catalogService, validate),
+		LearningHandler:         learningmodule.NewHandler(learningService, validate),
+		TestingHandler:          testingmodule.NewHandler(testingService, validate),
+		CertificatesHandler:     certificatesmodule.NewHandler(certificatesService, validate),
+		ExternalTrainingHandler: externaltrainingmodule.NewHandler(externalTrainingService, validate),
+		OutlookHandler:          outlookmodule.NewHandler(outlookService),
+		NotificationsHandler:    notificationsmodule.NewHandler(notificationsService),
+		UniversityHandler:       universitymodule.NewHandler(universityService, validate),
+		AnalyticsHandler:        analyticsmodule.NewHandler(analyticsService),
+		AuditHandler:            auditmodule.NewHandler(auditService),
+	}
+
+	return container, nil
+}
+
+func (a *App) Run(ctx context.Context) error {
 	serverErr := make(chan error, 1)
 	go func() {
 		a.container.Logger.Info("http server started", "addr", a.server.Addr)
@@ -168,8 +155,6 @@ func (a *App) Run(ctx context.Context) error {
 		}
 	}
 
-	a.container.Scheduler.Stop()
-
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -180,4 +165,27 @@ func (a *App) Run(ctx context.Context) error {
 
 	_ = a.container.DB.Close()
 	return nil
+}
+
+func registerWorkerHandlers(queue *platformworker.Queue, logger *slog.Logger) {
+	queue.Register("send_password_reset", func(ctx context.Context, job platformworker.Job) error {
+		logger.Info("process job", "job_type", job.JobType, "queue", job.Queue, "payload", string(job.Payload))
+		return nil
+	})
+	queue.Register("outlook_sync", func(ctx context.Context, job platformworker.Job) error {
+		logger.Info("process job", "job_type", job.JobType, "queue", job.Queue, "payload", string(job.Payload))
+		return nil
+	})
+	queue.Register("outlook_create_event", func(ctx context.Context, job platformworker.Job) error {
+		logger.Info("process job", "job_type", job.JobType, "queue", job.Queue, "payload", string(job.Payload))
+		return nil
+	})
+	queue.Register("export_excel", func(ctx context.Context, job platformworker.Job) error {
+		logger.Info("process job", "job_type", job.JobType, "queue", job.Queue, "payload", string(job.Payload))
+		return nil
+	})
+	queue.Register("export_pdf", func(ctx context.Context, job platformworker.Job) error {
+		logger.Info("process job", "job_type", job.JobType, "queue", job.Queue, "payload", string(job.Payload))
+		return nil
+	})
 }

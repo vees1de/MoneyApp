@@ -10,14 +10,22 @@ import (
 )
 
 type Claims struct {
-	UserID    string `json:"uid"`
-	SessionID string `json:"sid"`
+	UserID            string   `json:"uid"`
+	SessionID         string   `json:"sid"`
+	RoleCodes         []string `json:"roles,omitempty"`
+	PermissionCodes   []string `json:"perms,omitempty"`
+	EmployeeProfileID *string  `json:"epid,omitempty"`
+	DepartmentID      *string  `json:"deptid,omitempty"`
 	jwt.RegisteredClaims
 }
 
 type Principal struct {
-	UserID    uuid.UUID
-	SessionID uuid.UUID
+	UserID            uuid.UUID
+	SessionID         uuid.UUID
+	RoleCodes         []string
+	PermissionCodes   []string
+	EmployeeProfileID *uuid.UUID
+	DepartmentID      *uuid.UUID
 }
 
 type JWTManager struct {
@@ -35,12 +43,35 @@ func NewJWTManager(secret, issuer string, ttl time.Duration) *JWTManager {
 }
 
 func (m *JWTManager) SignAccessToken(userID, sessionID uuid.UUID, now time.Time) (string, error) {
+	return m.SignPrincipalToken(Principal{
+		UserID:    userID,
+		SessionID: sessionID,
+	}, now)
+}
+
+func (m *JWTManager) SignPrincipalToken(principal Principal, now time.Time) (string, error) {
+	var employeeProfileID *string
+	if principal.EmployeeProfileID != nil {
+		value := principal.EmployeeProfileID.String()
+		employeeProfileID = &value
+	}
+
+	var departmentID *string
+	if principal.DepartmentID != nil {
+		value := principal.DepartmentID.String()
+		departmentID = &value
+	}
+
 	claims := Claims{
-		UserID:    userID.String(),
-		SessionID: sessionID.String(),
+		UserID:            principal.UserID.String(),
+		SessionID:         principal.SessionID.String(),
+		RoleCodes:         principal.RoleCodes,
+		PermissionCodes:   principal.PermissionCodes,
+		EmployeeProfileID: employeeProfileID,
+		DepartmentID:      departmentID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    m.issuer,
-			Subject:   userID.String(),
+			Subject:   principal.UserID.String(),
 			ExpiresAt: jwt.NewNumericDate(now.Add(m.ttl)),
 			IssuedAt:  jwt.NewNumericDate(now),
 			NotBefore: jwt.NewNumericDate(now),
@@ -74,9 +105,31 @@ func (m *JWTManager) ParseAccessToken(token string) (*Principal, error) {
 		return nil, err
 	}
 
+	var employeeProfileID *uuid.UUID
+	if claims.EmployeeProfileID != nil {
+		value, err := uuid.Parse(*claims.EmployeeProfileID)
+		if err != nil {
+			return nil, err
+		}
+		employeeProfileID = &value
+	}
+
+	var departmentID *uuid.UUID
+	if claims.DepartmentID != nil {
+		value, err := uuid.Parse(*claims.DepartmentID)
+		if err != nil {
+			return nil, err
+		}
+		departmentID = &value
+	}
+
 	return &Principal{
-		UserID:    userID,
-		SessionID: sessionID,
+		UserID:            userID,
+		SessionID:         sessionID,
+		RoleCodes:         claims.RoleCodes,
+		PermissionCodes:   claims.PermissionCodes,
+		EmployeeProfileID: employeeProfileID,
+		DepartmentID:      departmentID,
 	}, nil
 }
 
@@ -89,4 +142,14 @@ func ContextWithPrincipal(ctx context.Context, principal Principal) context.Cont
 func PrincipalFromContext(ctx context.Context) (Principal, bool) {
 	principal, ok := ctx.Value(principalContextKey{}).(Principal)
 	return principal, ok
+}
+
+func (p Principal) HasPermission(code string) bool {
+	for _, item := range p.PermissionCodes {
+		if item == code {
+			return true
+		}
+	}
+
+	return false
 }
