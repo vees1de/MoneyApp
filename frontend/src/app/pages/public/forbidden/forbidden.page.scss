@@ -2,17 +2,18 @@
   display: block;
 }
 
-.page-shell {
-  padding: 1rem;
+.forbidden {
+  display: grid;
+  gap: 1rem;
+  margin: 8rem auto;
+  max-width: 420px;
+  text-align: center;
 }
 
-.page-header {
-  margin-bottom: 1rem;
-}
-
-.page-content {
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 1rem;
-  background: #fff;
+button {
+  background: transparent;
+  border: 1px solid #1f1f1f;
+  cursor: pointer;
+  margin-inline: auto;
+  padding: 0.45rem 1rem;
 }
