@@ -3,7 +3,7 @@
 set -euo pipefail
 
 readonly DEFAULT_SSH_TARGET="root@193.187.92.116"
-readonly DEFAULT_FRONTEND_DIST_DIR="/root/MoneyApp/frontend/dist"
+readonly DEFAULT_FRONTEND_DIST_DIR="/opt/moneyapp/frontend/dist"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"

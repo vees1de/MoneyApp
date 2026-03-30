@@ -6,7 +6,7 @@ Deployment is reduced to one Docker Compose stack:
 - `migrate`
 - `backend`
 
-For host nginx, the deploy flow expects the built frontend to be uploaded to `/root/MoneyApp/frontend/dist`.
+For host nginx, the deploy flow expects the built frontend to be uploaded to `/opt/moneyapp/frontend/dist`.
 
 ## Manual deploy on a server
 
@@ -26,7 +26,7 @@ For host nginx, the deploy flow expects the built frontend to be uploaded to `/r
 ./deploy/build_frontend_local_to_server.sh
 ```
 
-By default it uploads to `root@193.187.92.116:/root/MoneyApp/frontend/dist`.
+By default it uploads to `root@193.187.92.116:/opt/moneyapp/frontend/dist`.
 
 The local build runs directly from the checked out project with `npm`, without Docker.
 
@@ -38,7 +38,7 @@ docker compose up --build -d
 
 This matches a host nginx config that:
 
-- serves `/root/MoneyApp/frontend/dist`
+- serves `/opt/moneyapp/frontend/dist`
 - proxies `/api/`, `/healthz`, `/readyz`, `/openapi.yaml`, and `/swagger` to `127.0.0.1:${APP_PORT}`
 
 ## Deploy over SSH
