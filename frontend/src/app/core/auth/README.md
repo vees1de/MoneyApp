@@ -1,19 +1,29 @@
 ﻿# Core Auth
 
-## Назначение
-Единый слой аутентификации/авторизации приложения.
+## Canonical Source
+Backend is the source of truth.
 
-## Что сейчас реализовано
-- `AuthStateService`: хранит текущего пользователя, роли, фичи и последние действия.
-- `authGuard`: защищает приватные роуты.
-- `roleGuard`: проверяет доступ по ролям.
-- `featureGuard`: проверяет доступ по feature-flag из ответа backend.
+## Bootstrap Contract
+1. `POST /api/v1/auth/login`
+2. `GET /api/v1/auth/me`
 
-## Модель доступа
-- Backend возвращает массив `roles[]` и `features[]`.
-- UI показывает доступные разделы (sidebar/home widgets) по `features[]`.
-- Роуты дополнительно защищены guard-ами, чтобы запретить прямой доступ по URL.
+`auth/me` payload drives:
+- `user.roles[]`
+- `user.permissions[]`
+- `user.employee_profile`
 
-## Что уточнить далее
-- Контракт backend на auth/session и формат feature enum.
-- Политика при нескольких ролях (приоритет, рабочий стол по умолчанию).
+## Access Model
+- UI visibility and route access are based on `permissions` from backend.
+- Roles are used for role-specific dashboards and labels.
+- Unknown/missing permissions result in `/forbidden`.
+
+## Implemented in frontend
+- `AuthStateService`
+- `authGuard`
+- `roleGuard`
+- `permissionGuard` (in `feature.guard.ts`)
+- `PERMISSIONS` constants mapped to seeded codes.
+
+## Notes
+- JWT + refresh flow should be handled in HTTP interceptor (next migration step).
+- Logout should be best-effort API call + local session cleanup.

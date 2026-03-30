@@ -1,31 +1,37 @@
-export enum UserRole {
-  Administrator = 'ADMINISTRATOR',
-  HrLnd = 'HR_LND',
-  Manager = 'MANAGER',
-  Employee = 'EMPLOYEE',
-  Trainer = 'TRAINER',
-}
+import type { PermissionCode } from './permissions';
 
-export enum AppFeature {
-  Dashboard = 'DASHBOARD',
-  ExternalRequests = 'EXTERNAL_REQUESTS',
-  Approvals = 'APPROVALS',
-  Calendar = 'CALENDAR',
-  Certificates = 'CERTIFICATES',
-  Reports = 'REPORTS',
-  University = 'UNIVERSITY',
-  Notifications = 'NOTIFICATIONS',
-  Profile = 'PROFILE',
-  Catalog = 'CATALOG',
-  AdminUsers = 'ADMIN_USERS',
-  AdminRoles = 'ADMIN_ROLES',
-}
+export type RoleCode = 'admin' | 'hr' | 'manager' | 'employee' | 'trainer' | string;
 
-export interface AuthUser {
+export interface EmployeeProfile {
   id: string;
-  fullName: string;
-  roles: UserRole[];
-  features: AppFeature[];
+  user_id: string;
+  first_name: string;
+  last_name: string;
+  middle_name?: string | null;
+  position_title?: string | null;
+  department_id?: string | null;
+  employment_status: string;
+  timezone?: string | null;
+  outlook_email?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface IdentityUserView {
+  id: string;
+  email: string;
+  status: string;
+  is_email_verified: boolean;
+  last_login_at?: string | null;
+  created_at: string;
+  updated_at: string;
+  roles: RoleCode[];
+  permissions: PermissionCode[];
+  employee_profile?: EmployeeProfile | null;
+}
+
+export interface MeResponse {
+  user: IdentityUserView;
 }
 
 export interface RecentAction {

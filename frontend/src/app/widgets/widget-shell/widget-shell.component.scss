@@ -1,0 +1,34 @@
+﻿:host {
+  display: block;
+}
+
+.widget-shell {
+  min-height: 100%;
+}
+
+.widget-shell__title-link {
+  color: var(--app-text);
+  font-size: 1.15rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.widget-shell__title-link:hover {
+  color: var(--app-primary);
+}
+
+.widget-shell__content {
+  display: grid;
+  gap: var(--space-3);
+  line-height: 1.45;
+  font-weight: 300;
+  padding-top: var(--space-2) !important;
+}
+
+.widget-shell__error {
+  color: var(--status-error);
+}
+
+.widget-shell__empty {
+  color: var(--app-muted);
+}

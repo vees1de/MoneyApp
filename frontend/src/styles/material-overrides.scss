@@ -1,0 +1,56 @@
+.mat-mdc-card {
+  background: #f9fcff;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-card);
+  padding: var(--space-4);
+}
+
+.mat-toolbar.mat-primary,
+.mat-toolbar {
+  --mat-toolbar-container-background-color: var(--app-header);
+  --mat-toolbar-container-text-color: #f4f8fc;
+}
+
+.mat-mdc-button-base {
+  border-radius: var(--radius-sm) !important;
+}
+
+.mat-mdc-stroked-button {
+  border-color: var(--app-border) !important;
+}
+
+.mat-mdc-progress-bar {
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.mat-mdc-card-header {
+  padding: 0 0 var(--space-2) !important;
+}
+
+.mat-mdc-card-content {
+  padding: var(--space-2) 0 0 !important;
+}
+
+.mat-mdc-card-title {
+  color: var(--app-text);
+  font-size: 1.2rem !important;
+  font-weight: 500 !important;
+  line-height: 1.3;
+}
+
+.mat-mdc-list-item {
+  background: #eef5fc;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-2);
+}
+
+.mat-grid-tile .mat-grid-tile-content {
+  background: #e9f2fb;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-sm);
+  color: var(--app-text);
+  font-weight: 500;
+}

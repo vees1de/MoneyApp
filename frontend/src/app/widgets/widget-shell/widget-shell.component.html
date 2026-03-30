@@ -1,0 +1,21 @@
+﻿<mat-card class="widget-shell">
+  <mat-card-header>
+    @if (listRoute()) {
+      <a class="widget-shell__title-link" [routerLink]="listRoute()">{{ title() }}</a>
+    } @else {
+      <mat-card-title>{{ title() }}</mat-card-title>
+    }
+  </mat-card-header>
+
+  <mat-card-content class="widget-shell__content">
+    @if (loading()) {
+      <p>Loading...</p>
+    } @else if (error()) {
+      <p class="widget-shell__error">Данные не подгрузились :(</p>
+    } @else if (empty()) {
+      <p class="widget-shell__empty">Нет данных</p>
+    } @else {
+      <ng-content />
+    }
+  </mat-card-content>
+</mat-card>

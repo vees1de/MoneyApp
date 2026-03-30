@@ -1,42 +1,81 @@
-:host {
+﻿:host {
   display: block;
 }
 
 .shell {
-  display: flex;
   min-height: 100vh;
 }
 
-.shell__main {
-  display: flex;
+mat-toolbar {
+  gap: var(--space-3);
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
+.shell__brand {
+  font-size: 1rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.spacer {
   flex: 1;
-  flex-direction: column;
-}
-
-.shell__header {
-  align-items: center;
-  border-bottom: 1px solid #d8d8d8;
-  display: flex;
-  gap: 0.75rem;
-  justify-content: space-between;
-  min-height: 56px;
-  padding: 0.75rem 1rem;
-}
-
-.shell__back {
-  background: transparent;
-  border: 1px solid #1f1f1f;
-  cursor: pointer;
-  padding: 0.35rem 0.75rem;
-}
-
-.shell__user {
-  color: #2f2f2f;
-  font-size: 0.9rem;
 }
 
 .shell__content {
-  background: #f8f8f8;
-  flex: 1;
-  padding: 1rem;
+  margin-inline: auto;
+  max-width: 1440px;
+  padding: var(--space-5);
+  width: 100%;
+}
+
+.notifications {
+  position: relative;
+}
+
+.notifications__panel {
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  min-width: 320px;
+  padding: var(--space-3);
+  position: absolute;
+  right: 0;
+  top: 42px;
+}
+
+.notifications__panel h3 {
+  font-size: 1rem;
+  margin: 0 0 var(--space-2);
+}
+
+.notifications__item {
+  align-items: center;
+  border-top: 1px solid var(--app-border);
+  display: flex;
+  gap: var(--space-2);
+  justify-content: space-between;
+  padding: var(--space-2) 0;
+}
+
+.notifications__item a {
+  color: var(--app-text);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.notifications__item--read a {
+  color: var(--app-muted);
+  font-weight: 300;
+}
+
+.notifications__item span {
+  color: var(--app-muted);
+  font-size: 0.85rem;
+}
+
+.shell__profile-link {
+  color: #f4f8fc !important;
 }

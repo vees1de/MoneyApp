@@ -1,12 +1,12 @@
 ﻿import { Routes } from '@angular/router';
 
 import { authGuard } from '@core/auth/auth.guard';
-import { featureGuard } from '@core/auth/feature.guard';
+import { permissionGuard } from '@core/auth/feature.guard';
 import { roleGuard } from '@core/auth/role.guard';
-import { AppFeature, UserRole } from '@core/auth/auth.types';
+import { PERMISSIONS } from '@core/auth/permissions';
 
 export const routes: Routes = [
-  { path: '', pathMatch: 'full', redirectTo: 'home' },
+  { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
 
   {
     path: 'login',
@@ -40,19 +40,21 @@ export const routes: Routes = [
       import('@core/layout/app-shell/app-shell.component').then((m) => m.AppShellComponent),
     children: [
       {
-        path: 'home',
-        canActivate: [featureGuard(AppFeature.Dashboard)],
-        loadComponent: () => import('@pages/home/home.page').then((m) => m.HomePageComponent),
+        path: 'dashboard',
+        redirectTo: 'dashboard/test-role',
+        pathMatch: 'full',
       },
       {
-        path: 'dashboard',
-        canActivate: [featureGuard(AppFeature.Dashboard)],
-        loadComponent: () => import('@pages/home/home.page').then((m) => m.HomePageComponent),
+        path: 'dashboard/test-role',
+        loadComponent: () =>
+          import('@pages/dashboard/test-role/test-role.page').then(
+            (m) => m.DashboardTestRolePageComponent,
+          ),
       },
 
       {
         path: 'dashboard/employee',
-        canActivate: [roleGuard([UserRole.Employee])],
+        canActivate: [roleGuard(['employee'])],
         loadComponent: () =>
           import('@pages/dashboard/employee/employee.page').then(
             (m) => m.DashboardEmployeePageComponent,
@@ -60,7 +62,7 @@ export const routes: Routes = [
       },
       {
         path: 'dashboard/manager',
-        canActivate: [roleGuard([UserRole.Manager])],
+        canActivate: [roleGuard(['manager'])],
         loadComponent: () =>
           import('@pages/dashboard/manager/manager.page').then(
             (m) => m.DashboardManagerPageComponent,
@@ -68,13 +70,13 @@ export const routes: Routes = [
       },
       {
         path: 'dashboard/hr',
-        canActivate: [roleGuard([UserRole.HrLnd])],
+        canActivate: [roleGuard(['hr'])],
         loadComponent: () =>
           import('@pages/dashboard/hr/hr.page').then((m) => m.DashboardHrPageComponent),
       },
       {
         path: 'dashboard/trainer',
-        canActivate: [roleGuard([UserRole.Trainer])],
+        canActivate: [roleGuard(['trainer'])],
         loadComponent: () =>
           import('@pages/dashboard/trainer/trainer.page').then(
             (m) => m.DashboardTrainerPageComponent,
@@ -82,32 +84,32 @@ export const routes: Routes = [
       },
       {
         path: 'dashboard/admin',
-        canActivate: [roleGuard([UserRole.Administrator])],
+        canActivate: [roleGuard(['admin'])],
         loadComponent: () =>
           import('@pages/dashboard/admin/admin.page').then((m) => m.DashboardAdminPageComponent),
       },
 
       {
         path: 'catalog',
-        canActivate: [featureGuard(AppFeature.Catalog)],
+        canActivate: [permissionGuard([PERMISSIONS.coursesRead])],
         loadComponent: () =>
           import('@pages/catalog/list/list.page').then((m) => m.CatalogListPageComponent),
       },
       {
         path: 'catalog/:courseId',
-        canActivate: [featureGuard(AppFeature.Catalog)],
+        canActivate: [permissionGuard([PERMISSIONS.coursesRead])],
         loadComponent: () =>
           import('@pages/catalog/detail/detail.page').then((m) => m.CatalogDetailPageComponent),
       },
       {
         path: 'my-learning',
-        canActivate: [featureGuard(AppFeature.Dashboard)],
+        canActivate: [permissionGuard([PERMISSIONS.enrollmentsRead, PERMISSIONS.enrollmentsManage])],
         loadComponent: () =>
           import('@pages/my-learning/list/list.page').then((m) => m.MyLearningListPageComponent),
       },
       {
         path: 'learning/certificates',
-        canActivate: [featureGuard(AppFeature.Certificates)],
+        canActivate: [permissionGuard([PERMISSIONS.certificatesVerify, PERMISSIONS.enrollmentsRead])],
         loadComponent: () =>
           import('@pages/learning/certificates/certificates.page').then(
             (m) => m.LearningCertificatesPageComponent,
@@ -115,7 +117,7 @@ export const routes: Routes = [
       },
       {
         path: 'learning/:enrollmentId',
-        canActivate: [featureGuard(AppFeature.Dashboard)],
+        canActivate: [permissionGuard([PERMISSIONS.enrollmentsRead, PERMISSIONS.enrollmentsManage])],
         loadComponent: () =>
           import('@pages/learning/enrollment-detail/enrollment-detail.page').then(
             (m) => m.LearningEnrollmentDetailPageComponent,
@@ -124,7 +126,13 @@ export const routes: Routes = [
 
       {
         path: 'external-requests',
-        canActivate: [featureGuard(AppFeature.ExternalRequests)],
+        canActivate: [
+          permissionGuard([
+            PERMISSIONS.externalRequestsCreate,
+            PERMISSIONS.externalRequestsReadOwn,
+            PERMISSIONS.externalRequestsReadAll,
+          ]),
+        ],
         loadComponent: () =>
           import('@pages/external-requests/list/list.page').then(
             (m) => m.ExternalRequestsListPageComponent,
@@ -132,7 +140,7 @@ export const routes: Routes = [
       },
       {
         path: 'external-requests/new',
-        canActivate: [featureGuard(AppFeature.ExternalRequests)],
+        canActivate: [permissionGuard([PERMISSIONS.externalRequestsCreate])],
         loadComponent: () =>
           import('@pages/external-requests/new/new.page').then(
             (m) => m.ExternalRequestsNewPageComponent,
@@ -140,7 +148,14 @@ export const routes: Routes = [
       },
       {
         path: 'external-requests/:requestId',
-        canActivate: [featureGuard(AppFeature.ExternalRequests)],
+        canActivate: [
+          permissionGuard([
+            PERMISSIONS.externalRequestsReadOwn,
+            PERMISSIONS.externalRequestsReadAll,
+            PERMISSIONS.externalRequestsApproveManager,
+            PERMISSIONS.externalRequestsApproveHr,
+          ]),
+        ],
         loadComponent: () =>
           import('@pages/external-requests/detail/detail.page').then(
             (m) => m.ExternalRequestsDetailPageComponent,
@@ -149,13 +164,23 @@ export const routes: Routes = [
 
       {
         path: 'approvals/inbox',
-        canActivate: [featureGuard(AppFeature.Approvals)],
+        canActivate: [
+          permissionGuard([
+            PERMISSIONS.externalRequestsApproveManager,
+            PERMISSIONS.externalRequestsApproveHr,
+          ]),
+        ],
         loadComponent: () =>
           import('@pages/approvals/inbox/inbox.page').then((m) => m.ApprovalsInboxPageComponent),
       },
       {
         path: 'approvals/:requestId',
-        canActivate: [featureGuard(AppFeature.Approvals)],
+        canActivate: [
+          permissionGuard([
+            PERMISSIONS.externalRequestsApproveManager,
+            PERMISSIONS.externalRequestsApproveHr,
+          ]),
+        ],
         loadComponent: () =>
           import('@pages/approvals/decision/decision.page').then(
             (m) => m.ApprovalsDecisionPageComponent,
@@ -164,7 +189,7 @@ export const routes: Routes = [
 
       {
         path: 'calendar',
-        canActivate: [featureGuard(AppFeature.Calendar)],
+        canActivate: [permissionGuard([PERMISSIONS.enrollmentsRead])],
         loadComponent: () =>
           import('@pages/calendar/overview/overview.page').then(
             (m) => m.CalendarOverviewPageComponent,
@@ -172,7 +197,7 @@ export const routes: Routes = [
       },
       {
         path: 'calendar/conflicts',
-        canActivate: [featureGuard(AppFeature.Calendar)],
+        canActivate: [permissionGuard([PERMISSIONS.enrollmentsRead])],
         loadComponent: () =>
           import('@pages/calendar/conflicts/conflicts.page').then(
             (m) => m.CalendarConflictsPageComponent,
@@ -181,7 +206,7 @@ export const routes: Routes = [
 
       {
         path: 'notifications',
-        canActivate: [featureGuard(AppFeature.Notifications)],
+        canActivate: [permissionGuard([PERMISSIONS.notificationsManage])],
         loadComponent: () =>
           import('@pages/notifications/center/center.page').then(
             (m) => m.NotificationsCenterPageComponent,
@@ -189,7 +214,7 @@ export const routes: Routes = [
       },
       {
         path: 'profile',
-        canActivate: [featureGuard(AppFeature.Profile)],
+        canActivate: [permissionGuard([PERMISSIONS.coursesRead])],
         loadComponent: () =>
           import('@pages/profile/overview/overview.page').then(
             (m) => m.ProfileOverviewPageComponent,
@@ -198,7 +223,7 @@ export const routes: Routes = [
 
       {
         path: 'reports/overview',
-        canActivate: [featureGuard(AppFeature.Reports)],
+        canActivate: [permissionGuard([PERMISSIONS.analyticsReadHr, PERMISSIONS.analyticsReadManager])],
         loadComponent: () =>
           import('@pages/reports/overview/overview.page').then(
             (m) => m.ReportsOverviewPageComponent,
@@ -206,7 +231,7 @@ export const routes: Routes = [
       },
       {
         path: 'reports/progress',
-        canActivate: [featureGuard(AppFeature.Reports)],
+        canActivate: [permissionGuard([PERMISSIONS.analyticsReadHr, PERMISSIONS.analyticsReadManager])],
         loadComponent: () =>
           import('@pages/reports/progress/progress.page').then(
             (m) => m.ReportsProgressPageComponent,
@@ -214,13 +239,13 @@ export const routes: Routes = [
       },
       {
         path: 'reports/budget',
-        canActivate: [featureGuard(AppFeature.Reports)],
+        canActivate: [permissionGuard([PERMISSIONS.analyticsReadHr])],
         loadComponent: () =>
           import('@pages/reports/budget/budget.page').then((m) => m.ReportsBudgetPageComponent),
       },
       {
         path: 'reports/traceability',
-        canActivate: [featureGuard(AppFeature.Reports)],
+        canActivate: [permissionGuard([PERMISSIONS.analyticsReadHr, PERMISSIONS.analyticsReadManager])],
         loadComponent: () =>
           import('@pages/reports/traceability/traceability.page').then(
             (m) => m.ReportsTraceabilityPageComponent,
@@ -228,14 +253,14 @@ export const routes: Routes = [
       },
       {
         path: 'reports/export',
-        canActivate: [featureGuard(AppFeature.Reports)],
+        canActivate: [permissionGuard([PERMISSIONS.analyticsReadHr, PERMISSIONS.analyticsReadManager])],
         loadComponent: () =>
           import('@pages/reports/export/export.page').then((m) => m.ReportsExportPageComponent),
       },
 
       {
         path: 'university/directions',
-        canActivate: [featureGuard(AppFeature.University)],
+        canActivate: [permissionGuard([PERMISSIONS.programsManage])],
         loadComponent: () =>
           import('@pages/university/directions/directions.page').then(
             (m) => m.UniversityDirectionsPageComponent,
@@ -243,7 +268,7 @@ export const routes: Routes = [
       },
       {
         path: 'university/programs/:programId',
-        canActivate: [featureGuard(AppFeature.University)],
+        canActivate: [permissionGuard([PERMISSIONS.programsManage])],
         loadComponent: () =>
           import('@pages/university/programs/programs.page').then(
             (m) => m.UniversityProgramsPageComponent,
@@ -251,7 +276,7 @@ export const routes: Routes = [
       },
       {
         path: 'university/groups',
-        canActivate: [featureGuard(AppFeature.University)],
+        canActivate: [permissionGuard([PERMISSIONS.programsManage])],
         loadComponent: () =>
           import('@pages/university/groups/groups.page').then(
             (m) => m.UniversityGroupsPageComponent,
@@ -259,7 +284,7 @@ export const routes: Routes = [
       },
       {
         path: 'university/feedback/:courseId',
-        canActivate: [featureGuard(AppFeature.University)],
+        canActivate: [permissionGuard([PERMISSIONS.programsManage])],
         loadComponent: () =>
           import('@pages/university/feedback/feedback.page').then(
             (m) => m.UniversityFeedbackPageComponent,
@@ -268,19 +293,13 @@ export const routes: Routes = [
 
       {
         path: 'admin/users',
-        canActivate: [
-          roleGuard([UserRole.Administrator]),
-          featureGuard(AppFeature.AdminUsers),
-        ],
+        canActivate: [permissionGuard([PERMISSIONS.usersRead, PERMISSIONS.usersWrite])],
         loadComponent: () =>
           import('@pages/admin/users/users.page').then((m) => m.AdminUsersPageComponent),
       },
       {
         path: 'admin/roles',
-        canActivate: [
-          roleGuard([UserRole.Administrator]),
-          featureGuard(AppFeature.AdminRoles),
-        ],
+        canActivate: [permissionGuard([PERMISSIONS.rolesManage])],
         loadComponent: () =>
           import('@pages/admin/roles/roles.page').then((m) => m.AdminRolesPageComponent),
       },

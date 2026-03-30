@@ -1,14 +1,48 @@
-<div class="shell">
-  <app-sidebar />
+﻿<div class="shell">
+  <mat-toolbar>
+    <span class="shell__brand">Diamond Learning</span>
 
-  <main class="shell__main">
-    <header class="shell__header">
-      <button type="button" class="shell__back" (click)="goBack()">Вернуться назад</button>
-      <span class="shell__user">{{ authState.currentUser()?.fullName }}</span>
-    </header>
+    @if (showBackButton) {
+      <button mat-stroked-button type="button" (click)="goBack()">Назад</button>
+    }
 
-    <section class="shell__content">
-      <router-outlet />
-    </section>
+    <span class="spacer"></span>
+
+    <div class="notifications">
+      <button
+        mat-icon-button
+        type="button"
+        (click)="toggleNotifications()"
+        [matBadge]="unreadCount()"
+        matBadgeSize="small"
+      >
+        <mat-icon>notifications</mat-icon>
+      </button>
+
+      @if (notificationsOpen()) {
+        <section class="notifications__panel">
+          <h3>Уведомления</h3>
+          @for (item of notifications(); track item.id) {
+            <div class="notifications__item" [class.notifications__item--read]="item.read">
+              <a [routerLink]="item.route">{{ item.text }}</a>
+              @if (!item.read) {
+                <button mat-button type="button" (click)="markAsRead(item.id)">Прочитать</button>
+              } @else {
+                <span>Прочитано</span>
+              }
+            </div>
+          }
+        </section>
+      }
+    </div>
+
+    <a mat-button routerLink="/profile" class="shell__profile-link">
+      <mat-icon>person</mat-icon>
+      Профиль
+    </a>
+  </mat-toolbar>
+
+  <main class="shell__content">
+    <router-outlet />
   </main>
 </div>

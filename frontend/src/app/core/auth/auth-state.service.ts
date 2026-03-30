@@ -1,45 +1,54 @@
-import { Injectable, computed, signal } from '@angular/core';
+﻿import { Injectable, computed, signal } from '@angular/core';
 
-import { AppFeature, AuthUser, RecentAction, UserRole } from './auth.types';
+import type { IdentityUserView, MeResponse, RecentAction, RoleCode } from './auth.types';
+import type { PermissionCode } from './permissions';
 
 @Injectable({ providedIn: 'root' })
 export class AuthStateService {
-  private readonly currentUserSignal = signal<AuthUser | null>({
-    id: 'u-001',
-    fullName: 'Demo User',
-    roles: [
-      UserRole.Employee,
-      UserRole.Manager,
-      UserRole.HrLnd,
-      UserRole.Trainer,
-      UserRole.Administrator,
+  private readonly currentUserSignal = signal<IdentityUserView | null>({
+    id: '8f4e2a44-8a61-4d48-8f11-0f1fd9562b8f',
+    email: 'hr@example.com',
+    status: 'active',
+    is_email_verified: true,
+    last_login_at: '2026-03-30T10:12:00Z',
+    created_at: '2026-03-01T09:00:00Z',
+    updated_at: '2026-03-30T10:12:00Z',
+    roles: ['hr'],
+    permissions: [
+      'analytics.read_hr',
+      'certificates.verify',
+      'courses.assign',
+      'courses.read',
+      'courses.write',
+      'enrollments.manage',
+      'enrollments.read',
+      'external_requests.approve_hr',
+      'external_requests.read_all',
+      'notifications.manage',
+      'users.read',
     ],
-    features: [
-      AppFeature.Dashboard,
-      AppFeature.ExternalRequests,
-      AppFeature.Approvals,
-      AppFeature.Calendar,
-      AppFeature.Certificates,
-      AppFeature.Reports,
-      AppFeature.University,
-      AppFeature.Notifications,
-      AppFeature.Profile,
-      AppFeature.Catalog,
-      AppFeature.AdminUsers,
-      AppFeature.AdminRoles,
-    ],
+    employee_profile: {
+      id: '20b9d4f6-7f97-4f9d-98f5-a7eb5b57d8e1',
+      user_id: '8f4e2a44-8a61-4d48-8f11-0f1fd9562b8f',
+      first_name: 'Anna',
+      last_name: 'Ivanova',
+      department_id: '55b44d65-ef0e-4d4a-a9cf-2205ae37322c',
+      employment_status: 'active',
+      created_at: '2026-03-01T09:00:00Z',
+      updated_at: '2026-03-30T10:12:00Z',
+    },
   });
 
   private readonly recentActionsSignal = signal<RecentAction[]>([
     {
       id: 'ra-1',
-      label: 'Открыт реестр заявок на внешние курсы',
+      label: 'Opened external requests list',
       route: '/external-requests',
       at: 'just now',
     },
     {
       id: 'ra-2',
-      label: 'Просмотрен дашборд подразделения',
+      label: 'Opened analytics dashboard',
       route: '/reports/overview',
       at: '5m ago',
     },
@@ -48,27 +57,52 @@ export class AuthStateService {
   readonly currentUser = computed(() => this.currentUserSignal());
   readonly isAuthenticated = computed(() => this.currentUserSignal() !== null);
   readonly recentActions = computed(() => this.recentActionsSignal());
+  readonly displayName = computed(() => {
+    const profile = this.currentUserSignal()?.employee_profile;
+    if (!profile) return 'User';
+    return `${profile.first_name} ${profile.last_name}`.trim();
+  });
 
-  setCurrentUser(user: AuthUser | null): void {
+  setCurrentUser(user: IdentityUserView | null): void {
     this.currentUserSignal.set(user);
+  }
+
+  setCurrentUserFromMe(payload: MeResponse): void {
+    this.currentUserSignal.set(payload.user);
   }
 
   addRecentAction(action: RecentAction): void {
     this.recentActionsSignal.update((state) => [action, ...state].slice(0, 12));
   }
 
-  hasRole(role: UserRole): boolean {
+  hasRole(role: RoleCode): boolean {
     const user = this.currentUserSignal();
     return !!user && user.roles.includes(role);
   }
 
-  hasAnyRole(roles: UserRole[]): boolean {
+  hasAnyRole(roles: RoleCode[]): boolean {
     const user = this.currentUserSignal();
     return !!user && roles.some((role) => user.roles.includes(role));
   }
 
-  hasFeature(feature: AppFeature): boolean {
+  hasPermission(permission: PermissionCode): boolean {
     const user = this.currentUserSignal();
-    return !!user && user.features.includes(feature);
+    return !!user && user.permissions.includes(permission);
+  }
+
+  hasAnyPermission(permissions: PermissionCode[]): boolean {
+    const user = this.currentUserSignal();
+    return !!user && permissions.some((permission) => user.permissions.includes(permission));
+  }
+
+  roleLabel(role: RoleCode): string {
+    const roleMap: Record<string, string> = {
+      admin: 'Administrator',
+      hr: 'HR / L&D',
+      manager: 'Manager',
+      employee: 'Employee',
+      trainer: 'Trainer',
+    };
+    return roleMap[role] ?? role;
   }
 }
