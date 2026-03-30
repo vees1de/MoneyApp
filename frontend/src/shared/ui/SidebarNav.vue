@@ -30,10 +30,15 @@ function isActive(to: string): boolean {
   <aside class="sidebar">
     <div class="sidebar__logo">
       <div class="sidebar__logo-icon">
-        <svg viewBox="0 0 28 28" fill="none" width="20" height="20">
-          <rect width="28" height="28" rx="8" fill="var(--brand)"/>
-          <path d="M8 20V10.5L14 7l6 3.5V20" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M11 20v-5h6v5" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <svg viewBox="0 0 64 64" width="20" height="20">
+          <rect width="64" height="64" rx="14" fill="#333"/>
+          <circle cx="32" cy="32" r="22" fill="#F5F0E1"/>
+          <path d="M22 11.5 C18 14, 14 19, 12.5 24 L17 24 C18 20, 20 17, 23 14.5Z" fill="#333"/>
+          <path d="M36 11 C40 12, 43 14, 45 17 L38 17 C37 15, 36.5 13, 36 11Z" fill="#333"/>
+          <path d="M22 14 C20 16, 19.5 18, 19.5 20 L19.5 46 C19.5 48, 21 50, 23 50 L25 49 L25 14 C24 13.5, 23 13.5, 22 14Z" fill="#333"/>
+          <path d="M25 30 C25 26, 29 23, 34 23 C39 23, 43 26, 44 30 L44 42 C44 47, 40 51, 34 51 C28 51, 25 47, 25 42Z" fill="#333"/>
+          <path d="M25 32 C25 27.5, 29 24.5, 34 24.5 C39 24.5, 42.5 27.5, 42.5 32 L42.5 41 C42.5 45.5, 39 48.5, 34 48.5 C29 48.5, 25 45.5, 25 41Z" fill="#F5F0E1"/>
+          <ellipse cx="33.5" cy="37" rx="6" ry="7" fill="#333"/>
         </svg>
       </div>
       <span class="sidebar__logo-text">{{ env.appName }}</span>

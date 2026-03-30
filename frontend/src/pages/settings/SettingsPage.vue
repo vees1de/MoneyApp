@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { useAppUiStore } from '@/app/stores/app-ui'
 import { useAuthStore } from '@/app/stores/auth'
 import { useUserStore } from '@/app/stores/user'
 import { translateProvider, useI18n } from '@/shared/i18n'
+import { runCicdSmoke } from '@/shared/api/services/cicd'
+import { formatDateTime } from '@/shared/lib/date'
 import PageContainer from '@/shared/ui/PageContainer.vue'
 import LanguageSwitch from '@/shared/ui/LanguageSwitch.vue'
 
@@ -14,11 +16,39 @@ const appUiStore = useAppUiStore()
 const authStore = useAuthStore()
 const userStore = useUserStore()
 const { t } = useI18n()
+const isSmokeRunning = ref(false)
+const lastSmokeCheck = ref<{
+  createdAt: string
+  totalRuns: number
+} | null>(null)
 
 async function signOut() {
   await authStore.logout()
   appUiStore.clearToasts()
   await router.push('/login')
+}
+
+async function triggerSmokeTest() {
+  if (isSmokeRunning.value) {
+    return
+  }
+
+  try {
+    isSmokeRunning.value = true
+
+    const response = await runCicdSmoke()
+    lastSmokeCheck.value = {
+      createdAt: response.check.created_at,
+      totalRuns: response.total_runs,
+    }
+
+    appUiStore.pushToast(t('settings.cicdSuccess', { count: response.total_runs }), 'success')
+  } catch (error) {
+    const message = error instanceof Error ? error.message : t('settings.cicdFailed')
+    appUiStore.pushToast(message, 'warning')
+  } finally {
+    isSmokeRunning.value = false
+  }
 }
 
 onMounted(async () => {
@@ -80,9 +110,20 @@ onMounted(async () => {
         <button class="button button--secondary button--block" type="button" @click="userStore.fetchProfile()">
           {{ t('settings.refreshProfile') }}
         </button>
+        <button
+          class="button button--secondary button--block"
+          type="button"
+          :disabled="isSmokeRunning"
+          @click="triggerSmokeTest"
+        >
+          {{ isSmokeRunning ? t('settings.cicdRunning') : t('settings.cicdTrigger') }}
+        </button>
         <button class="button button--danger button--block" type="button" @click="signOut">
           {{ t('settings.signOut') }}
         </button>
+        <p v-if="lastSmokeCheck" class="muted settings-smoke-meta">
+          {{ t('settings.cicdLastRun', { date: formatDateTime(lastSmokeCheck.createdAt), count: lastSmokeCheck.totalRuns }) }}
+        </p>
       </div>
     </section>
 
@@ -172,5 +213,11 @@ onMounted(async () => {
   font-size: 0.75rem;
   color: var(--text-muted);
   margin: 4px 0 0;
+}
+
+.settings-smoke-meta {
+  margin: 2px 4px 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
 }
 </style>

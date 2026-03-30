@@ -41,6 +41,7 @@ func NewRouter(container *Container) http.Handler {
 
 			r.Get("/users/me", container.UserHandler.Me)
 			r.Patch("/users/preferences", container.UserHandler.UpdatePreferences)
+			r.Post("/cicd/smoke", container.CICDHandler.Run)
 
 			r.Route("/accounts", func(r chi.Router) {
 				r.Get("/", container.AccountHandler.List)

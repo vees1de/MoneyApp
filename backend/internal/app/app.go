@@ -8,6 +8,7 @@ import (
 	"moneyapp/backend/internal/config"
 	coreaudit "moneyapp/backend/internal/core/audit"
 	coreauth "moneyapp/backend/internal/core/auth"
+	corecicd "moneyapp/backend/internal/core/cicd"
 	corehealth "moneyapp/backend/internal/core/health"
 	corejobs "moneyapp/backend/internal/core/jobs"
 	corelinks "moneyapp/backend/internal/core/links"
@@ -53,6 +54,7 @@ func New(cfg *config.Config) (*App, error) {
 	sessionRepo := coresessions.NewRepository(database)
 	auditRepo := coreaudit.NewRepository(database)
 	authRepo := coreauth.NewRepository(database)
+	cicdRepo := corecicd.NewRepository(database)
 	linksRepo := corelinks.NewRepository(database)
 	accountRepo := financeaccounts.NewRepository(database)
 	categoryRepo := financecategories.NewRepository(database)
@@ -81,6 +83,7 @@ func New(cfg *config.Config) (*App, error) {
 			cfg.Auth.AllowInsecureDevAuth,
 		),
 	)
+	cicdService := corecicd.NewService(cicdRepo, appClock)
 	linksService := corelinks.NewService(linksRepo, appClock)
 	accountService := financeaccounts.NewService(database, accountRepo, auditService, appClock)
 	categoryService := financecategories.NewService(categoryRepo, auditService, appClock)
@@ -107,6 +110,7 @@ func New(cfg *config.Config) (*App, error) {
 		HealthService:      healthService,
 		UserService:        userService,
 		AuthService:        authService,
+		CICDService:        cicdService,
 		AuditService:       auditService,
 		LinksService:       linksService,
 		JobService:         jobService,
@@ -120,6 +124,7 @@ func New(cfg *config.Config) (*App, error) {
 		DashboardService:   dashboardService,
 		HealthHandler:      corehealth.NewHandler(healthService),
 		AuthHandler:        coreauth.NewHandler(authService, validate),
+		CICDHandler:        corecicd.NewHandler(cicdService),
 		UserHandler:        coreusers.NewHandler(userService, validate),
 		LinksHandler:       corelinks.NewHandler(linksService, validate),
 		AccountHandler:     financeaccounts.NewHandler(accountService, validate),

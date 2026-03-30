@@ -5,7 +5,7 @@ import { useRoute } from 'vue-router'
 import { useAppUiStore } from '@/app/stores/app-ui'
 import { useFinanceStore } from '@/app/stores/finance'
 import { useI18n } from '@/shared/i18n'
-import { toIsoDate } from '@/shared/lib/date'
+import { addDays, toIsoDate } from '@/shared/lib/date'
 import { parseAmountToMinor } from '@/shared/lib/money'
 
 interface TransactionComposerValue {
@@ -44,6 +44,29 @@ const { t } = useI18n()
 
 const presetAmounts = [500, 1000, 2500, 5000]
 const detailsExpanded = ref(props.mode === 'edit')
+const showCustomDate = ref(false)
+
+const datePresets = computed(() => {
+  const today = new Date()
+  return [
+    { label: t('transactionForm.today'), value: toIsoDate(today) },
+    { label: t('transactionForm.yesterday'), value: toIsoDate(addDays(today, -1)) },
+    { label: t('transactionForm.dayBeforeYesterday'), value: toIsoDate(addDays(today, -2)) },
+  ]
+})
+
+const isCustomDate = computed(() => {
+  return !datePresets.value.some((preset) => preset.value === form.occurredAt)
+})
+
+function selectDatePreset(value: string) {
+  form.occurredAt = value
+  showCustomDate.value = false
+}
+
+function toggleCustomDate() {
+  showCustomDate.value = !showCustomDate.value
+}
 
 const form = reactive<{
   accountId: string
@@ -192,6 +215,7 @@ async function submit() {
       form.note = ''
       form.title = ''
       form.occurredAt = toIsoDate(new Date())
+      showCustomDate.value = false
     }
 
     emit('submitted', transaction.id)
@@ -277,6 +301,37 @@ async function submit() {
       </select>
     </div>
 
+    <div class="chip-group">
+      <span class="tiny chip-group__label">{{ t('common.date') }}</span>
+      <div class="chip-group__items">
+        <button
+          v-for="preset in datePresets"
+          :key="preset.value"
+          class="chip"
+          :class="{ 'chip--active': form.occurredAt === preset.value && !showCustomDate }"
+          type="button"
+          @click="selectDatePreset(preset.value)"
+        >
+          {{ preset.label }}
+        </button>
+        <button
+          class="chip"
+          :class="{ 'chip--active': isCustomDate || showCustomDate }"
+          type="button"
+          @click="toggleCustomDate"
+        >
+          {{ t('transactionForm.otherDate') }}
+        </button>
+      </div>
+      <input
+        v-if="showCustomDate || isCustomDate"
+        id="occurredAt"
+        v-model="form.occurredAt"
+        class="composer__date-input"
+        type="date"
+      />
+    </div>
+
     <button
       v-if="props.mode === 'create'"
       class="composer__details-toggle"
@@ -298,8 +353,8 @@ async function submit() {
         </div>
 
         <div class="field">
-          <label for="occurredAt">{{ t('common.date') }}</label>
-          <input id="occurredAt" v-model="form.occurredAt" type="date" />
+          <label for="occurredAtDetail">{{ t('common.date') }}</label>
+          <input id="occurredAtDetail" v-model="form.occurredAt" type="date" />
         </div>
       </div>
 
@@ -479,6 +534,11 @@ async function submit() {
   width: 9px;
   height: 9px;
   border-radius: 50%;
+}
+
+.composer__date-input {
+  margin-top: 4px;
+  width: 100%;
 }
 
 .composer__details-toggle {

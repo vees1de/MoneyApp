@@ -9,6 +9,7 @@ import (
 	"moneyapp/backend/internal/config"
 	coreaudit "moneyapp/backend/internal/core/audit"
 	coreauth "moneyapp/backend/internal/core/auth"
+	corecicd "moneyapp/backend/internal/core/cicd"
 	corehealth "moneyapp/backend/internal/core/health"
 	corejobs "moneyapp/backend/internal/core/jobs"
 	corelinks "moneyapp/backend/internal/core/links"
@@ -39,6 +40,7 @@ type Container struct {
 	HealthService      *corehealth.Service
 	UserService        *coreusers.Service
 	AuthService        *coreauth.Service
+	CICDService        *corecicd.Service
 	AuditService       *coreaudit.Service
 	LinksService       *corelinks.Service
 	JobService         *corejobs.Service
@@ -53,6 +55,7 @@ type Container struct {
 
 	HealthHandler      *corehealth.Handler
 	AuthHandler        *coreauth.Handler
+	CICDHandler        *corecicd.Handler
 	UserHandler        *coreusers.Handler
 	LinksHandler       *corelinks.Handler
 	AccountHandler     *financeaccounts.Handler
