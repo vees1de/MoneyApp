@@ -34,7 +34,7 @@ values
 on conflict (code) do nothing;
 
 insert into role_permissions (role_id, permission_id)
-select role_id, permission_id
+select r.id, p.id
 from (
   values
     ('employee', 'courses.read'),
