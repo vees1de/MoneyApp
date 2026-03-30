@@ -460,13 +460,18 @@ def scrape_catalog():
             else:
                 log.info("  apiData['%s']: %s", k, type(v).__name__)
 
+    # Вне retry-цикла — данные получены
+    try:
         courses = parse_preloaded_data(preloaded)
         log.info("Итого спарсено курсов: %d", len(courses))
         return courses
-
     finally:
-        driver.quit()
-        log.info("Chrome закрыт")
+        if driver:
+            try:
+                driver.quit()
+            except Exception:
+                pass
+            log.info("Chrome закрыт")
 
 
 # ---------------------------------------------------------------------------
