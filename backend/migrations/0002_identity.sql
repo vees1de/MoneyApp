@@ -40,7 +40,7 @@ create table if not exists user_roles (
   scope_type varchar(30) null check (scope_type is null or scope_type in ('global', 'department', 'program')),
   scope_id uuid null,
   created_at timestamptz not null,
-  primary key (user_id, role_id, scope_type, scope_id)
+  unique nulls not distinct (user_id, role_id, scope_type, scope_id)
 );
 
 create table if not exists sessions (
