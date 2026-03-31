@@ -1,39 +1,47 @@
-﻿# Project Context (Widget-Based MVP)
+# Project Context (Widget-Based MVP)
 
 ## Key Navigation Decisions
 - `"" -> /dashboard`
-- `/dashboard -> /dashboard/test-role`
+- `/dashboard` is role-aware redirect (`admin|hr|manager|trainer|employee`)
+- `/login` is guest-only (authorized user is redirected to `/dashboard`)
 - Main exploration goes through dashboard widgets (no sidebar)
 - Protected unknown routes redirect to `/dashboard`
 
-## Dashboard Concept
-- `dashboard/test-role` is a showcase route with all available widgets
-- role-specific dashboards remain as separate routes (`/dashboard/hr`, etc.)
-- widgets are hardcoded per role page for now
-
 ## Header for protected routes
 - dark top bar
-- conditional back button (not visible on main dashboard showcase)
+- back button is hidden on dashboard routes (`/dashboard*`) and shown on inner pages
 - custom notifications panel with mark-as-read action
 - profile link
 
-## Widget Set (current)
-- Team overview
-- Upcoming events
-- Jira summary
-- Course requests (unsolved approvals)
-- Current learning (`enrollments/my` target)
-- Recommended courses (mock)
-- Quick actions
-- My requests
-- Work activity
-- Skillgraph excluded for now
+## Dashboard Strategy
+- Real role dashboards are now the primary entry:
+  - `/dashboard/hr` -> widgets `2,4,7`
+  - `/dashboard/manager` -> widgets `1,2,3,4,5,6,7`
+  - `/dashboard/employee` -> widgets `1,2,3,5,6,7`
+  - `/dashboard/trainer` -> widgets `1,2,3,4,5,6,7`
+- `/dashboard/test-role` is a playground page with all widgets, without role switcher.
 
-## Data strategy (current stage)
-- layout and flow first
-- real backend binding later
-- block errors are shown as text (`Данные не подгрузились :(`)
-- skeleton states planned next step
+## Widget Numbering
+1. Team overview
+2. Upcoming events
+3. Jira summary
+4. Course requests
+5. Current learning
+6. Recommendations
+7. Quick actions
+
+## Auth implementation status
+- login page with email/password form is implemented
+- explicit field validation messages are shown under each input
+- auth API service + session storage + bootstrap + auth interceptor are implemented
+- global `401` handler: clear session + clear user + redirect `/login`
+- redirect after successful login is implemented
+- refresh/logout/tests deferred by request
+
+## API layer status
+- API base URL unified: `https://bims.su/api`
+- Added domain services under `src/app/core/api` aligned to backend reference
+- DTO typing is currently mixed: strict where local entity model exists, fallback to `Record<string, unknown>` for unstable contracts
 
 ## Design baseline
 - corporate clean style
@@ -45,8 +53,3 @@
 - design tokens: `src/styles/tokens.scss`
 - material overrides: `src/styles/material-overrides.scss`
 - global entry: `src/styles.scss`
-
-## Backend-first notes
-- permissions come from `/api/v1/auth/me` as `user.permissions[]`
-- roles come from `/api/v1/auth/me` as `user.roles[]`
-- departments are currently available only through profile/related entities

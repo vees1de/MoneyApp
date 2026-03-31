@@ -1,4 +1,4 @@
-п»їimport { CommonModule, Location } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink, RouterOutlet } from '@angular/router';
 import { MatBadgeModule } from '@angular/material/badge';
@@ -38,13 +38,13 @@ export class AppShellComponent {
   protected readonly notifications = signal<HeaderNotification[]>([
     {
       id: 'n-1',
-      text: 'РќРѕРІР°СЏ Р·Р°СЏРІРєР° РЅР° СЃРѕРіР»Р°СЃРѕРІР°РЅРёРµ',
+      text: 'Новая заявка на согласование',
       route: '/approvals/inbox',
       read: false,
     },
     {
       id: 'n-2',
-      text: 'Р”РµРґР»Р°Р№РЅ РєСѓСЂСЃР° С‡РµСЂРµР· 3 РґРЅСЏ',
+      text: 'Дедлайн курса через 3 дня',
       route: '/my-learning',
       read: false,
     },
@@ -54,7 +54,7 @@ export class AppShellComponent {
   );
 
   protected get showBackButton(): boolean {
-    return !this.router.url.startsWith('/dashboard/test-role');
+    return !this.router.url.startsWith('/dashboard');
   }
 
   protected toggleNotifications(): void {

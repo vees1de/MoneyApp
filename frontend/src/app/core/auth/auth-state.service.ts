@@ -5,39 +5,7 @@ import type { PermissionCode } from './permissions';
 
 @Injectable({ providedIn: 'root' })
 export class AuthStateService {
-  private readonly currentUserSignal = signal<IdentityUserView | null>({
-    id: '8f4e2a44-8a61-4d48-8f11-0f1fd9562b8f',
-    email: 'hr@example.com',
-    status: 'active',
-    is_email_verified: true,
-    last_login_at: '2026-03-30T10:12:00Z',
-    created_at: '2026-03-01T09:00:00Z',
-    updated_at: '2026-03-30T10:12:00Z',
-    roles: ['hr'],
-    permissions: [
-      'analytics.read_hr',
-      'certificates.verify',
-      'courses.assign',
-      'courses.read',
-      'courses.write',
-      'enrollments.manage',
-      'enrollments.read',
-      'external_requests.approve_hr',
-      'external_requests.read_all',
-      'notifications.manage',
-      'users.read',
-    ],
-    employee_profile: {
-      id: '20b9d4f6-7f97-4f9d-98f5-a7eb5b57d8e1',
-      user_id: '8f4e2a44-8a61-4d48-8f11-0f1fd9562b8f',
-      first_name: 'Anna',
-      last_name: 'Ivanova',
-      department_id: '55b44d65-ef0e-4d4a-a9cf-2205ae37322c',
-      employment_status: 'active',
-      created_at: '2026-03-01T09:00:00Z',
-      updated_at: '2026-03-30T10:12:00Z',
-    },
-  });
+  private readonly currentUserSignal = signal<IdentityUserView | null>(null);
 
   private readonly recentActionsSignal = signal<RecentAction[]>([
     {

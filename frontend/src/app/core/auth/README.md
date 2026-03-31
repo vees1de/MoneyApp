@@ -1,29 +1,44 @@
-﻿# Core Auth
+# Core Auth
 
 ## Canonical Source
 Backend is the source of truth.
 
 ## Bootstrap Contract
-1. `POST /api/v1/auth/login`
-2. `GET /api/v1/auth/me`
+1. `POST https://bims.su/api/v1/auth/login`
+2. `GET https://bims.su/api/v1/auth/me`
 
 `auth/me` payload drives:
 - `user.roles[]`
 - `user.permissions[]`
 - `user.employee_profile`
 
-## Access Model
-- UI visibility and route access are based on `permissions` from backend.
-- Roles are used for role-specific dashboards and labels.
-- Unknown/missing permissions result in `/forbidden`.
+## Implemented Services
+- `AuthApiService` (`login`, `me`)
+- `AuthSessionService` (localStorage tokens)
+- `AuthBootstrapService` (restore user from token on app start)
+- `authHttpInterceptor` (Bearer token + global `401` handling)
 
-## Implemented in frontend
-- `AuthStateService`
-- `authGuard`
-- `roleGuard`
-- `permissionGuard` (in `feature.guard.ts`)
-- `PERMISSIONS` constants mapped to seeded codes.
+## Guards
+- `authGuard`: blocks protected routes for anonymous users.
+- `guestGuard`: blocks `/login` for authenticated users (redirects to `/dashboard`).
+- `roleGuard`: role route protection.
+- `permissionGuard`: permission route protection.
+- `dashboardRedirectGuard`: resolves `/dashboard` to role dashboard.
 
-## Notes
-- JWT + refresh flow should be handled in HTTP interceptor (next migration step).
-- Logout should be best-effort API call + local session cleanup.
+## 401 Handling
+- clear session
+- clear current user
+- redirect to `/login`
+
+## Login Flow (current)
+1. User submits email/password.
+2. Frontend calls `POST /auth/login`.
+3. Tokens are saved in localStorage.
+4. Frontend calls `GET /auth/me`.
+5. `AuthStateService` receives user payload.
+6. Redirect to `/dashboard` (then role redirect guard).
+
+## Deferred
+- refresh-token automation
+- logout API flow integration in UI
+- unit tests

@@ -1,15 +1,18 @@
-﻿import { Routes } from '@angular/router';
+import { Routes } from '@angular/router';
 
 import { authGuard } from '@core/auth/auth.guard';
+import { dashboardRedirectGuard } from '@core/auth/dashboard-redirect.guard';
 import { permissionGuard } from '@core/auth/feature.guard';
-import { roleGuard } from '@core/auth/role.guard';
+import { guestGuard } from '@core/auth/guest.guard';
 import { PERMISSIONS } from '@core/auth/permissions';
+import { roleGuard } from '@core/auth/role.guard';
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
 
   {
     path: 'login',
+    canActivate: [guestGuard],
     loadComponent: () =>
       import('@pages/public/login/login.page').then((m) => m.PublicLoginPageComponent),
   },
@@ -41,8 +44,10 @@ export const routes: Routes = [
     children: [
       {
         path: 'dashboard',
-        redirectTo: 'dashboard/test-role',
+        canActivate: [dashboardRedirectGuard],
         pathMatch: 'full',
+        loadComponent: () =>
+          import('@pages/public/error/error.page').then((m) => m.PublicErrorPageComponent),
       },
       {
         path: 'dashboard/test-role',

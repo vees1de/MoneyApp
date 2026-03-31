@@ -34,6 +34,23 @@ export interface MeResponse {
   user: IdentityUserView;
 }
 
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface AuthTokens {
+  access_token: string;
+  refresh_token: string;
+  expires_in: number;
+}
+
+export interface LoginResponse {
+  user: IdentityUserView;
+  tokens: AuthTokens;
+  meta?: Record<string, unknown>;
+}
+
 export interface RecentAction {
   id: string;
   label: string;

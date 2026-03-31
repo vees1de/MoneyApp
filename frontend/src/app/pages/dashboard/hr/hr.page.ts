@@ -1,22 +1,20 @@
-﻿import { CommonModule } from '@angular/common';
-import { Component, inject } from '@angular/core';
-import { RouterLink } from '@angular/router';
-import { AuthFacade } from '@features/auth';
-import type { User } from '@entities/user';
+import { CommonModule } from '@angular/common';
+import { Component } from '@angular/core';
+
+import { CourseRequestsWidgetComponent } from '@app/widgets/course-requests-widget/course-requests-widget.component';
+import { QuickActionsWidgetComponent } from '@app/widgets/quick-actions-widget/quick-actions-widget.component';
+import { UpcomingEventsWidgetComponent } from '@app/widgets/upcoming-events-widget/upcoming-events-widget.component';
 
 @Component({
   selector: 'app-page-dashboard-hr',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [
+    CommonModule,
+    UpcomingEventsWidgetComponent,
+    CourseRequestsWidgetComponent,
+    QuickActionsWidgetComponent,
+  ],
   templateUrl: './hr.page.html',
   styleUrl: './hr.page.scss',
 })
-export class DashboardHrPageComponent {
-  private readonly facade = inject(AuthFacade);
-  protected readonly routePath = '/dashboard/hr';
-  protected readonly entitySample: User[] = [];
-
-  protected loadPage(): void {
-    this.facade.load();
-  }
-}
+export class DashboardHrPageComponent {}

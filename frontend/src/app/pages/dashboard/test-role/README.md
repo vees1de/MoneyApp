@@ -1,13 +1,22 @@
-﻿# Dashboard Test Role
+# Dashboard Test Role
 
 ## Route
 `/dashboard/test-role`
 
-## Why it exists
-A dedicated route that renders all currently available widgets together,
-so we can verify placement and user flow before building final role pages.
+## Purpose
+Single playground route with all available widgets for layout checks.
 
-## Interaction rules
-- widget title click -> list route
-- card click -> entity detail route
-- no sidebar navigation
+## Widgets on page
+- Team overview
+- Upcoming events
+- Jira summary
+- Course requests
+- Current learning
+- Recommendations
+- Quick actions
+- My requests
+- Work activity
+
+## Notes
+- No role switcher logic here.
+- Real role separation lives in `/dashboard/{role}` pages.
