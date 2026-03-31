@@ -1,4 +1,14 @@
 <app-widget-shell title="Быстрые действия" [loading]="loading()" [error]="error()">
+  <div widget-loading class="quick-skeleton">
+    <div class="quick-skeleton__summary"></div>
+    <div class="quick-skeleton__actions">
+      <div></div>
+      <div></div>
+      <div></div>
+      <div></div>
+    </div>
+  </div>
+
   <div class="summary">
     <span>Активные обучения: <strong>{{ activeLearning() }}</strong></span>
     <span>Мои заявки: <strong>{{ myRequests() }}</strong></span>

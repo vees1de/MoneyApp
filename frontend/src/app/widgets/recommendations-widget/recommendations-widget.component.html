@@ -1,10 +1,16 @@
-﻿<app-widget-shell
+<app-widget-shell
   title="Рекомендованные курсы"
   listRoute="/catalog"
   [loading]="loading()"
   [error]="error()"
   [empty]="courses().length === 0"
 >
+  <div widget-loading class="cards cards--skeleton">
+    <div class="cards__skeleton"></div>
+    <div class="cards__skeleton"></div>
+    <div class="cards__skeleton"></div>
+  </div>
+
   <div class="cards">
     @for (course of courses(); track course.course_id) {
       <mat-card>

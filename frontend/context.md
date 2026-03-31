@@ -82,7 +82,8 @@
 - subtle gradients and minimal shadows
 - no dark theme planned
 - new radii standard: `24px` and `40px`
-- app font: `Inter_18pt-Regular.ttf` from `/public` applied globally
+- app font family `Inter Impuls` with explicit weight files from `/public` applied globally
+- Material primary/accent baseline is `#566AE6`
 
 ## Styling architecture
 - design tokens: `src/styles/tokens.scss`

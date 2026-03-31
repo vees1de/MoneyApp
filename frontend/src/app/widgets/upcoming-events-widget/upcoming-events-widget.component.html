@@ -1,10 +1,16 @@
-﻿<app-widget-shell
+<app-widget-shell
   title="Ближайшие события"
   listRoute="/calendar"
   [loading]="loading()"
   [error]="error()"
   [empty]="events().length === 0"
 >
+  <div widget-loading class="upcoming-skeleton">
+    <div class="upcoming-skeleton__item"></div>
+    <div class="upcoming-skeleton__item"></div>
+    <div class="upcoming-skeleton__item"></div>
+  </div>
+
   <mat-list>
     @for (event of events(); track event.id) {
       <mat-list-item>

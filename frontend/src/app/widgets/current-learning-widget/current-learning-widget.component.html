@@ -5,6 +5,11 @@
   [error]="error()"
   [empty]="filteredItems().length === 0"
 >
+  <div widget-loading class="cards cards--skeleton">
+    <div class="cards__skeleton"></div>
+    <div class="cards__skeleton"></div>
+  </div>
+
   <div class="tabs">
     @for (tab of tabs; track tab.key) {
       <button

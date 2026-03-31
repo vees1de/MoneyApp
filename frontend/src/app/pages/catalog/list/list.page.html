@@ -1,7 +1,6 @@
 <section class="catalog-page">
   <header class="catalog-page__header">
     <h1>Каталог курсов</h1>
-    <p>Все курсы из backend (`GET /api/v1/courses`) с фильтрами.</p>
   </header>
 
   <mat-card>
@@ -27,7 +26,11 @@
 
         <mat-form-field appearance="outline">
           <mat-label>Уровень</mat-label>
-          <input matInput formControlName="level" placeholder="junior/middle/senior" />
+          <mat-select formControlName="level">
+            @for (item of levelOptions; track item.value) {
+              <mat-option [value]="item.value">{{ item.label }}</mat-option>
+            }
+          </mat-select>
         </mat-form-field>
 
         <mat-form-field appearance="outline">

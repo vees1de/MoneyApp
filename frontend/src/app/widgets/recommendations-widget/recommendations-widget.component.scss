@@ -18,3 +18,24 @@
   display: block;
   font-weight: 500;
 }
+
+.cards--skeleton {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.cards__skeleton {
+  animation: recommendations-shimmer 1.3s ease-in-out infinite;
+  background: linear-gradient(90deg, #edf1f8 25%, #f9fbff 50%, #edf1f8 75%);
+  background-size: 300% 100%;
+  border-radius: var(--radius-md);
+  min-height: 86px;
+}
+
+@keyframes recommendations-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}

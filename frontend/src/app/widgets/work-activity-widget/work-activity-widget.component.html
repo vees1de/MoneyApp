@@ -1,10 +1,16 @@
-﻿<app-widget-shell
+<app-widget-shell
   title="Рабочая активность"
   listRoute="/notifications"
   [loading]="loading()"
   [error]="error()"
   [empty]="notifications().length === 0"
 >
+  <div widget-loading class="work-skeleton">
+    <div class="work-skeleton__item"></div>
+    <div class="work-skeleton__item"></div>
+    <div class="work-skeleton__item"></div>
+  </div>
+
   <mat-list>
     @for (item of notifications(); track item.id) {
       <mat-list-item>

@@ -1,3 +1,25 @@
-﻿:host {
+:host {
   display: block;
+}
+
+.upcoming-skeleton {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.upcoming-skeleton__item {
+  animation: upcoming-shimmer 1.3s ease-in-out infinite;
+  background: linear-gradient(90deg, #edf1f8 25%, #f9fbff 50%, #edf1f8 75%);
+  background-size: 300% 100%;
+  border-radius: var(--radius-sm);
+  height: 56px;
+}
+
+@keyframes upcoming-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
 }

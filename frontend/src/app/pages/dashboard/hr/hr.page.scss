@@ -7,9 +7,11 @@
   display: grid;
   gap: var(--space-6);
   grid-template-columns: minmax(0, 1.8fr) minmax(300px, 0.92fr);
+  min-height: calc(100vh - 156px);
 }
 
 .hr-dashboard__main {
+  align-content: start;
   display: grid;
   gap: var(--space-6);
 }

@@ -1,3 +1,26 @@
-﻿:host {
+:host {
   display: block;
+}
+
+.jira-skeleton {
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.jira-skeleton__tile {
+  animation: jira-shimmer 1.3s ease-in-out infinite;
+  background: linear-gradient(90deg, #edf1f8 25%, #f9fbff 50%, #edf1f8 75%);
+  background-size: 300% 100%;
+  border-radius: var(--radius-sm);
+  height: 80px;
+}
+
+@keyframes jira-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
 }

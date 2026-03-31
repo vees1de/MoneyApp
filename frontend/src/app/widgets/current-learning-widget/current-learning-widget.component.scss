@@ -45,6 +45,18 @@
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 }
 
+.cards--skeleton {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.cards__skeleton {
+  animation: current-learning-shimmer 1.3s ease-in-out infinite;
+  background: linear-gradient(90deg, #edf1f8 25%, #f9fbff 50%, #edf1f8 75%);
+  background-size: 300% 100%;
+  border-radius: var(--radius-md);
+  min-height: 170px;
+}
+
 .cards__item {
   background: #f7f8fb;
   border: 1px solid var(--app-border);
@@ -77,4 +89,13 @@
   display: flex;
   font-size: 0.82rem;
   gap: var(--space-4);
+}
+
+@keyframes current-learning-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
 }
