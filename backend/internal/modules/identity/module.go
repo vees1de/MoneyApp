@@ -438,7 +438,7 @@ func (r *Repository) BuildPrincipal(ctx context.Context, userID, sessionID uuid.
 		UserID:            userID,
 		SessionID:         sessionID,
 		RoleCodes:         roleCodes,
-		PermissionCodes:   permissionCodes,
+		PermissionCodes:   platformauth.WithImplicitPermissions(permissionCodes),
 		EmployeeProfileID: employeeProfileID,
 		DepartmentID:      departmentID,
 	}, nil
