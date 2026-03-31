@@ -233,12 +233,12 @@ type ImportStructureResponse struct {
 }
 
 type ListTasksQuery struct {
-	AssignedTo    string `json:"assignedTo,omitempty"`
-	ColumnID      string `json:"columnId,omitempty"`
+	AssignedTo     string `json:"assignedTo,omitempty"`
+	ColumnID       string `json:"columnId,omitempty"`
 	IncludeDeleted bool   `json:"includeDeleted,omitempty"`
-	Limit         int    `json:"limit,omitempty"`
-	Offset        int    `json:"offset,omitempty"`
-	Title         string `json:"title,omitempty"`
+	Limit          int    `json:"limit,omitempty"`
+	Offset         int    `json:"offset,omitempty"`
+	Title          string `json:"title,omitempty"`
 }
 
 type TasksPaging struct {
@@ -375,6 +375,20 @@ func (r *Repository) GetCurrentConnectionByUser(ctx context.Context, userID uuid
 			order by updated_at desc, created_at desc
 			limit 1
 		`, userID).Scan(&item.ID, &item.CompanyID, &item.Title, &item.APIBaseURL, &item.YougileCompanyID, &item.APIKeyEncrypted,
+		&item.APIKeyLast4, &item.Status, &item.CreatedBy, &item.LastSyncAt, &item.LastSuccessSyncAt, &item.LastError, &item.CreatedAt, &item.UpdatedAt)
+	return item, err
+}
+
+func (r *Repository) GetConnectionByUserAndCompany(ctx context.Context, userID uuid.UUID, companyID string, exec ...db.DBTX) (storedConnection, error) {
+	var item storedConnection
+	err := r.base(exec...).QueryRowContext(ctx, `
+			select id, company_id, title, api_base_url, yougile_company_id, api_key_encrypted, api_key_last4,
+			       status, created_by, last_sync_at, last_success_sync_at, last_error, created_at, updated_at
+			from integration_yougile_connections
+			where created_by = $1 and yougile_company_id = $2
+			order by updated_at desc, created_at desc
+			limit 1
+		`, userID, companyID).Scan(&item.ID, &item.CompanyID, &item.Title, &item.APIBaseURL, &item.YougileCompanyID, &item.APIKeyEncrypted,
 		&item.APIKeyLast4, &item.Status, &item.CreatedBy, &item.LastSyncAt, &item.LastSuccessSyncAt, &item.LastError, &item.CreatedAt, &item.UpdatedAt)
 	return item, err
 }
@@ -1036,8 +1050,43 @@ func (s *Service) saveConnection(ctx context.Context, principal platformauth.Pri
 	var saved Connection
 	err := db.WithTx(ctx, s.db, func(tx *sql.Tx) error {
 		current, err := s.repo.GetCurrentConnectionByUser(ctx, principal.UserID, tx)
+		target, targetErr := s.repo.GetConnectionByUserAndCompany(ctx, principal.UserID, companyID, tx)
+
+		hasCurrent := err == nil
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return err
+		}
+		hasTarget := targetErr == nil
+		if targetErr != nil && !errors.Is(targetErr, sql.ErrNoRows) {
+			return targetErr
+		}
+
+		applyConnection := func(item storedConnection) error {
+			item.Title = trimStringPtr(title)
+			item.APIBaseURL = baseURL
+			item.YougileCompanyID = companyID
+			item.APIKeyEncrypted = apiKey
+			item.APIKeyLast4 = stringPtr(last4)
+			item.Status = "active"
+			item.LastError = nil
+			item.UpdatedAt = now
+			if item.CreatedAt.IsZero() {
+				item.CreatedAt = now
+			}
+			if err := s.repo.UpdateConnection(ctx, item, tx); err != nil {
+				return err
+			}
+			saved = item.Connection
+			return nil
+		}
+
 		switch {
-		case err == nil:
+		case hasCurrent && hasTarget && current.ID != target.ID:
+			if err := s.repo.RevokeConnection(ctx, current.ID, now, tx); err != nil {
+				return err
+			}
+			return applyConnection(target)
+		case hasCurrent:
 			if current.YougileCompanyID != companyID {
 				if err := s.repo.ResetConnectionData(ctx, current.ID, tx); err != nil {
 					return err
@@ -1045,21 +1094,9 @@ func (s *Service) saveConnection(ctx context.Context, principal platformauth.Pri
 				current.LastSyncAt = nil
 				current.LastSuccessSyncAt = nil
 			}
-			current.Title = trimStringPtr(title)
-			current.APIBaseURL = baseURL
-			current.YougileCompanyID = companyID
-			current.APIKeyEncrypted = apiKey
-			current.APIKeyLast4 = stringPtr(last4)
-			current.Status = "active"
-			current.LastError = nil
-			current.UpdatedAt = now
-			if err := s.repo.UpdateConnection(ctx, current, tx); err != nil {
-				return err
-			}
-			saved = current.Connection
-			return nil
-		case !errors.Is(err, sql.ErrNoRows):
-			return err
+			return applyConnection(current)
+		case hasTarget:
+			return applyConnection(target)
 		}
 
 		item := storedConnection{

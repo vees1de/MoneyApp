@@ -12,6 +12,7 @@
 .agile__boards,
 .agile__board-metrics,
 .agile__tasks,
+.agile__task-list,
 .agile__company-list,
 .agile__form-grid {
   display: grid;
@@ -47,6 +48,7 @@
 .agile__stat-card,
 .agile__board-card,
 .agile__task,
+.agile__task-card,
 .agile__company-card,
 .agile__modal {
   background:
@@ -78,7 +80,8 @@
 
 .agile__hero-copy,
 .agile__company-copy,
-.agile__task-copy {
+.agile__task-copy,
+.agile__task-card-copy {
   display: grid;
   gap: 4px;
 }
@@ -100,6 +103,9 @@
 .agile__board-metrics span,
 .agile__task-copy span,
 .agile__task time,
+.agile__task-card-meta,
+.agile__task-card-top span,
+.agile__task-card-side,
 .agile__company-copy span {
   color: var(--app-muted);
 }
@@ -196,16 +202,31 @@
 }
 
 .agile__board-top,
-.agile__task {
+.agile__task,
+.agile__task-card,
+.agile__task-card-top {
   align-items: start;
   display: flex;
   gap: var(--space-3);
   justify-content: space-between;
 }
 
-.agile__tasks {
+.agile__tasks,
+.agile__task-list {
   list-style: none;
   padding: 0;
+}
+
+.agile__task-card {
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+}
+
+.agile__task-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
 .agile__message {
@@ -274,6 +295,8 @@
   .agile__toolbar,
   .agile__board-top,
   .agile__task,
+  .agile__task-card,
+  .agile__task-card-top,
   .agile__company-card,
   .agile__modal-head,
   .agile__modal-actions {
