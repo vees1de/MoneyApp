@@ -102,3 +102,22 @@ INSERT INTO permissions (id, code, module, action, description) VALUES
     (gen_random_uuid(), 'intakes.manage', 'intakes', 'manage', 'Управление наборами на курсы (HR)'),
     (gen_random_uuid(), 'intakes.apply',  'intakes', 'apply',  'Подача заявок на курсы (сотрудники)')
 ON CONFLICT (code) DO NOTHING;
+
+-- ============================================================
+-- 5. Привязка пермишенов к ролям
+-- ============================================================
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM (
+  VALUES
+    ('hr',      'intakes.manage'),
+    ('hr',      'intakes.apply'),
+    ('admin',   'intakes.manage'),
+    ('admin',   'intakes.apply'),
+    ('manager', 'intakes.apply'),
+    ('trainer', 'intakes.apply')
+) mapping(role_code, permission_code)
+JOIN roles r ON r.code = mapping.role_code
+JOIN permissions p ON p.code = mapping.permission_code
+LEFT JOIN role_permissions rp ON rp.role_id = r.id AND rp.permission_id = p.id
+WHERE rp.role_id IS NULL;
