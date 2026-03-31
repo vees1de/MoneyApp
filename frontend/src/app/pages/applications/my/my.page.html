@@ -1,18 +1,4 @@
 ﻿<section class="applications-page">
-  <header class="applications-page__header">
-    <div>
-      <h1>Мои заявки в назначения</h1>
-      <p>
-        Здесь видны статусы, комментарии согласующих и возможность отозвать заявку до зачисления.
-      </p>
-    </div>
-
-    <a mat-stroked-button routerLink="/intakes">
-      <mat-icon>view_list</mat-icon>
-      Все назначения
-    </a>
-  </header>
-
   @if (loading()) {
     <section class="applications-grid applications-grid--skeleton">
       <div class="application-skeleton"></div>
@@ -91,4 +77,3 @@
     </section>
   }
 </section>
-

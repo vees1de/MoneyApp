@@ -1,13 +1,5 @@
 <section class="suggestion-detail-page">
   <header class="suggestion-detail-page__header">
-    <div>
-      <h1>{{ suggestion()?.title || 'Предложение курса' }}</h1>
-      <p>
-        HR может одобрить предложение, отклонить его или сразу открыть назначение с той же моделью цены и
-        дат, что и в `intakes/new`.
-      </p>
-    </div>
-
     <div class="suggestion-detail-page__header-actions">
       <a mat-stroked-button routerLink="/suggestions">
         <mat-icon>arrow_back</mat-icon>
@@ -89,7 +81,9 @@
         <mat-card class="suggestion-review-card">
           <mat-card-header>
             <mat-card-title>Решение HR</mat-card-title>
-            <mat-card-subtitle>Можно оставить комментарий и сразу открыть назначение.</mat-card-subtitle>
+            <mat-card-subtitle
+              >Можно оставить комментарий и сразу открыть назначение.</mat-card-subtitle
+            >
           </mat-card-header>
 
           <mat-card-content>
@@ -268,4 +262,3 @@
     </section>
   }
 </section>
-

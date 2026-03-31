@@ -1,22 +1,4 @@
 <section class="suggestions-page">
-  <header class="suggestions-page__header">
-    <div>
-      <h1>Предложения внешних курсов</h1>
-      <p>Сотрудники предлагают внешнее обучение, а HR решает, открыть ли на него отдельное назначение.</p>
-    </div>
-
-    <div class="suggestions-page__actions">
-      <a mat-stroked-button routerLink="/intakes">
-        <mat-icon>view_list</mat-icon>
-        Назначения
-      </a>
-      <a mat-flat-button color="primary" routerLink="/suggestions/new">
-        <mat-icon>add_circle</mat-icon>
-        Предложить курс
-      </a>
-    </div>
-  </header>
-
   <mat-card>
     <mat-card-content>
       <form class="suggestions-filters" [formGroup]="form" (ngSubmit)="applyFilters()">
@@ -70,19 +52,43 @@
           </mat-card-header>
 
           <mat-card-content class="suggestion-card__content">
-            <p><span class="kv__key">Провайдер:</span> <span class="kv__value">{{ item.provider_name || '—' }}</span></p>
-            <p><span class="kv__key">Цена:</span> <span class="kv__value">{{ item.price || '—' }} {{ item.price_currency || 'RUB' }}</span></p>
-            <p><span class="kv__key">Длительность:</span> <span class="kv__value">{{ item.duration_hours || '—' }}</span></p>
-            <p><span class="kv__key">Автор:</span> <span class="kv__value">{{ userLabel(item.suggested_by) }}</span></p>
-            <p><span class="kv__key">Руководитель-апрувер:</span> <span class="kv__value">{{ userLabel(item.approver_id) }}</span></p>
+            <p>
+              <span class="kv__key">Провайдер:</span>
+              <span class="kv__value">{{ item.provider_name || '—' }}</span>
+            </p>
+            <p>
+              <span class="kv__key">Цена:</span>
+              <span class="kv__value"
+                >{{ item.price || '—' }} {{ item.price_currency || 'RUB' }}</span
+              >
+            </p>
+            <p>
+              <span class="kv__key">Длительность:</span>
+              <span class="kv__value">{{ item.duration_hours || '—' }}</span>
+            </p>
+            <p>
+              <span class="kv__key">Автор:</span>
+              <span class="kv__value">{{ userLabel(item.suggested_by) }}</span>
+            </p>
+            <p>
+              <span class="kv__key">Руководитель-апрувер:</span>
+              <span class="kv__value">{{ userLabel(item.approver_id) }}</span>
+            </p>
             @if (item.intake_id) {
-              <p><span class="kv__key">Назначение:</span> <a class="kv__value" [routerLink]="'/intakes/' + item.intake_id">Открыть назначение</a></p>
+              <p>
+                <span class="kv__key">Назначение:</span>
+                <a class="kv__value" [routerLink]="'/intakes/' + item.intake_id"
+                  >Открыть назначение</a
+                >
+              </p>
             }
-            <p><span class="kv__key">Создано:</span> <span class="kv__value">{{ item.created_at | date: 'dd.MM.yyyy HH:mm' }}</span></p>
+            <p>
+              <span class="kv__key">Создано:</span>
+              <span class="kv__value">{{ item.created_at | date: 'dd.MM.yyyy HH:mm' }}</span>
+            </p>
           </mat-card-content>
         </mat-card>
       }
     </section>
   }
 </section>
-

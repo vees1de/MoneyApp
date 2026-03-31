@@ -1,8 +1,4 @@
 ﻿<section class="my-learning-page">
-  <header>
-    <h1>Мое обучение</h1>
-  </header>
-
   @if (loading()) {
     <p>Загрузка...</p>
   } @else if (error()) {
@@ -22,9 +18,15 @@
 
           <mat-card-content class="my-learning-card__content">
             <mat-progress-bar mode="determinate" [value]="progressValue(item)"></mat-progress-bar>
-            <p><span class="kv__key">Прогресс:</span><span class="kv__value">{{ progressValue(item) }}%</span></p>
+            <p>
+              <span class="kv__key">Прогресс:</span
+              ><span class="kv__value">{{ progressValue(item) }}%</span>
+            </p>
             @if (item.deadline_at) {
-              <p><span class="kv__key">Дедлайн:</span><span class="kv__value">{{ item.deadline_at }}</span></p>
+              <p>
+                <span class="kv__key">Дедлайн:</span
+                ><span class="kv__value">{{ item.deadline_at }}</span>
+              </p>
             }
           </mat-card-content>
         </mat-card>
