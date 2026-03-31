@@ -104,7 +104,11 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
     );
 
     const filteredTasks = selectedBoardId
-      ? activeTasks.filter((item) => this.columnBelongsToBoard(item.columnId, selectedBoardId))
+      ? activeTasks.filter(
+          (item) =>
+            item.boardId === selectedBoardId ||
+            this.columnBelongsToBoard(item.columnId, selectedBoardId),
+        )
       : activeTasks;
 
     return [...filteredTasks]
@@ -335,11 +339,19 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
   }
 
   protected taskBoardLabel(task: YougileTask): string {
+    if (task.boardTitle?.trim()) {
+      return task.boardTitle.trim();
+    }
+
     const board = this.resolveBoardByColumn(task.columnId);
     return board?.title?.trim() || 'Без доски';
   }
 
   protected taskColumnLabel(task: YougileTask): string {
+    if (task.columnTitle?.trim()) {
+      return task.columnTitle.trim();
+    }
+
     const column = this.columns().find((item) => item.yougile_column_id === task.columnId);
     return column?.title?.trim() || 'Без колонки';
   }
@@ -349,7 +361,21 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
   }
 
   protected taskDeadlineLabel(task: YougileTask): string {
-    return this.formatDeadline(task.deadline?.deadline);
+    const deadline = task.deadlineAt ?? task.deadline?.deadline;
+    if (!deadline) {
+      return 'Без дедлайна';
+    }
+
+    const timestamp = new Date(deadline);
+    if (Number.isNaN(timestamp.getTime())) {
+      return deadline;
+    }
+
+    if (task.deadline?.withTime) {
+      return this.dateTimeFormatter.format(timestamp);
+    }
+
+    return this.dateFormatter.format(timestamp);
   }
 
   protected trackBoard(_: number, item: YougileBoard): string {
@@ -555,9 +581,8 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
   }
 
   private taskSortValue(task: YougileTask): number {
-    const deadline = task.deadline?.deadline
-      ? Date.parse(task.deadline.deadline)
-      : Number.POSITIVE_INFINITY;
+    const deadlineValue = task.deadlineAt ?? task.deadline?.deadline;
+    const deadline = deadlineValue ? Date.parse(deadlineValue) : Number.POSITIVE_INFINITY;
     if (Number.isFinite(deadline)) {
       return deadline;
     }

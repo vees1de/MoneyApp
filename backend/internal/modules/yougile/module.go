@@ -260,6 +260,9 @@ type TaskItem struct {
 	Title              string        `json:"title"`
 	Timestamp          *time.Time    `json:"timestamp,omitempty"`
 	ColumnID           string        `json:"columnId"`
+	ColumnTitle        string        `json:"columnTitle,omitempty"`
+	BoardID            string        `json:"boardId,omitempty"`
+	BoardTitle         string        `json:"boardTitle,omitempty"`
 	Description        string        `json:"description,omitempty"`
 	Archived           bool          `json:"archived"`
 	ArchivedTimestamp  *time.Time    `json:"archivedTimestamp,omitempty"`
@@ -269,6 +272,7 @@ type TaskItem struct {
 	Assigned           []string      `json:"assigned,omitempty"`
 	CreatedBy          string        `json:"createdBy,omitempty"`
 	Deadline           *TaskDeadline `json:"deadline,omitempty"`
+	DeadlineAt         *time.Time    `json:"deadlineAt,omitempty"`
 	Color              string        `json:"color,omitempty"`
 	IDTaskCommon       string        `json:"idTaskCommon,omitempty"`
 	IDTaskProject      string        `json:"idTaskProject,omitempty"`
@@ -867,7 +871,7 @@ func (c *Client) ListProjects(ctx context.Context) ([]map[string]any, error) {
 }
 
 func (c *Client) ListBoards(ctx context.Context) ([]map[string]any, error) {
-	payload, err := c.doJSON(ctx, http.MethodGet, "/api-v2/boards", nil, true)
+	payload, err := c.doJSON(ctx, http.MethodGet, "/api-v2/boards?limit=1000&includeDeleted=true", nil, true)
 	if err != nil {
 		return nil, err
 	}
@@ -875,7 +879,7 @@ func (c *Client) ListBoards(ctx context.Context) ([]map[string]any, error) {
 }
 
 func (c *Client) ListColumns(ctx context.Context) ([]map[string]any, error) {
-	payload, err := c.doJSON(ctx, http.MethodGet, "/api-v2/columns", nil, true)
+	payload, err := c.doJSON(ctx, http.MethodGet, "/api-v2/columns?limit=1000&includeDeleted=true", nil, true)
 	if err != nil {
 		return nil, err
 	}
@@ -952,6 +956,7 @@ func (c *Client) ListTasks(ctx context.Context, query ListTasksQuery) (ListTasks
 				StartDate: millisTimeFromAny(deadlinePayload["startDate"]),
 				WithTime:  boolFromAny(deadlinePayload["withTime"]),
 			}
+			item.DeadlineAt = item.Deadline.Deadline
 		}
 		result.Content = append(result.Content, item)
 	}
@@ -1386,7 +1391,121 @@ func (s *Service) ListTasks(ctx context.Context, connectionID uuid.UUID, query L
 		}
 		return ListTasksResponse{}, err
 	}
-	return NewClient(conn.APIBaseURL, conn.APIKeyEncrypted).ListTasks(ctx, query)
+	client := NewClient(conn.APIBaseURL, conn.APIKeyEncrypted)
+	response, err := client.ListTasks(ctx, query)
+	if err != nil {
+		return ListTasksResponse{}, err
+	}
+
+	s.enrichTaskItems(ctx, connectionID, client, response.Content)
+	return response, nil
+}
+
+type taskStructureMeta struct {
+	BoardID     string
+	BoardTitle  string
+	ColumnTitle string
+}
+
+func (s *Service) enrichTaskItems(ctx context.Context, connectionID uuid.UUID, client *Client, items []TaskItem) {
+	if len(items) == 0 {
+		return
+	}
+
+	meta := s.loadTaskStructureMetaFromRepo(ctx, connectionID)
+	if len(meta) == 0 {
+		meta = s.loadTaskStructureMetaFromAPI(ctx, client)
+	}
+
+	for index := range items {
+		if items[index].DeadlineAt == nil && items[index].Deadline != nil {
+			items[index].DeadlineAt = items[index].Deadline.Deadline
+		}
+
+		structure, ok := meta[items[index].ColumnID]
+		if !ok {
+			continue
+		}
+
+		items[index].BoardID = structure.BoardID
+		items[index].BoardTitle = structure.BoardTitle
+		items[index].ColumnTitle = structure.ColumnTitle
+	}
+}
+
+func (s *Service) loadTaskStructureMetaFromRepo(ctx context.Context, connectionID uuid.UUID) map[string]taskStructureMeta {
+	boards, err := s.repo.ListBoards(ctx, connectionID)
+	if err != nil {
+		return nil
+	}
+
+	columns, err := s.repo.ListColumns(ctx, connectionID)
+	if err != nil || len(columns) == 0 {
+		return nil
+	}
+
+	boardTitles := make(map[string]string, len(boards))
+	for _, board := range boards {
+		if board.Deleted {
+			continue
+		}
+		boardTitles[board.YougileBoardID] = strings.TrimSpace(board.Title)
+	}
+
+	meta := make(map[string]taskStructureMeta, len(columns))
+	for _, column := range columns {
+		if column.Deleted {
+			continue
+		}
+		meta[column.YougileColumnID] = taskStructureMeta{
+			BoardID:     column.YougileBoardID,
+			BoardTitle:  boardTitles[column.YougileBoardID],
+			ColumnTitle: strings.TrimSpace(column.Title),
+		}
+	}
+	return meta
+}
+
+func (s *Service) loadTaskStructureMetaFromAPI(ctx context.Context, client *Client) map[string]taskStructureMeta {
+	boards, err := client.ListBoards(ctx)
+	if err != nil {
+		return nil
+	}
+
+	columns, err := client.ListColumns(ctx)
+	if err != nil || len(columns) == 0 {
+		return nil
+	}
+
+	boardTitles := make(map[string]string, len(boards))
+	for _, board := range boards {
+		if boolFromAny(board["deleted"]) {
+			continue
+		}
+		boardID := firstString(board, "id", "_id", "boardId")
+		if boardID == "" {
+			continue
+		}
+		boardTitles[boardID] = strings.TrimSpace(firstString(board, "title", "name"))
+	}
+
+	meta := make(map[string]taskStructureMeta, len(columns))
+	for _, column := range columns {
+		if boolFromAny(column["deleted"]) {
+			continue
+		}
+		columnID := firstString(column, "id", "_id", "columnId")
+		if columnID == "" {
+			continue
+		}
+		boardID := firstString(column, "boardId")
+		meta[columnID] = taskStructureMeta{
+			BoardID:     boardID,
+			BoardTitle:  boardTitles[boardID],
+			ColumnTitle: strings.TrimSpace(firstString(column, "title", "name")),
+		}
+	}
+	return meta
 }
 
 func (s *Service) AutoMatch(ctx context.Context, connectionID uuid.UUID, strategy string) (AutoMatchResponse, error) {

@@ -133,6 +133,9 @@ export interface YougileTask {
   title: string;
   timestamp?: string | null;
   columnId: string;
+  columnTitle?: string | null;
+  boardId?: string | null;
+  boardTitle?: string | null;
   description?: string | null;
   archived: boolean;
   archivedTimestamp?: string | null;
@@ -142,6 +145,7 @@ export interface YougileTask {
   assigned?: string[];
   createdBy?: string | null;
   deadline?: YougileTaskDeadline | null;
+  deadlineAt?: string | null;
   color?: string | null;
   idTaskCommon?: string | null;
   idTaskProject?: string | null;
