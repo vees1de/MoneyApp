@@ -9,6 +9,8 @@ import (
 	"github.com/google/uuid"
 )
 
+const settingsManagePermissionCode = "settings.manage"
+
 type Claims struct {
 	UserID            string   `json:"uid"`
 	SessionID         string   `json:"sid"`
@@ -66,7 +68,7 @@ func (m *JWTManager) SignPrincipalToken(principal Principal, now time.Time) (str
 		UserID:            principal.UserID.String(),
 		SessionID:         principal.SessionID.String(),
 		RoleCodes:         principal.RoleCodes,
-		PermissionCodes:   principal.PermissionCodes,
+		PermissionCodes:   WithImplicitPermissions(principal.PermissionCodes),
 		EmployeeProfileID: employeeProfileID,
 		DepartmentID:      departmentID,
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -127,7 +129,7 @@ func (m *JWTManager) ParseAccessToken(token string) (*Principal, error) {
 		UserID:            userID,
 		SessionID:         sessionID,
 		RoleCodes:         claims.RoleCodes,
-		PermissionCodes:   claims.PermissionCodes,
+		PermissionCodes:   WithImplicitPermissions(claims.PermissionCodes),
 		EmployeeProfileID: employeeProfileID,
 		DepartmentID:      departmentID,
 	}, nil
@@ -144,9 +146,28 @@ func PrincipalFromContext(ctx context.Context) (Principal, bool) {
 	return principal, ok
 }
 
+func WithImplicitPermissions(permissionCodes []string) []string {
+	if hasPermissionCode(permissionCodes, settingsManagePermissionCode) {
+		return permissionCodes
+	}
+
+	codes := append([]string{}, permissionCodes...)
+	return append(codes, settingsManagePermissionCode)
+}
+
 func (p Principal) HasPermission(code string) bool {
-	for _, item := range p.PermissionCodes {
+	for _, item := range WithImplicitPermissions(p.PermissionCodes) {
 		if item == code {
+			return true
+		}
+	}
+
+	return false
+}
+
+func hasPermissionCode(permissionCodes []string, target string) bool {
+	for _, code := range permissionCodes {
+		if code == target {
 			return true
 		}
 	}

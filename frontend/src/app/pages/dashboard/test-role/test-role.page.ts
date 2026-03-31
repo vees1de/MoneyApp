@@ -10,6 +10,7 @@ import { RecommendationsWidgetComponent } from '@app/widgets/recommendations-wid
 import { TeamOverviewWidgetComponent } from '@app/widgets/team-overview-widget/team-overview-widget.component';
 import { UpcomingEventsWidgetComponent } from '@app/widgets/upcoming-events-widget/upcoming-events-widget.component';
 import { WorkActivityWidgetComponent } from '@app/widgets/work-activity-widget/work-activity-widget.component';
+import { YougilePlaygroundWidgetComponent } from '@app/widgets/yougile-playground-widget/yougile-playground-widget.component';
 
 @Component({
   selector: 'app-page-dashboard-test-role',
@@ -25,6 +26,7 @@ import { WorkActivityWidgetComponent } from '@app/widgets/work-activity-widget/w
     QuickActionsWidgetComponent,
     MyRequestsWidgetComponent,
     WorkActivityWidgetComponent,
+    YougilePlaygroundWidgetComponent,
   ],
   templateUrl: './test-role.page.html',
   styleUrl: './test-role.page.scss',

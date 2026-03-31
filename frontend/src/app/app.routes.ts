@@ -56,6 +56,13 @@ export const routes: Routes = [
             (m) => m.DashboardTestRolePageComponent,
           ),
       },
+      {
+        path: 'playground',
+        loadComponent: () =>
+          import('@pages/dashboard/test-role/test-role.page').then(
+            (m) => m.DashboardTestRolePageComponent,
+          ),
+      },
 
       {
         path: 'dashboard/employee',
