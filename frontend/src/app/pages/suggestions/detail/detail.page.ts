@@ -33,6 +33,7 @@ import type { Course } from '@entities/course';
 
 import { CoursePickerDialogComponent } from '../../intakes/course-picker-dialog/course-picker-dialog.component';
 import { MatChipSet, MatChip } from '@angular/material/chips';
+import { toSignal } from '@angular/core/rxjs-interop';
 
 @Component({
   selector: 'app-page-suggestion-detail',
@@ -93,9 +94,8 @@ export class SuggestionDetailPageComponent implements OnInit {
     const role = this.authState.currentUser()?.roles[0] ?? 'employee';
     return canReviewSuggestion(role) || this.authState.hasPermission(PERMISSIONS.intakesManage);
   });
-  protected readonly isWeeksMode = computed(
-    () => this.intakeForm.controls.schedule_mode.value === 'weeks',
-  );
+  schedule_mode_signal = toSignal(this.intakeForm.controls.schedule_mode.valueChanges);
+  protected readonly isWeeksMode = computed(() => this.schedule_mode_signal() === 'weeks');
   protected readonly calculatedEndDate = computed(() =>
     resolveEndDateFromWeeks(
       this.intakeForm.controls.start_date.value,

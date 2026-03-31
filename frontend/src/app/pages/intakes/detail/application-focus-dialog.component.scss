@@ -1,0 +1,19 @@
+.application-focus-dialog {
+  display: grid;
+  gap: 12px;
+  min-width: min(560px, 92vw);
+}
+
+.application-focus-dialog__intro {
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.application-focus-dialog__item-title {
+  font-weight: 600;
+}
+
+.application-focus-dialog__item-subtitle {
+  color: var(--text-secondary);
+  font-size: 0.86rem;
+}

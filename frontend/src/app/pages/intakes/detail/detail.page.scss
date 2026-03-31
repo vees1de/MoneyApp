@@ -101,7 +101,26 @@
 .intake-application-layout {
   display: grid;
   gap: 16px;
-  grid-template-columns: minmax(260px, 0.82fr) minmax(0, 1.25fr) minmax(280px, 0.93fr);
+  grid-template-areas:
+    'stepper stepper stepper stepper budget budget'
+    'employee info info info budget budget';
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.intake-application-layout__stepper {
+  grid-area: stepper;
+}
+
+.intake-application-layout__employee {
+  grid-area: employee;
+}
+
+.intake-application-layout__info {
+  grid-area: info;
+}
+
+.intake-application-layout__budget {
+  grid-area: budget;
 }
 
 .application-course-card__comment {
@@ -147,11 +166,11 @@
 
 @media (max-width: 1320px) {
   .intake-application-layout {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .application-budget-card {
-    grid-column: 1 / -1;
+    grid-template-areas:
+      'stepper stepper'
+      'employee info'
+      'budget budget';
+    grid-template-columns: minmax(260px, 0.9fr) minmax(0, 1.1fr);
   }
 }
 
@@ -165,6 +184,11 @@
   }
 
   .intake-application-layout {
+    grid-template-areas:
+      'stepper'
+      'employee'
+      'info'
+      'budget';
     grid-template-columns: 1fr;
   }
 }

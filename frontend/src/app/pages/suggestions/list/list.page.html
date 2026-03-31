@@ -43,12 +43,17 @@
   } @else {
     <section class="suggestions-grid">
       @for (item of suggestions(); track item.id) {
-        <mat-card class="suggestion-card">
+        <mat-card class="suggestion-card" [ngClass]="statusCardClass(item.status)">
           <mat-card-header>
             <mat-card-title>
               <a [routerLink]="'/suggestions/' + item.id">{{ item.title }}</a>
             </mat-card-title>
-            <mat-card-subtitle>{{ statusLabel(item.status) }}</mat-card-subtitle>
+            <mat-card-subtitle>
+              <span class="suggestion-status-chip" [ngClass]="statusChipClass(item.status)">
+                <mat-icon>{{ statusIcon(item.status) }}</mat-icon>
+                {{ statusLabel(item.status) }}
+              </span>
+            </mat-card-subtitle>
           </mat-card-header>
 
           <mat-card-content class="suggestion-card__content">

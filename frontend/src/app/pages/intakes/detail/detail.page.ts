@@ -51,6 +51,10 @@ import {
   IntakeSettingsDialogComponent,
   type IntakeSettingsDialogResult,
 } from './intake-settings-dialog.component';
+import {
+  ApplicationFocusDialogComponent,
+  type ApplicationFocusDialogData,
+} from './application-focus-dialog.component';
 
 @Component({
   selector: 'app-page-intake-detail',
@@ -285,6 +289,39 @@ export class IntakeDetailPageComponent implements OnInit {
 
   protected isSelectedApplication(applicationId: string): boolean {
     return this.focusedApplication()?.id === applicationId;
+  }
+
+  protected openApplicationFocusDialog(): void {
+    if (this.acting() || this.applications().length < 2) {
+      return;
+    }
+
+    const data: ApplicationFocusDialogData = {
+      applications: this.applications().map((application) => ({
+        id: application.id,
+        applicantLabel: this.userLabel(application.applicant_id),
+        statusLabel: this.applicationStatusLabel(application.status),
+      })),
+      selectedApplicationId: this.focusedApplication()?.id ?? null,
+    };
+
+    this.dialog
+      .open<ApplicationFocusDialogComponent, ApplicationFocusDialogData, string | null>(
+        ApplicationFocusDialogComponent,
+        {
+          width: '560px',
+          maxWidth: '94vw',
+          data,
+        },
+      )
+      .afterClosed()
+      .subscribe((selectedApplicationId) => {
+        if (!selectedApplicationId) {
+          return;
+        }
+
+        this.selectApplication(selectedApplicationId);
+      });
   }
 
   protected roadmapIndex(application: CourseApplication): number {

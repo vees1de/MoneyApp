@@ -44,6 +44,68 @@
   gap: 8px;
 }
 
+.suggestion-card {
+  border-top: 4px solid transparent;
+}
+
+.suggestion-card--approved {
+  border-top-color: #2e9f47;
+}
+
+.suggestion-card--rejected {
+  border-top-color: #d64545;
+}
+
+.suggestion-card--pending {
+  border-top-color: #88919f;
+}
+
+.suggestion-card--neutral {
+  border-top-color: #9aa3ad;
+}
+
+.suggestion-status-chip {
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 0.82rem;
+  font-weight: 700;
+  gap: 6px;
+  line-height: 1;
+  padding: 6px 10px;
+}
+
+.suggestion-status-chip .mat-icon {
+  font-size: 16px;
+  height: 16px;
+  width: 16px;
+}
+
+.suggestion-status-chip--approved {
+  background: #e9f8ee;
+  border-color: #b9e8c6;
+  color: #1f7f38;
+}
+
+.suggestion-status-chip--rejected {
+  background: #fdecec;
+  border-color: #f8c2c2;
+  color: #b83232;
+}
+
+.suggestion-status-chip--pending {
+  background: #f1f3f5;
+  border-color: #d7dce1;
+  color: #596270;
+}
+
+.suggestion-status-chip--neutral {
+  background: #eef1f4;
+  border-color: #d8dde3;
+  color: #617080;
+}
+
 .kv__key {
   color: var(--text-secondary);
 }

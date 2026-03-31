@@ -85,6 +85,49 @@ export class SuggestionsListPageComponent implements OnInit {
     return courseSuggestionStatusLabel(status);
   }
 
+  protected statusChipClass(status: string): string {
+    switch (status) {
+      case 'approved':
+      case 'intake_opened':
+        return 'suggestion-status-chip--approved';
+      case 'rejected':
+        return 'suggestion-status-chip--rejected';
+      case 'pending':
+        return 'suggestion-status-chip--pending';
+      default:
+        return 'suggestion-status-chip--neutral';
+    }
+  }
+
+  protected statusCardClass(status: string): string {
+    switch (status) {
+      case 'approved':
+      case 'intake_opened':
+        return 'suggestion-card--approved';
+      case 'rejected':
+        return 'suggestion-card--rejected';
+      case 'pending':
+        return 'suggestion-card--pending';
+      default:
+        return 'suggestion-card--neutral';
+    }
+  }
+
+  protected statusIcon(status: string): string {
+    switch (status) {
+      case 'approved':
+        return 'check_circle';
+      case 'intake_opened':
+        return 'task_alt';
+      case 'rejected':
+        return 'cancel';
+      case 'pending':
+        return 'schedule';
+      default:
+        return 'help';
+    }
+  }
+
   protected userLabel(userId: string | null | undefined): string {
     if (!userId) {
       return '—';

@@ -2,17 +2,12 @@
   <header class="catalog-detail-page__header">
     <div>
       <h1>Карточка курса</h1>
-      <p>Здесь можно перейти к оригинальной программе курса и отправить HR запрос на открытие набора.</p>
     </div>
 
     <div class="catalog-detail-page__header-actions">
       <a mat-stroked-button routerLink="/catalog">
         <mat-icon>arrow_back</mat-icon>
-        В каталог
-      </a>
-      <a mat-stroked-button routerLink="/suggestions">
-        <mat-icon>lightbulb</mat-icon>
-        Предложения
+        Все курсы
       </a>
     </div>
   </header>
@@ -60,13 +55,38 @@
           </a>
         </div>
 
-        <p><span class="kv__key">Уровень:</span> <span class="kv__value">{{ item.level || '—' }}</span></p>
-        <p><span class="kv__key">Длительность:</span> <span class="kv__value">{{ formatDurationLabel(item.duration_hours) }}</span></p>
-        <p><span class="kv__key">Язык:</span> <span class="kv__value">{{ item.language || '—' }}</span></p>
-        <p><span class="kv__key">Стоимость:</span> <span class="kv__value">{{ formatPrice(item) }}</span></p>
-        <p><span class="kv__key">Ссылка:</span> <span class="kv__value">{{ item.external_url || '—' }}</span></p>
-        <p><span class="kv__key">Старт:</span> <span class="kv__value">{{ item.next_start_date ? (item.next_start_date | date: 'dd.MM.yyyy') : '—' }}</span></p>
-        <p><span class="kv__key">Обновлено:</span> <span class="kv__value">{{ item.updated_at | date: 'dd.MM.yyyy HH:mm' }}</span></p>
+        <p>
+          <span class="kv__key">Уровень:</span>
+          <span class="kv__value">{{ item.level || '—' }}</span>
+        </p>
+        <p>
+          <span class="kv__key">Длительность:</span>
+          <span class="kv__value">{{ formatDurationLabel(item.duration_hours) }}</span>
+        </p>
+        <p>
+          <span class="kv__key">Язык:</span>
+          <span class="kv__value">{{ item.language || '—' }}</span>
+        </p>
+        <p>
+          <span class="kv__key">Стоимость:</span>
+          <span class="kv__value">{{ formatPrice(item) }}</span>
+        </p>
+        <p>
+          <span class="kv__key">Ссылка:</span>
+          <a class="kv__value" [href]="item.external_url" target="_blank">{{
+            item.external_url || '—'
+          }}</a>
+        </p>
+        <p>
+          <span class="kv__key">Старт:</span>
+          <span class="kv__value">{{
+            item.next_start_date ? (item.next_start_date | date: 'dd.MM.yyyy') : '—'
+          }}</span>
+        </p>
+        <p>
+          <span class="kv__key">Обновлено:</span>
+          <span class="kv__value">{{ item.updated_at | date: 'dd.MM.yyyy HH:mm' }}</span>
+        </p>
       </mat-card-content>
     </mat-card>
   }

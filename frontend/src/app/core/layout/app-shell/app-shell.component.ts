@@ -55,11 +55,6 @@ export class AppShellComponent {
       },
       {
         label: 'Заявки',
-        route: '/applications/my',
-        visible: true,
-      },
-      {
-        label: 'Предложения',
         route: '/suggestions',
         visible: true,
       },

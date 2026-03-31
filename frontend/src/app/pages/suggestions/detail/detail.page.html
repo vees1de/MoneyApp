@@ -3,7 +3,7 @@
     <div class="suggestion-detail-page__header-actions">
       <a mat-stroked-button routerLink="/suggestions">
         <mat-icon>arrow_back</mat-icon>
-        К предложениям
+        Все заявки
       </a>
       <a mat-stroked-button routerLink="/intakes">
         <mat-icon>view_list</mat-icon>
@@ -17,10 +17,13 @@
   } @else if (error()) {
     <p class="suggestion-detail-page__error">{{ error() }}</p>
   } @else if (suggestion(); as item) {
-    <section class="suggestion-detail-grid">
+    <div class="suggestion-detail-content">
       <mat-card class="suggestion-summary-card">
         <mat-card-header>
-          <mat-card-title>{{ item.title }}</mat-card-title>
+          <mat-card-title
+            ><span style="color: #727272; font-weight: 300">Заявка на приобритение курса</span> -
+            {{ item.title }}</mat-card-title
+          >
           <mat-card-subtitle>{{ statusLabel(item.status) }}</mat-card-subtitle>
         </mat-card-header>
 
@@ -29,44 +32,44 @@
             <p class="suggestion-summary-card__description">{{ item.description }}</p>
           }
 
-          <p>
+          <div class="info-row">
             <span class="kv__key">Провайдер:</span>
             <span class="kv__value">{{ item.provider_name || '—' }}</span>
-          </p>
-          <p>
+          </div>
+          <div class="info-row">
             <span class="kv__key">Ссылка:</span>
             <span class="kv__value">{{ item.external_url || '—' }}</span>
-          </p>
-          <p>
+          </div>
+          <div class="info-row">
             <span class="kv__key">Цена:</span>
             <span class="kv__value"
               >{{ item.price || '—' }} {{ item.price_currency || 'RUB' }}</span
             >
-          </p>
-          <p>
+          </div>
+          <div class="info-row">
             <span class="kv__key">Длительность:</span>
             <span class="kv__value">{{ item.duration_hours || '—' }}</span>
-          </p>
-          <p>
+          </div>
+          <div class="info-row">
             <span class="kv__key">Автор:</span>
             <span class="kv__value">{{ userLabel(item.suggested_by) }}</span>
-          </p>
-          <p>
+          </div>
+          <div class="info-row">
             <span class="kv__key">Руководитель-апрувер:</span>
             <span class="kv__value">{{ userLabel(item.approver_id) }}</span>
-          </p>
-          <p>
+          </div>
+          <div class="info-row">
             <span class="kv__key">Ревьюер HR:</span>
             <span class="kv__value">{{ userLabel(item.reviewed_by) }}</span>
-          </p>
-          <p>
+          </div>
+          <div class="info-row">
             <span class="kv__key">Комментарий HR:</span>
             <span class="kv__value">{{ item.review_comment || '—' }}</span>
-          </p>
-          <p>
+          </div>
+          <div class="info-row">
             <span class="kv__key">Создано:</span>
             <span class="kv__value">{{ item.created_at | date: 'dd.MM.yyyy HH:mm' }}</span>
-          </p>
+          </div>
 
           @if (item.intake_id) {
             <a mat-stroked-button [routerLink]="'/intakes/' + item.intake_id">
@@ -86,69 +89,9 @@
             >
           </mat-card-header>
 
-          <mat-card-content>
-            <mat-form-field appearance="outline" class="suggestion-review-card__comment">
-              <mat-label>Комментарий</mat-label>
-              <textarea matInput rows="4" [formControl]="reviewForm.controls.comment"></textarea>
-            </mat-form-field>
-
-            <div class="suggestion-review-card__actions">
-              @if (item.status === 'pending') {
-                <button
-                  mat-flat-button
-                  color="primary"
-                  type="button"
-                  (click)="approve()"
-                  [disabled]="acting()"
-                >
-                  <mat-icon>check_circle</mat-icon>
-                  Одобрить
-                </button>
-                <button mat-stroked-button type="button" (click)="reject()" [disabled]="acting()">
-                  <mat-icon>cancel</mat-icon>
-                  Отклонить
-                </button>
-              }
-            </div>
-
+          <mat-card-content class="suggestion-review-card__content">
             @if (canOpenIntake()) {
-              <section class="open-intake-form">
-                <h3>Открыть назначение по предложению</h3>
-
-                <div class="open-intake-form__wide open-intake-form__catalog">
-                  <div class="open-intake-form__catalog-actions">
-                    <button
-                      mat-flat-button
-                      color="primary"
-                      type="button"
-                      (click)="openCatalogDialog()"
-                    >
-                      <mat-icon>search</mat-icon>
-                      Выбрать курс из каталога
-                    </button>
-
-                    @if (selectedCourse()) {
-                      <button mat-stroked-button type="button" (click)="clearCatalogSelection()">
-                        Очистить
-                      </button>
-                    }
-                  </div>
-
-                  @if (selectedCourse(); as course) {
-                    <div class="open-intake-form__catalog-card">
-                      <p class="open-intake-form__catalog-title">{{ course.title }}</p>
-                      <p class="open-intake-form__catalog-meta">
-                        {{ course.source_type || '—' }} · {{ course.level || 'без уровня' }}
-                      </p>
-                      <p class="open-intake-form__catalog-description">
-                        {{
-                          course.short_description || course.description || 'Описание не заполнено.'
-                        }}
-                      </p>
-                    </div>
-                  }
-                </div>
-
+              <div class="open-intake-form">
                 <mat-form-field appearance="outline">
                   <mat-label>Название назначения</mat-label>
                   <input matInput [formControl]="intakeForm.controls.title" />
@@ -164,7 +107,7 @@
                   />
                 </mat-form-field>
 
-                <mat-form-field appearance="outline" class="open-intake-form__wide">
+                <mat-form-field appearance="outline">
                   <mat-label>Описание</mat-label>
                   <textarea
                     matInput
@@ -173,28 +116,33 @@
                   ></textarea>
                 </mat-form-field>
 
-                <mat-form-field appearance="outline">
-                  <mat-label>Цена курса</mat-label>
-                  <input matInput [formControl]="intakeForm.controls.price" />
-                </mat-form-field>
+                <div class="price-block">
+                  <mat-form-field appearance="outline">
+                    <mat-label>Цена курса</mat-label>
+                    <input matInput [formControl]="intakeForm.controls.price" />
+                  </mat-form-field>
 
-                <mat-form-field appearance="outline">
-                  <mat-label>Валюта</mat-label>
-                  <input
-                    matInput
-                    maxlength="3"
-                    [formControl]="intakeForm.controls.price_currency"
-                  />
-                </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>Валюта</mat-label>
+                    <input
+                      matInput
+                      maxlength="3"
+                      [formControl]="intakeForm.controls.price_currency"
+                    />
+                  </mat-form-field>
+                </div>
 
                 <mat-form-field appearance="outline">
                   <mat-label>Старт</mat-label>
                   <input matInput type="date" [formControl]="intakeForm.controls.start_date" />
                 </mat-form-field>
 
-                <div class="open-intake-form__schedule">
-                  <span class="open-intake-form__section-label">Длительность</span>
-                  <mat-button-toggle-group [formControl]="intakeForm.controls.schedule_mode">
+                <div class="schedule-block">
+                  <span class="section-label">Длительность</span>
+                  <mat-button-toggle-group
+                    [formControl]="intakeForm.controls.schedule_mode"
+                    style="width: fit-content"
+                  >
                     <mat-button-toggle value="weeks">Количество недель</mat-button-toggle>
                     <mat-button-toggle value="end">Дата окончания</mat-button-toggle>
                   </mat-button-toggle-group>
@@ -210,17 +158,6 @@
                       [formControl]="intakeForm.controls.duration_weeks"
                     />
                   </mat-form-field>
-
-                  <div class="open-intake-form__derived">
-                    <span class="open-intake-form__section-label">Расчёт окончания</span>
-                    <p>
-                      {{
-                        calculatedEndDate()
-                          ? calculatedEndDate()
-                          : 'Укажите старт и количество недель.'
-                      }}
-                    </p>
-                  </div>
                 } @else {
                   <mat-form-field appearance="outline">
                     <mat-label>Дата окончания</mat-label>
@@ -238,27 +175,40 @@
                 </mat-form-field>
 
                 @if (directoryUnavailable()) {
-                  <p class="open-intake-form__hint">
+                  <p class="hint-text">
                     Справочник сотрудников временно недоступен, поэтому имена в блоке предложения
                     могут отображаться без расшифровки.
                   </p>
                 }
+              </div>
+            }
+            <span class="section-label">Комментарий HR</span>
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Комментарий</mat-label>
+              <textarea matInput rows="4" [formControl]="reviewForm.controls.comment"></textarea>
+            </mat-form-field>
 
+            @if (item.status === 'pending') {
+              <div class="review-actions">
                 <button
                   mat-flat-button
                   color="primary"
                   type="button"
-                  (click)="openIntake()"
+                  (click)="approve()"
                   [disabled]="acting()"
                 >
-                  <mat-icon>playlist_add_check</mat-icon>
-                  Открыть назначение
+                  <mat-icon>check_circle</mat-icon>
+                  Одобрить
                 </button>
-              </section>
+                <button mat-stroked-button type="button" (click)="reject()" [disabled]="acting()">
+                  <mat-icon>cancel</mat-icon>
+                  Отклонить
+                </button>
+              </div>
             }
           </mat-card-content>
         </mat-card>
       }
-    </section>
+    </div>
   }
 </section>
