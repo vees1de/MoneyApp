@@ -8,6 +8,7 @@ import (
 
 	"moneyapp/backend/internal/config"
 	corehealth "moneyapp/backend/internal/core/health"
+	coreusers "moneyapp/backend/internal/core/users"
 	adminmodule "moneyapp/backend/internal/modules/admin"
 	analyticsmodule "moneyapp/backend/internal/modules/analytics"
 	auditmodule "moneyapp/backend/internal/modules/audit"
@@ -16,7 +17,6 @@ import (
 	catalogmodule "moneyapp/backend/internal/modules/catalog"
 	certificatesmodule "moneyapp/backend/internal/modules/certificates"
 	courseintakesmodule "moneyapp/backend/internal/modules/course_intakes"
-	smartexportmodule "moneyapp/backend/internal/modules/smart_export"
 	courserequestsmodule "moneyapp/backend/internal/modules/course_requests"
 	dashboardapimodule "moneyapp/backend/internal/modules/dashboard_api"
 	externaltrainingmodule "moneyapp/backend/internal/modules/external_training"
@@ -27,6 +27,7 @@ import (
 	notificationsmodule "moneyapp/backend/internal/modules/notifications"
 	orgmodule "moneyapp/backend/internal/modules/org"
 	outlookmodule "moneyapp/backend/internal/modules/outlook"
+	smartexportmodule "moneyapp/backend/internal/modules/smart_export"
 	testingmodule "moneyapp/backend/internal/modules/testing"
 	universitymodule "moneyapp/backend/internal/modules/university"
 	yougilemodule "moneyapp/backend/internal/modules/yougile"
@@ -47,6 +48,7 @@ type Container struct {
 	Validator *validator.Validate
 
 	HealthService *corehealth.Service
+	UsersService  *coreusers.Service
 
 	OrgService              *orgmodule.Service
 	IdentityService         *identitymodule.Service
@@ -93,4 +95,5 @@ type Container struct {
 	AuditHandler            *auditmodule.Handler
 	YougileHandler          *yougilemodule.Handler
 	GitHubHandler           *githubmodule.Handler
+	UsersHandler            *coreusers.Handler
 }

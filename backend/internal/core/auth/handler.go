@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"moneyapp/backend/internal/core/sessions"
-	"moneyapp/backend/internal/core/users"
 	platformauth "moneyapp/backend/internal/platform/auth"
 	"moneyapp/backend/internal/platform/httpx"
 
@@ -111,7 +110,7 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	httpx.WriteJSON(w, http.StatusOK, users.MeResponse{User: user})
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"user": user})
 }
 
 func sessionMetaFromRequest(r *http.Request) sessions.SessionMeta {

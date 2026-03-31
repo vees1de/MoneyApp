@@ -127,6 +127,14 @@ func NewRouter(container *Container) http.Handler {
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.AuthRequired(container.JWT))
 
+			r.Route("/users", func(r chi.Router) {
+				r.Get("/me", container.UsersHandler.Me)
+				r.Patch("/me", container.UsersHandler.UpdateProfile)
+				r.Get("/profile-roles", container.UsersHandler.ListProfileRoles)
+				r.Get("/development-teams", container.UsersHandler.ListDevelopmentTeams)
+				r.Post("/development-teams", container.UsersHandler.CreateDevelopmentTeam)
+			})
+
 			r.Route("/admin", func(r chi.Router) {
 				r.With(middleware.RBAC("users.read")).Get("/users", container.AdminHandler.ListUsers)
 				r.With(middleware.RBAC("users.write")).Post("/users", container.AdminHandler.CreateUser)

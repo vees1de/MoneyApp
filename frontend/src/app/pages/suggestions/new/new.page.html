@@ -17,6 +17,12 @@
         <p>Подготавливаю форму...</p>
       } @else {
         <form class="suggestion-form" [formGroup]="form" (ngSubmit)="submit()">
+          @if (isCatalogPrefill()) {
+            <p class="suggestion-form__prefill">
+              Форма предзаполнена по курсу из каталога. Проверьте данные и отправьте предложение HR.
+            </p>
+          }
+
           <mat-form-field appearance="outline">
             <mat-label>Название курса</mat-label>
             <input matInput formControlName="title" />

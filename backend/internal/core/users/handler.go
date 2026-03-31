@@ -27,22 +27,24 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, httpx.Unauthorized("unauthorized", "authorization required"))
 		return
 	}
-	user, err := h.service.GetProfile(r.Context(), principal.UserID)
+
+	response, err := h.service.GetProfile(r.Context(), principal.UserID)
 	if err != nil {
 		httpx.WriteError(w, err)
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, MeResponse{User: user})
+
+	httpx.WriteJSON(w, http.StatusOK, response)
 }
 
-func (h *Handler) UpdatePreferences(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	principal, ok := platformauth.PrincipalFromContext(r.Context())
 	if !ok {
 		httpx.WriteError(w, httpx.Unauthorized("unauthorized", "authorization required"))
 		return
 	}
 
-	var request UpdatePreferencesRequest
+	var request UpdateProfileRequest
 	if err := httpx.DecodeJSON(r, &request); err != nil {
 		httpx.WriteError(w, err)
 		return
@@ -52,10 +54,63 @@ func (h *Handler) UpdatePreferences(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.service.UpdatePreferences(r.Context(), principal.UserID, request)
+	response, err := h.service.UpdateProfile(r.Context(), principal.UserID, request)
 	if err != nil {
 		httpx.WriteError(w, err)
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, MeResponse{User: user})
+
+	httpx.WriteJSON(w, http.StatusOK, response)
+}
+
+func (h *Handler) ListProfileRoles(w http.ResponseWriter, r *http.Request) {
+	items, err := h.service.ListProfileRoles(r.Context())
+	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+
+	httpx.WriteJSON(w, http.StatusOK, ProfileRolesResponse{Items: items})
+}
+
+func (h *Handler) ListDevelopmentTeams(w http.ResponseWriter, r *http.Request) {
+	principal, ok := platformauth.PrincipalFromContext(r.Context())
+	if !ok {
+		httpx.WriteError(w, httpx.Unauthorized("unauthorized", "authorization required"))
+		return
+	}
+
+	items, err := h.service.ListDevelopmentTeams(r.Context(), principal.UserID)
+	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+
+	httpx.WriteJSON(w, http.StatusOK, DevelopmentTeamsResponse{Items: items})
+}
+
+func (h *Handler) CreateDevelopmentTeam(w http.ResponseWriter, r *http.Request) {
+	principal, ok := platformauth.PrincipalFromContext(r.Context())
+	if !ok {
+		httpx.WriteError(w, httpx.Unauthorized("unauthorized", "authorization required"))
+		return
+	}
+
+	var request CreateDevelopmentTeamRequest
+	if err := httpx.DecodeJSON(r, &request); err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	if err := h.validator.Struct(request); err != nil {
+		httpx.WriteError(w, httpx.BadRequest("validation_error", err.Error()))
+		return
+	}
+
+	team, err := h.service.CreateDevelopmentTeam(r.Context(), principal.UserID, request)
+	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+
+	httpx.WriteJSON(w, http.StatusCreated, DevelopmentTeamResponse{Team: team})
 }

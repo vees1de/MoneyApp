@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -39,12 +39,14 @@ export class SuggestionsNewPageComponent implements OnInit {
   private readonly usersApi = inject(UsersApiService);
   private readonly authState = inject(AuthStateService);
   private readonly fb = inject(FormBuilder);
+  private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
   protected readonly loadingOptions = signal(true);
   protected readonly submitting = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly directoryUnavailable = signal(false);
+  protected readonly isCatalogPrefill = signal(false);
   protected readonly approvers = signal<IdentityUserView[]>([]);
 
   protected readonly hasDirectoryAccess =
@@ -62,6 +64,8 @@ export class SuggestionsNewPageComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    this.applyPrefillFromQuery();
+
     if (!this.hasDirectoryAccess) {
       this.directoryUnavailable.set(true);
       this.loadingOptions.set(false);
@@ -122,7 +126,28 @@ export class SuggestionsNewPageComponent implements OnInit {
         this.error.set('Не удалось отправить предложение курса.');
         this.submitting.set(false);
       },
-    });
+      });
+  }
+
+  private applyPrefillFromQuery(): void {
+    const query = this.route.snapshot.queryParamMap;
+    const patch = {
+      title: query.get('title') ?? '',
+      external_url: query.get('external_url') ?? '',
+      description: query.get('description') ?? '',
+      price: query.get('price') ?? '',
+      price_currency: query.get('price_currency') ?? 'RUB',
+      duration_hours: query.get('duration_hours') ?? '',
+    };
+
+    const hasPrefill = Object.values(patch).some((value) => value.trim() !== '');
+
+    if (!hasPrefill) {
+      return;
+    }
+
+    this.form.patchValue(patch);
+    this.isCatalogPrefill.set(query.get('from') === 'catalog');
   }
 }
 

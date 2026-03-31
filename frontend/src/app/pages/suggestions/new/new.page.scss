@@ -30,10 +30,19 @@
   grid-column: 1 / -1;
 }
 
+.suggestion-form__prefill,
 .suggestion-form__hint,
 .suggestion-form__error {
   grid-column: 1 / -1;
   margin: 0;
+}
+
+.suggestion-form__prefill {
+  background: #eaf3ff;
+  border: 1px solid #c6dafd;
+  border-radius: 12px;
+  color: #285795;
+  padding: 12px 14px;
 }
 
 .suggestion-form__hint {

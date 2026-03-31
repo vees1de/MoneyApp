@@ -8,6 +8,7 @@ import (
 
 	"moneyapp/backend/internal/config"
 	corehealth "moneyapp/backend/internal/core/health"
+	coreusers "moneyapp/backend/internal/core/users"
 	adminmodule "moneyapp/backend/internal/modules/admin"
 	analyticsmodule "moneyapp/backend/internal/modules/analytics"
 	auditmodule "moneyapp/backend/internal/modules/audit"
@@ -78,6 +79,7 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 	queue := platformworker.NewQueue(database, log)
 
 	orgRepo := orgmodule.NewRepository(database)
+	usersRepo := coreusers.NewRepository(database)
 	identityRepo := identitymodule.NewRepository(database)
 	catalogRepo := catalogmodule.NewRepository(database)
 	learningRepo := learningmodule.NewRepository(database)
@@ -97,6 +99,7 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 	dashboardAPIRepo := dashboardapimodule.NewRepository(database)
 
 	orgService := orgmodule.NewService(orgRepo)
+	usersService := coreusers.NewService(database, usersRepo)
 	identityService := identitymodule.NewService(database, identityRepo, orgService, outboxService, queue, jwtManager, appClock, cfg.Auth.AccessTokenTTL, cfg.Auth.RefreshTokenTTL)
 	adminService := adminmodule.NewService(database, identityRepo, orgService, appClock)
 	catalogService := catalogmodule.NewService(catalogRepo, appClock)
@@ -134,6 +137,7 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 		Queue:                   queue,
 		Validator:               validate,
 		HealthService:           healthService,
+		UsersService:            usersService,
 		OrgService:              orgService,
 		IdentityService:         identityService,
 		AdminService:            adminService,
@@ -157,6 +161,7 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 		YougileService:          yougileService,
 		GitHubService:           githubService,
 		HealthHandler:           corehealth.NewHandler(healthService),
+		UsersHandler:            coreusers.NewHandler(usersService, validate),
 		IdentityHandler:         identitymodule.NewHandler(identityService, validate),
 		AdminHandler:            adminmodule.NewHandler(adminService, validate),
 		CatalogHandler:          catalogmodule.NewHandler(catalogService, validate),

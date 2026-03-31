@@ -1,12 +1,53 @@
 ﻿<section class="login-page">
   <mat-card class="login-card">
     <mat-card-header>
-      <mat-card-title>Вход</mat-card-title>
-      <mat-card-subtitle>Войдите в личный кабинет</mat-card-subtitle>
+      <mat-card-title>{{ isRegisterMode() ? 'Регистрация' : 'Вход' }}</mat-card-title>
+      <mat-card-subtitle>
+        {{ isRegisterMode() ? 'Создайте аккаунт сотрудника' : 'Войдите в личный кабинет' }}
+      </mat-card-subtitle>
     </mat-card-header>
 
     <mat-card-content>
+      <div class="login-mode-switch" role="tablist" aria-label="Режим авторизации">
+        <button
+          type="button"
+          class="login-mode-switch__button"
+          [class.login-mode-switch__button--active]="!isRegisterMode()"
+          (click)="setMode('login')"
+        >
+          Вход
+        </button>
+        <button
+          type="button"
+          class="login-mode-switch__button"
+          [class.login-mode-switch__button--active]="isRegisterMode()"
+          (click)="setMode('register')"
+        >
+          Регистрация
+        </button>
+      </div>
+
       <form [formGroup]="form" (ngSubmit)="submit()" class="login-form">
+        @if (isRegisterMode()) {
+          <div class="login-form__row">
+            <mat-form-field appearance="outline">
+              <mat-label>Имя</mat-label>
+              <input matInput formControlName="firstName" autocomplete="given-name" />
+              @if (firstNameError()) {
+                <mat-error>{{ firstNameError() }}</mat-error>
+              }
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Фамилия</mat-label>
+              <input matInput formControlName="lastName" autocomplete="family-name" />
+              @if (lastNameError()) {
+                <mat-error>{{ lastNameError() }}</mat-error>
+              }
+            </mat-form-field>
+          </div>
+        }
+
         <mat-form-field appearance="outline">
           <mat-label>Логин (email)</mat-label>
           <input matInput formControlName="email" autocomplete="username" />
@@ -21,19 +62,50 @@
             matInput
             type="password"
             formControlName="password"
-            autocomplete="current-password"
+            [autocomplete]="isRegisterMode() ? 'new-password' : 'current-password'"
           />
           @if (passwordError()) {
             <mat-error>{{ passwordError() }}</mat-error>
           }
         </mat-form-field>
 
+        @if (isRegisterMode()) {
+          <mat-form-field appearance="outline">
+            <mat-label>Подтвердите пароль</mat-label>
+            <input
+              matInput
+              type="password"
+              formControlName="confirmPassword"
+              autocomplete="new-password"
+            />
+            @if (confirmPasswordError()) {
+              <mat-error>{{ confirmPasswordError() }}</mat-error>
+            }
+          </mat-form-field>
+
+          <div class="login-form__row">
+            <mat-form-field appearance="outline">
+              <mat-label>Отчество</mat-label>
+              <input matInput formControlName="middleName" autocomplete="additional-name" />
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Должность</mat-label>
+              <input matInput formControlName="positionTitle" autocomplete="organization-title" />
+            </mat-form-field>
+          </div>
+        }
+
         @if (authError()) {
           <p class="login-error">{{ authError() }}</p>
         }
 
         <button mat-flat-button type="submit" [disabled]="submitting()">
-          {{ submitting() ? 'Входим...' : 'Войти' }}
+          @if (submitting()) {
+            {{ isRegisterMode() ? 'Регистрируем...' : 'Входим...' }}
+          } @else {
+            {{ isRegisterMode() ? 'Зарегистрироваться' : 'Войти' }}
+          }
         </button>
       </form>
     </mat-card-content>
