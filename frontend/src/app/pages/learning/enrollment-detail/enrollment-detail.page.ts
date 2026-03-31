@@ -88,6 +88,8 @@ export class LearningEnrollmentDetailPageComponent implements OnInit {
     return !certificate || certificate.status === 'rejected';
   });
 
+  protected readonly canWorkOnCourse = computed(() => this.enrollment()?.status === 'in_progress');
+
   ngOnInit(): void {
     this.load();
   }
@@ -126,30 +128,9 @@ export class LearningEnrollmentDetailPageComponent implements OnInit {
     return this.selectedCertificateFile()?.name ?? 'Файл не выбран';
   }
 
-  protected start(): void {
-    const item = this.enrollment();
-    if (!item || this.acting() || item.status === 'completed') {
-      return;
-    }
-
-    this.acting.set(true);
-    this.error.set(null);
-
-    this.enrollmentsApi.start(item.id).subscribe({
-      next: (updated) => {
-        this.enrollment.set(updated);
-        this.acting.set(false);
-      },
-      error: () => {
-        this.error.set('Не удалось стартовать обучение.');
-        this.acting.set(false);
-      },
-    });
-  }
-
   protected updateProgress(): void {
     const item = this.enrollment();
-    if (!item || this.acting() || this.progressForm.invalid || item.status === 'completed') {
+    if (!item || this.acting() || this.progressForm.invalid || item.status !== 'in_progress') {
       return;
     }
 
@@ -177,7 +158,7 @@ export class LearningEnrollmentDetailPageComponent implements OnInit {
 
   protected complete(): void {
     const item = this.enrollment();
-    if (!item || this.acting() || item.status === 'completed') {
+    if (!item || this.acting() || item.status !== 'in_progress') {
       return;
     }
 

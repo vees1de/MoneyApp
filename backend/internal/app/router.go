@@ -209,6 +209,7 @@ func NewRouter(container *Container) http.Handler {
 				r.Get("/{id}", container.CourseIntakesHandler.GetIntake)
 				r.With(middleware.RBAC("intakes.manage")).Patch("/{id}", container.CourseIntakesHandler.UpdateIntake)
 				r.With(middleware.RBAC("intakes.manage")).Post("/{id}/close", container.CourseIntakesHandler.CloseIntake)
+				r.With(middleware.RBAC("intakes.manage")).Post("/{id}/start-course", container.CourseIntakesHandler.StartCourseByIntake)
 				r.With(middleware.RBAC("intakes.manage")).Post("/{id}/payment-status", container.CourseIntakesHandler.UpdatePaymentStatusByIntake)
 				r.Get("/{intakeId}/applications", container.CourseIntakesHandler.ListApplicationsByIntake)
 			})

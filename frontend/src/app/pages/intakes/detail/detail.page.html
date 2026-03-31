@@ -99,135 +99,9 @@
           </mat-card-content>
         </mat-card>
 
-        <mat-card class="intake-self-service-card">
-          <mat-card-header>
-            <mat-card-title>{{
-              myApplication() ? 'Моя заявка' : 'Участие в наборе'
-            }}</mat-card-title>
-            <mat-card-subtitle>
-              @if (myApplication(); as application) {
-                {{ applicationStatusLabel(application.status) }}
-              } @else if (canApply()) {
-                Можно подать заявку
-              } @else {
-                Заявка недоступна
-              }
-            </mat-card-subtitle>
-          </mat-card-header>
-
-          <mat-card-content>
-            @if (myApplication(); as application) {
-              <section class="application-state">
-                <p>
-                  <span class="kv__key">Статус:</span>
-                  <span class="kv__value">{{ applicationStatusLabel(application.status) }}</span>
-                </p>
-                <p>
-                  <span class="kv__key">Оплата:</span>
-                  <span class="kv__value">{{
-                    paymentStatusLabel(application.payment_status)
-                  }}</span>
-                </p>
-                <p>
-                  <span class="kv__key">Мотивация:</span>
-                  <span class="kv__value">{{ application.motivation || '—' }}</span>
-                </p>
-                <p>
-                  <span class="kv__key">Руководитель:</span>
-                  <span class="kv__value">{{ userLabel(application.manager_approver_id) }}</span>
-                </p>
-                <p>
-                  <span class="kv__key">Комментарий руководителя:</span>
-                  <span class="kv__value">{{ application.manager_comment || '—' }}</span>
-                </p>
-                <p>
-                  <span class="kv__key">Комментарий HR:</span>
-                  <span class="kv__value">{{ application.hr_comment || '—' }}</span>
-                </p>
-                @if (application.enrollment_id) {
-                  <section class="application-state application-state--learning">
-                    <h3>Обучение и сертификат</h3>
-                    <p>
-                      <span class="kv__key">Карточка обучения:</span>
-                      <a class="kv__value" [routerLink]="'/learning/' + application.enrollment_id">
-                        Открыть обучение
-                      </a>
-                    </p>
-                    <p>
-                      <span class="kv__key">Статус обучения:</span>
-                      <span class="kv__value">{{
-                        enrollmentStatusLabel(myEnrollment()?.status)
-                      }}</span>
-                    </p>
-                    <p>
-                      <span class="kv__key">Сертификат:</span>
-                      <span class="kv__value">{{
-                        certificateStatusLabel(application.certificate_status)
-                      }}</span>
-                    </p>
-                    <p>
-                      <span class="kv__key">Загружен:</span>
-                      <span class="kv__value">{{
-                        application.certificate_uploaded_at
-                          ? (application.certificate_uploaded_at | date: 'dd.MM.yyyy HH:mm')
-                          : '—'
-                      }}</span>
-                    </p>
-                  </section>
-                }
-
-                @if (canWithdrawMyApplication()) {
-                  <button
-                    mat-stroked-button
-                    type="button"
-                    (click)="withdrawMyApplication()"
-                    [disabled]="acting()"
-                  >
-                    <mat-icon>undo</mat-icon>
-                    Отозвать заявку
-                  </button>
-                }
-              </section>
-            } @else if (canApply()) {
-              <section class="application-state">
-                <h3>Податься в набор</h3>
-                <mat-form-field appearance="outline" class="application-state__motivation">
-                  <mat-label>Мотивация</mat-label>
-                  <textarea
-                    matInput
-                    rows="4"
-                    [formControl]="applyForm.controls.motivation"
-                  ></textarea>
-                </mat-form-field>
-
-                @if (managerApprovalEnabled) {
-                  <mat-checkbox [formControl]="applyForm.controls.use_manager_approval">
-                    Согласовать с моим руководителем
-                  </mat-checkbox>
-                }
-
-                <button
-                  mat-flat-button
-                  color="primary"
-                  type="button"
-                  (click)="applyToIntake()"
-                  [disabled]="acting()"
-                >
-                  <mat-icon>send</mat-icon>
-                  Подать заявку
-                </button>
-              </section>
-            } @else {
-              <p class="application-state__hint">
-                @if (item.status !== 'open') {
-                  Набор уже не принимает новые заявки.
-                } @else {
-                  Заявка по этому набору уже создана.
-                }
-              </p>
-            }
-          </mat-card-content>
-        </mat-card>
+        @if (shouldShowSelfServiceInline()) {
+          <ng-container [ngTemplateOutlet]="selfServiceCard"></ng-container>
+        }
       </div>
     </section>
 
@@ -258,7 +132,7 @@
               [disabled]="acting() || !hasStartableEnrollments()"
             >
               <mat-icon>play_circle</mat-icon>
-              Стартовать курс
+              Стартовать курс по набору
             </button>
             <button
               mat-stroked-button
@@ -271,6 +145,10 @@
             </button>
           </div>
         </div>
+
+        @if (!hasStartableEnrollments()) {
+          <p class="applications-section__hint">{{ startButtonHint() }}</p>
+        }
 
         @if (applications().length === 0) {
           <p class="applications-section__empty">Пока никто не подался в этот набор.</p>
@@ -427,7 +305,140 @@
             }
           </div>
         }
+
+        <div class="intake-self-service-toggle">
+          <button mat-stroked-button type="button" (click)="toggleSelfService()">
+            <mat-icon>person</mat-icon>
+            {{ selfServiceToggleLabel() }}
+          </button>
+        </div>
+
+        @if (selfServiceOpen()) {
+          <ng-container [ngTemplateOutlet]="selfServiceCard"></ng-container>
+        }
       </section>
     }
   }
 </section>
+
+<ng-template #selfServiceCard>
+  <mat-card class="intake-self-service-card">
+    <mat-card-header>
+      <mat-card-title>{{ myApplication() ? 'Моя заявка' : 'Участие в наборе' }}</mat-card-title>
+      <mat-card-subtitle>
+        @if (myApplication(); as application) {
+          {{ applicationStatusLabel(application.status) }}
+        } @else if (canApply()) {
+          Можно подать заявку
+        } @else {
+          Заявка недоступна
+        }
+      </mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      @if (myApplication(); as application) {
+        <section class="application-state">
+          <p>
+            <span class="kv__key">Статус:</span>
+            <span class="kv__value">{{ applicationStatusLabel(application.status) }}</span>
+          </p>
+          <p>
+            <span class="kv__key">Оплата:</span>
+            <span class="kv__value">{{ paymentStatusLabel(application.payment_status) }}</span>
+          </p>
+          <p>
+            <span class="kv__key">Мотивация:</span>
+            <span class="kv__value">{{ application.motivation || '—' }}</span>
+          </p>
+          <p>
+            <span class="kv__key">Руководитель:</span>
+            <span class="kv__value">{{ userLabel(application.manager_approver_id) }}</span>
+          </p>
+          <p>
+            <span class="kv__key">Комментарий руководителя:</span>
+            <span class="kv__value">{{ application.manager_comment || '—' }}</span>
+          </p>
+          <p>
+            <span class="kv__key">Комментарий HR:</span>
+            <span class="kv__value">{{ application.hr_comment || '—' }}</span>
+          </p>
+          @if (application.enrollment_id) {
+            <section class="application-state application-state--learning">
+              <h3>Обучение и сертификат</h3>
+              <p>
+                <span class="kv__key">Карточка обучения:</span>
+                <a class="kv__value" [routerLink]="'/learning/' + application.enrollment_id">
+                  Открыть обучение
+                </a>
+              </p>
+              <p>
+                <span class="kv__key">Статус обучения:</span>
+                <span class="kv__value">{{ enrollmentStatusLabel(myEnrollment()?.status) }}</span>
+              </p>
+              <p>
+                <span class="kv__key">Сертификат:</span>
+                <span class="kv__value">{{
+                  certificateStatusLabel(application.certificate_status)
+                }}</span>
+              </p>
+              <p>
+                <span class="kv__key">Загружен:</span>
+                <span class="kv__value">{{
+                  application.certificate_uploaded_at
+                    ? (application.certificate_uploaded_at | date: 'dd.MM.yyyy HH:mm')
+                    : '—'
+                }}</span>
+              </p>
+            </section>
+          }
+
+          @if (canWithdrawMyApplication()) {
+            <button
+              mat-stroked-button
+              type="button"
+              (click)="withdrawMyApplication()"
+              [disabled]="acting()"
+            >
+              <mat-icon>undo</mat-icon>
+              Отозвать заявку
+            </button>
+          }
+        </section>
+      } @else if (canApply()) {
+        <section class="application-state">
+          <h3>Податься в набор</h3>
+          <mat-form-field appearance="outline" class="application-state__motivation">
+            <mat-label>Мотивация</mat-label>
+            <textarea matInput rows="4" [formControl]="applyForm.controls.motivation"></textarea>
+          </mat-form-field>
+
+          @if (managerApprovalEnabled) {
+            <mat-checkbox [formControl]="applyForm.controls.use_manager_approval">
+              Согласовать с моим руководителем
+            </mat-checkbox>
+          }
+
+          <button
+            mat-flat-button
+            color="primary"
+            type="button"
+            (click)="applyToIntake()"
+            [disabled]="acting()"
+          >
+            <mat-icon>send</mat-icon>
+            Подать заявку
+          </button>
+        </section>
+      } @else {
+        <p class="application-state__hint">
+          @if (intake()?.status !== 'open') {
+            Набор уже не принимает новые заявки.
+          } @else {
+            Заявка по этому набору уже создана.
+          }
+        </p>
+      }
+    </mat-card-content>
+  </mat-card>
+</ng-template>

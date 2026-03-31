@@ -3,6 +3,7 @@ package course_intakes
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -994,7 +995,12 @@ func (s *Service) EnrollApplication(ctx context.Context, principal platformauth.
 	if app == nil {
 		return nil, httpx.NotFound("not_found", "application not found")
 	}
-	if app.Status != "approved" {
+
+	createMissingEnrollment := app.Status == "enrolled" && app.EnrollmentID == nil
+	if app.Status != "approved" && !createMissingEnrollment {
+		if app.Status == "enrolled" && app.EnrollmentID != nil {
+			return app, nil
+		}
 		return nil, httpx.BadRequest("invalid_status", "application must be approved before enrollment")
 	}
 
@@ -1032,7 +1038,9 @@ func (s *Service) EnrollApplication(ctx context.Context, principal platformauth.
 		app.Status = "enrolled"
 		app.EnrollmentID = &enrollment.ID
 		app.EnrollmentStatus = &enrollment.Status
-		app.PaymentStatus = "unpaid"
+		if !createMissingEnrollment {
+			app.PaymentStatus = "unpaid"
+		}
 		app.UpdatedAt = now
 		return s.repo.UpdateApplication(ctx, *app, tx)
 	})
@@ -1055,6 +1063,73 @@ func (s *Service) UpdateApplicationsPaymentStatusByIntake(ctx context.Context, i
 	return s.repo.UpdateApplicationsPaymentStatusByIntake(ctx, intakeID, paymentStatus, s.clock.Now())
 }
 
+func (s *Service) StartCourseByIntake(ctx context.Context, intakeID uuid.UUID) ([]Application, error) {
+	intake, err := s.repo.GetIntake(ctx, intakeID)
+	if err != nil {
+		return nil, err
+	}
+	if intake == nil {
+		return nil, httpx.NotFound("not_found", "intake not found")
+	}
+	if intake.CourseID == nil {
+		return nil, httpx.Conflict("course_missing", "intake must be linked to a catalog course before course start")
+	}
+
+	applications, err := s.repo.ListApplicationsByIntake(ctx, intakeID)
+	if err != nil {
+		return nil, err
+	}
+
+	now := s.clock.Now()
+	err = db.WithTx(ctx, s.db, func(tx *sql.Tx) error {
+		for i := range applications {
+			app := &applications[i]
+			if app.Status != "enrolled" {
+				continue
+			}
+
+			if app.EnrollmentID == nil {
+				if err := s.createAndStartEnrollment(ctx, tx, intake, app, now); err != nil {
+					return err
+				}
+				continue
+			}
+
+			enrollment, err := s.learningRepo.GetEnrollment(ctx, *app.EnrollmentID, tx)
+			if err != nil {
+				if errors.Is(err, sql.ErrNoRows) {
+					if err := s.createAndStartEnrollment(ctx, tx, intake, app, now); err != nil {
+						return err
+					}
+					continue
+				}
+				return err
+			}
+
+			if enrollment.Status == "completed" || enrollment.Status == "canceled" {
+				continue
+			}
+
+			if enrollment.StartedAt == nil {
+				enrollment.StartedAt = &now
+			}
+			enrollment.Status = "in_progress"
+			enrollment.LastActivityAt = &now
+			enrollment.UpdatedAt = now
+			if err := s.learningRepo.UpdateEnrollment(ctx, enrollment, tx); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return s.repo.ListApplicationsByIntake(ctx, intakeID)
+}
+
 func intakeEndDateToDeadline(endDate *string) *time.Time {
 	if endDate == nil {
 		return nil
@@ -1072,6 +1147,40 @@ func intakeEndDateToDeadline(endDate *string) *time.Time {
 
 	deadline := time.Date(parsed.Year(), parsed.Month(), parsed.Day(), 23, 59, 0, 0, time.UTC)
 	return &deadline
+}
+
+func (s *Service) createAndStartEnrollment(
+	ctx context.Context,
+	tx *sql.Tx,
+	intake *Intake,
+	app *Application,
+	now time.Time,
+) error {
+	enrollment := learningmodule.Enrollment{
+		ID:                uuid.New(),
+		CourseID:          *intake.CourseID,
+		UserID:            app.ApplicantID,
+		Source:            "intake",
+		Status:            "in_progress",
+		EnrolledAt:        now,
+		StartedAt:         &now,
+		DeadlineAt:        intakeEndDateToDeadline(intake.EndDate),
+		LastActivityAt:    &now,
+		CompletionPercent: "0",
+		IsMandatory:       false,
+		CreatedAt:         now,
+		UpdatedAt:         now,
+	}
+
+	if err := s.learningRepo.CreateEnrollment(ctx, enrollment, tx); err != nil {
+		return err
+	}
+
+	app.Status = "enrolled"
+	app.EnrollmentID = &enrollment.ID
+	app.EnrollmentStatus = &enrollment.Status
+	app.UpdatedAt = now
+	return s.repo.UpdateApplication(ctx, *app, tx)
 }
 
 func (s *Service) canHRReviewApplication(status string) bool {
@@ -1602,6 +1711,23 @@ func (h *Handler) UpdatePaymentStatusByIntake(w http.ResponseWriter, r *http.Req
 	}
 
 	applications, err := h.service.UpdateApplicationsPaymentStatusByIntake(r.Context(), id, req.Status)
+	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{
+		"items": applications,
+	})
+}
+
+func (h *Handler) StartCourseByIntake(w http.ResponseWriter, r *http.Request) {
+	id, ok := h.uuidParam(w, r, "id")
+	if !ok {
+		return
+	}
+
+	applications, err := h.service.StartCourseByIntake(r.Context(), id)
 	if err != nil {
 		httpx.WriteError(w, err)
 		return

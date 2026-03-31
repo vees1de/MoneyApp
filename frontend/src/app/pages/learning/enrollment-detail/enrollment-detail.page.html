@@ -56,30 +56,27 @@
             mat-flat-button
             color="primary"
             type="button"
-            (click)="start()"
-            [disabled]="acting() || item.status === 'completed'"
-          >
-            <mat-icon>play_circle</mat-icon>
-            Начать курс
-          </button>
-          <button
-            mat-flat-button
-            color="primary"
-            type="button"
             (click)="complete()"
-            [disabled]="acting() || item.status === 'completed'"
+            [disabled]="acting() || !canWorkOnCourse()"
           >
             <mat-icon>task_alt</mat-icon>
             Завершить курс
           </button>
         </div>
 
+        @if (!canWorkOnCourse() && item.status !== 'completed') {
+          <p class="certificate-card__hint">
+            Курс стартует для всего набора через HR. После общего старта можно обновлять прогресс и
+            завершать обучение.
+          </p>
+        }
+
         <mat-form-field appearance="outline" class="enrollment-detail-page__wide">
           <mat-label>Комментарий к завершению</mat-label>
           <textarea matInput rows="3" [formControl]="completionForm.controls.notes"></textarea>
         </mat-form-field>
 
-        @if (item.status !== 'completed') {
+        @if (canWorkOnCourse()) {
           <form
             class="enrollment-detail-page__progress-form"
             [formGroup]="progressForm"

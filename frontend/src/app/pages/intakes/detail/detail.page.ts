@@ -84,6 +84,7 @@ export class IntakeDetailPageComponent implements OnInit {
 
   protected readonly loading = signal(true);
   protected readonly acting = signal(false);
+  protected readonly selfServiceOpen = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly directoryUnavailable = signal(false);
   protected readonly intake = signal<CourseIntake | null>(null);
@@ -258,6 +259,30 @@ export class IntakeDetailPageComponent implements OnInit {
 
   protected hasStartableEnrollments(): boolean {
     return this.applications().some((application) => this.isEnrollmentStartable(application));
+  }
+
+  protected shouldShowSelfServiceInline(): boolean {
+    return !this.canManage();
+  }
+
+  protected toggleSelfService(): void {
+    this.selfServiceOpen.update((state) => !state);
+  }
+
+  protected selfServiceToggleLabel(): string {
+    if (this.selfServiceOpen()) {
+      return 'Скрыть мою заявку';
+    }
+
+    return this.myApplication() ? 'Показать мою заявку' : 'Показать участие в наборе';
+  }
+
+  protected startButtonHint(): string {
+    if (this.applications().some((application) => application.status === 'enrolled')) {
+      return 'Кнопка активна, пока в наборе есть сотрудники со статусом «Сотрудник взят», у которых курс ещё не стартован.';
+    }
+
+    return 'Кнопка станет активной после действия «Взять сотрудника».';
   }
 
   protected openManageDialog(): void {
@@ -444,73 +469,45 @@ export class IntakeDetailPageComponent implements OnInit {
   }
 
   protected startEnrolledApplications(): void {
-    if (this.acting()) {
+    const item = this.intake();
+    if (!item || this.acting()) {
       return;
     }
 
-    const startableApplications = this.applications().filter((application) =>
-      this.isEnrollmentStartable(application),
-    );
-    if (startableApplications.length === 0) {
+    if (!this.hasStartableEnrollments()) {
       return;
     }
 
     this.acting.set(true);
     this.error.set(null);
 
-    forkJoin(
-      startableApplications.map((application) =>
-        this.enrollmentsApi
-          .start(application.enrollment_id as string)
-          .pipe(catchError(() => of(null))),
-      ),
-    ).subscribe({
-      next: (updatedEnrollments) => {
-        let successCount = 0;
-
+    this.intakesApi.startCourse(item.id).subscribe({
+      next: (updatedApplications) => {
+        const map = new Map(
+          updatedApplications.map((application) => [application.id, application]),
+        );
         this.applications.update((items) =>
-          items.map((item) => {
-            const index = startableApplications.findIndex(
-              (application) => application.id === item.id,
-            );
-            if (index === -1) {
-              return item;
-            }
-
-            const updatedEnrollment = updatedEnrollments[index];
-            if (!updatedEnrollment) {
-              return item;
-            }
-
-            successCount += 1;
-            return {
-              ...item,
-              enrollment_status: updatedEnrollment.status,
-            };
-          }),
+          items.map((current) =>
+            map.has(current.id) ? { ...current, ...(map.get(current.id) ?? {}) } : current,
+          ),
         );
 
         const current = this.myApplication();
-        if (current) {
-          const index = startableApplications.findIndex(
-            (application) => application.id === current.id,
-          );
-          const updatedEnrollment = index >= 0 ? updatedEnrollments[index] : null;
-          if (updatedEnrollment) {
-            this.myEnrollment.set(updatedEnrollment);
-            this.myApplication.set({
-              ...current,
-              enrollment_status: updatedEnrollment.status,
-            });
+        if (current && map.has(current.id)) {
+          const updated = map.get(current.id);
+          this.myApplication.set({ ...current, ...(updated ?? {}) });
+          if (updated?.enrollment_id) {
+            this.enrollmentsApi
+              .getById(updated.enrollment_id)
+              .pipe(catchError(() => of(null)))
+              .subscribe((enrollment) => this.myEnrollment.set(enrollment));
           }
         }
 
-        if (successCount === 0) {
-          this.error.set('Не удалось стартовать ни один курс.');
-        } else if (successCount < startableApplications.length) {
-          this.error.set('Часть курсов не удалось стартовать.');
-        }
-
+        this.acting.set(false);
+      },
+      error: () => {
+        this.error.set('Не удалось стартовать курс для набора.');
         this.acting.set(false);
       },
     });
@@ -773,9 +770,14 @@ export class IntakeDetailPageComponent implements OnInit {
   }
 
   private isEnrollmentStartable(application: CourseApplication): boolean {
-    return (
-      !!application.enrollment_id &&
-      (application.enrollment_status === 'enrolled' || application.enrollment_status == null)
-    );
+    if (application.status !== 'enrolled') {
+      return false;
+    }
+
+    if (!application.enrollment_id) {
+      return true;
+    }
+
+    return application.enrollment_status === 'enrolled' || application.enrollment_status == null;
   }
 }

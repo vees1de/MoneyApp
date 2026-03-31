@@ -57,4 +57,12 @@ export class CourseIntakesApiService {
       )
       .pipe(map((response) => unwrapListResponse(response)));
   }
+
+  startCourse(id: string): Observable<CourseApplication[]> {
+    return this.http
+      .post<
+        CourseApplication[] | { items: CourseApplication[] }
+      >(`${this.base}/${id}/start-course`, {})
+      .pipe(map((response) => unwrapListResponse(response)));
+  }
 }

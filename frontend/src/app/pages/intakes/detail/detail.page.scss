@@ -89,6 +89,7 @@
 }
 
 .application-state__hint,
+.applications-section__hint,
 .applications-section__empty,
 .intake-detail-page__error {
   margin: 0;
@@ -146,6 +147,11 @@
 .applications-section {
   display: grid;
   gap: 16px;
+}
+
+.intake-self-service-toggle {
+  display: flex;
+  justify-content: flex-start;
 }
 
 .applications-section__header {
