@@ -7,14 +7,16 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { firstValueFrom } from 'rxjs';
 
-import type {
-  BoardSummary,
-  BoardSummaryBoardItem,
-  BoardSummaryOverdueTask,
-} from '@core/api/contracts';
+import type { BoardSummary, BoardSummaryOverdueTask } from '@core/api/contracts';
 import { IntegrationsApiService } from '@core/api/integrations-api.service';
 import { WidgetShellComponent } from '@app/widgets/widget-shell/widget-shell.component';
-import type { YougileCompanyOption, YougileConnection } from '@entities/yougile';
+import type {
+  YougileBoard,
+  YougileColumn,
+  YougileCompanyOption,
+  YougileConnection,
+  YougileTask,
+} from '@entities/yougile';
 
 @Component({
   selector: 'app-yougile-playground-widget',
@@ -43,6 +45,7 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
 
   protected readonly connectionLoading = signal(true);
   protected readonly summaryLoading = signal(false);
+  protected readonly tasksLoading = signal(false);
   protected readonly syncingConnection = signal(false);
   protected readonly deletingConnection = signal(false);
   protected readonly modalOpen = signal(false);
@@ -53,10 +56,13 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
   protected readonly availableCompanies = signal<YougileCompanyOption[]>([]);
   protected readonly selectedCompanyId = signal<string | null>(null);
   protected readonly currentConnection = signal<YougileConnection | null>(null);
-  protected readonly boardOptions = signal<BoardSummaryBoardItem[]>([]);
+  protected readonly boards = signal<YougileBoard[]>([]);
+  protected readonly columns = signal<YougileColumn[]>([]);
+  protected readonly tasks = signal<YougileTask[]>([]);
   protected readonly selectedBoardId = signal<string | null>(null);
   protected readonly summary = signal<BoardSummary | null>(null);
   protected readonly summaryError = signal<string | null>(null);
+  protected readonly tasksError = signal<string | null>(null);
   protected readonly actionError = signal<string | null>(null);
   protected readonly actionNotice = signal<string | null>(null);
   protected readonly modalError = signal<string | null>(null);
@@ -77,7 +83,7 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
       return null;
     }
 
-    return this.boardOptions().find((item) => item.board_id === boardId) ?? null;
+    return this.boards().find((item) => item.yougile_board_id === boardId) ?? null;
   });
 
   protected readonly summaryUnavailable = computed(() => {
@@ -89,6 +95,25 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
     return (
       !this.summaryLoading() && !this.summaryError() && (!summary || summary.status !== 'ready')
     );
+  });
+
+  protected readonly visibleTasks = computed(() => {
+    const selectedBoardId = this.selectedBoardId();
+    const activeTasks = this.tasks().filter(
+      (item) => !item.deleted && !item.archived && !item.completed,
+    );
+
+    const filteredTasks = selectedBoardId
+      ? activeTasks.filter(
+          (item) =>
+            item.boardId === selectedBoardId ||
+            this.columnBelongsToBoard(item.columnId, selectedBoardId),
+        )
+      : activeTasks;
+
+    return [...filteredTasks]
+      .sort((left, right) => this.taskSortValue(left) - this.taskSortValue(right))
+      .slice(0, 12);
   });
 
   ngOnInit(): void {
@@ -171,7 +196,6 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
           login: payload.login.trim(),
           password: payload.password,
           companyId: company.id,
-          companyName: company.name,
         }),
       );
 
@@ -209,7 +233,10 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
       this.currentConnection.set(null);
       this.summary.set(null);
       this.summaryError.set(null);
-      this.boardOptions.set([]);
+      this.tasksError.set(null);
+      this.boards.set([]);
+      this.columns.set([]);
+      this.tasks.set([]);
       this.selectedBoardId.set(null);
       this.actionNotice.set('Подключение отключено.');
     } catch (error) {
@@ -246,7 +273,7 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
     }
 
     this.selectedBoardId.set(boardId);
-    await this.loadSummary(connection.id, boardId, boardId !== null);
+    await this.loadSummary(connection.id, boardId);
   }
 
   protected async reloadSummary(): Promise<void> {
@@ -255,7 +282,11 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
       return;
     }
 
-    await this.loadSummary(connection.id, this.selectedBoardId(), this.selectedBoardId() !== null);
+    await Promise.all([
+      this.loadSummary(connection.id, this.selectedBoardId()),
+      this.loadTasks(connection.id),
+      this.loadStructureMeta(connection.id),
+    ]);
   }
 
   protected connectionLabel(connection: YougileConnection): string {
@@ -303,16 +334,52 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
     return this.dateTimeFormatter.format(timestamp);
   }
 
-  protected boardLabel(item: BoardSummaryBoardItem | BoardSummaryOverdueTask): string {
-    if ('board_title' in item) {
-      return item.board_title?.trim() || 'Без доски';
-    }
-
-    return item.title;
+  protected boardLabel(item: BoardSummaryOverdueTask): string {
+    return item.board_title?.trim() || 'Без доски';
   }
 
-  protected trackBoard(_: number, item: BoardSummaryBoardItem): string {
-    return item.board_id;
+  protected taskBoardLabel(task: YougileTask): string {
+    if (task.boardTitle?.trim()) {
+      return task.boardTitle.trim();
+    }
+
+    const board = this.resolveBoardByColumn(task.columnId);
+    return board?.title?.trim() || 'Без доски';
+  }
+
+  protected taskColumnLabel(task: YougileTask): string {
+    if (task.columnTitle?.trim()) {
+      return task.columnTitle.trim();
+    }
+
+    const column = this.columns().find((item) => item.yougile_column_id === task.columnId);
+    return column?.title?.trim() || 'Без колонки';
+  }
+
+  protected taskIdentifier(task: YougileTask): string {
+    return task.idTaskProject?.trim() || task.idTaskCommon?.trim() || task.id;
+  }
+
+  protected taskDeadlineLabel(task: YougileTask): string {
+    const deadline = task.deadlineAt ?? task.deadline?.deadline;
+    if (!deadline) {
+      return 'Без дедлайна';
+    }
+
+    const timestamp = new Date(deadline);
+    if (Number.isNaN(timestamp.getTime())) {
+      return deadline;
+    }
+
+    if (task.deadline?.withTime) {
+      return this.dateTimeFormatter.format(timestamp);
+    }
+
+    return this.dateFormatter.format(timestamp);
+  }
+
+  protected trackBoard(_: number, item: YougileBoard): string {
+    return item.yougile_board_id;
   }
 
   protected trackCompany(_: number, item: YougileCompanyOption): string {
@@ -322,6 +389,7 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
   private async loadCurrentConnection(_preferredConnectionId?: string): Promise<void> {
     this.connectionLoading.set(true);
     this.summaryError.set(null);
+    this.tasksError.set(null);
 
     try {
       const response = await firstValueFrom(this.integrationsApi.listYougileConnections());
@@ -330,20 +398,24 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
 
       if (!connection) {
         this.summary.set(null);
-        this.boardOptions.set([]);
+        this.tasks.set([]);
+        this.boards.set([]);
+        this.columns.set([]);
         this.selectedBoardId.set(null);
         return;
       }
 
-      await this.loadSummary(
-        connection.id,
-        this.selectedBoardId(),
-        this.selectedBoardId() !== null,
-      );
+      await Promise.all([
+        this.loadSummary(connection.id, this.selectedBoardId()),
+        this.loadStructureMeta(connection.id),
+        this.loadTasks(connection.id),
+      ]);
     } catch (error) {
       this.currentConnection.set(null);
       this.summary.set(null);
-      this.boardOptions.set([]);
+      this.tasks.set([]);
+      this.boards.set([]);
+      this.columns.set([]);
       this.selectedBoardId.set(null);
       this.actionError.set(this.describeError(error));
     } finally {
@@ -351,11 +423,7 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
     }
   }
 
-  private async loadSummary(
-    connectionId: string,
-    boardId: string | null,
-    preserveBoardOptions: boolean,
-  ): Promise<void> {
+  private async loadSummary(connectionId: string, boardId: string | null): Promise<void> {
     this.summaryLoading.set(true);
     this.summaryError.set(null);
 
@@ -368,17 +436,51 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
       );
 
       this.summary.set(summary);
-      if (!preserveBoardOptions || boardId === null) {
-        this.boardOptions.set(summary.boards);
-      }
     } catch (error) {
       this.summaryError.set(this.describeError(error));
       this.summary.set(null);
-      if (!preserveBoardOptions) {
-        this.boardOptions.set([]);
-      }
     } finally {
       this.summaryLoading.set(false);
+    }
+  }
+
+  private async loadStructureMeta(connectionId: string): Promise<void> {
+    try {
+      const [boardsResponse, columnsResponse] = await Promise.all([
+        firstValueFrom(this.integrationsApi.listYougileBoards(connectionId)),
+        firstValueFrom(this.integrationsApi.listYougileColumns(connectionId)),
+      ]);
+
+      this.boards.set(
+        boardsResponse.items
+          .filter((item) => !item.deleted)
+          .sort((left, right) => left.title.localeCompare(right.title, 'ru')),
+      );
+      this.columns.set(columnsResponse.items.filter((item) => !item.deleted));
+    } catch {
+      this.boards.set([]);
+      this.columns.set([]);
+    }
+  }
+
+  private async loadTasks(connectionId: string): Promise<void> {
+    this.tasksLoading.set(true);
+    this.tasksError.set(null);
+
+    try {
+      const response = await firstValueFrom(
+        this.integrationsApi.listYougileTasks(connectionId, {
+          limit: 200,
+          includeDeleted: false,
+        }),
+      );
+
+      this.tasks.set(response.content);
+    } catch (error) {
+      this.tasks.set([]);
+      this.tasksError.set(this.describeError(error));
+    } finally {
+      this.tasksLoading.set(false);
     }
   }
 
@@ -462,5 +564,30 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
 
     const message = (errorPayload as { message?: unknown }).message;
     return typeof message === 'string' && message.trim() ? message : null;
+  }
+
+  private resolveBoardByColumn(columnId: string): YougileBoard | null {
+    const column = this.columns().find((item) => item.yougile_column_id === columnId);
+    if (!column) {
+      return null;
+    }
+
+    return this.boards().find((item) => item.yougile_board_id === column.yougile_board_id) ?? null;
+  }
+
+  private columnBelongsToBoard(columnId: string, boardId: string): boolean {
+    const column = this.columns().find((item) => item.yougile_column_id === columnId);
+    return column?.yougile_board_id === boardId;
+  }
+
+  private taskSortValue(task: YougileTask): number {
+    const deadlineValue = task.deadlineAt ?? task.deadline?.deadline;
+    const deadline = deadlineValue ? Date.parse(deadlineValue) : Number.POSITIVE_INFINITY;
+    if (Number.isFinite(deadline)) {
+      return deadline;
+    }
+
+    const timestamp = task.timestamp ? Date.parse(task.timestamp) : Number.POSITIVE_INFINITY;
+    return Number.isFinite(timestamp) ? timestamp : Number.POSITIVE_INFINITY;
   }
 }

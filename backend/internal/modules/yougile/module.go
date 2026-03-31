@@ -232,6 +232,58 @@ type ImportStructureResponse struct {
 	ColumnsImported  int `json:"columnsImported"`
 }
 
+type ListTasksQuery struct {
+	AssignedTo     string `json:"assignedTo,omitempty"`
+	ColumnID       string `json:"columnId,omitempty"`
+	IncludeDeleted bool   `json:"includeDeleted,omitempty"`
+	Limit          int    `json:"limit,omitempty"`
+	Offset         int    `json:"offset,omitempty"`
+	Title          string `json:"title,omitempty"`
+}
+
+type TasksPaging struct {
+	Count  int  `json:"count"`
+	Limit  int  `json:"limit"`
+	Offset int  `json:"offset"`
+	Next   bool `json:"next"`
+}
+
+type TaskDeadline struct {
+	Deadline  *time.Time `json:"deadline,omitempty"`
+	StartDate *time.Time `json:"startDate,omitempty"`
+	WithTime  bool       `json:"withTime"`
+}
+
+type TaskItem struct {
+	ID                 string        `json:"id"`
+	Deleted            bool          `json:"deleted"`
+	Title              string        `json:"title"`
+	Timestamp          *time.Time    `json:"timestamp,omitempty"`
+	ColumnID           string        `json:"columnId"`
+	ColumnTitle        string        `json:"columnTitle,omitempty"`
+	BoardID            string        `json:"boardId,omitempty"`
+	BoardTitle         string        `json:"boardTitle,omitempty"`
+	Description        string        `json:"description,omitempty"`
+	Archived           bool          `json:"archived"`
+	ArchivedTimestamp  *time.Time    `json:"archivedTimestamp,omitempty"`
+	Completed          bool          `json:"completed"`
+	CompletedTimestamp *time.Time    `json:"completedTimestamp,omitempty"`
+	Subtasks           []string      `json:"subtasks,omitempty"`
+	Assigned           []string      `json:"assigned,omitempty"`
+	CreatedBy          string        `json:"createdBy,omitempty"`
+	Deadline           *TaskDeadline `json:"deadline,omitempty"`
+	DeadlineAt         *time.Time    `json:"deadlineAt,omitempty"`
+	Color              string        `json:"color,omitempty"`
+	IDTaskCommon       string        `json:"idTaskCommon,omitempty"`
+	IDTaskProject      string        `json:"idTaskProject,omitempty"`
+	Type               string        `json:"type,omitempty"`
+}
+
+type ListTasksResponse struct {
+	Paging  TasksPaging `json:"paging"`
+	Content []TaskItem  `json:"content"`
+}
+
 type AutoMatchResponse struct {
 	Matched           int `json:"matched"`
 	UnmatchedInternal int `json:"unmatchedInternal"`
@@ -327,6 +379,20 @@ func (r *Repository) GetCurrentConnectionByUser(ctx context.Context, userID uuid
 			order by updated_at desc, created_at desc
 			limit 1
 		`, userID).Scan(&item.ID, &item.CompanyID, &item.Title, &item.APIBaseURL, &item.YougileCompanyID, &item.APIKeyEncrypted,
+		&item.APIKeyLast4, &item.Status, &item.CreatedBy, &item.LastSyncAt, &item.LastSuccessSyncAt, &item.LastError, &item.CreatedAt, &item.UpdatedAt)
+	return item, err
+}
+
+func (r *Repository) GetConnectionByUserAndCompany(ctx context.Context, userID uuid.UUID, companyID string, exec ...db.DBTX) (storedConnection, error) {
+	var item storedConnection
+	err := r.base(exec...).QueryRowContext(ctx, `
+			select id, company_id, title, api_base_url, yougile_company_id, api_key_encrypted, api_key_last4,
+			       status, created_by, last_sync_at, last_success_sync_at, last_error, created_at, updated_at
+			from integration_yougile_connections
+			where created_by = $1 and yougile_company_id = $2
+			order by updated_at desc, created_at desc
+			limit 1
+		`, userID, companyID).Scan(&item.ID, &item.CompanyID, &item.Title, &item.APIBaseURL, &item.YougileCompanyID, &item.APIKeyEncrypted,
 		&item.APIKeyLast4, &item.Status, &item.CreatedBy, &item.LastSyncAt, &item.LastSuccessSyncAt, &item.LastError, &item.CreatedAt, &item.UpdatedAt)
 	return item, err
 }
@@ -805,7 +871,7 @@ func (c *Client) ListProjects(ctx context.Context) ([]map[string]any, error) {
 }
 
 func (c *Client) ListBoards(ctx context.Context) ([]map[string]any, error) {
-	payload, err := c.doJSON(ctx, http.MethodGet, "/api-v2/boards", nil, true)
+	payload, err := c.doJSON(ctx, http.MethodGet, "/api-v2/boards?limit=1000&includeDeleted=true", nil, true)
 	if err != nil {
 		return nil, err
 	}
@@ -813,11 +879,88 @@ func (c *Client) ListBoards(ctx context.Context) ([]map[string]any, error) {
 }
 
 func (c *Client) ListColumns(ctx context.Context) ([]map[string]any, error) {
-	payload, err := c.doJSON(ctx, http.MethodGet, "/api-v2/columns", nil, true)
+	payload, err := c.doJSON(ctx, http.MethodGet, "/api-v2/columns?limit=1000&includeDeleted=true", nil, true)
 	if err != nil {
 		return nil, err
 	}
 	return extractItems(payload), nil
+}
+
+func (c *Client) ListTasks(ctx context.Context, query ListTasksQuery) (ListTasksResponse, error) {
+	params := url.Values{}
+	if trimmed := strings.TrimSpace(query.AssignedTo); trimmed != "" {
+		params.Set("assignedTo", trimmed)
+	}
+	if trimmed := strings.TrimSpace(query.ColumnID); trimmed != "" {
+		params.Set("columnId", trimmed)
+	}
+	if query.IncludeDeleted {
+		params.Set("includeDeleted", "true")
+	}
+	limit := query.Limit
+	if limit <= 0 || limit > 1000 {
+		limit = 100
+	}
+	params.Set("limit", fmt.Sprintf("%d", limit))
+	if query.Offset > 0 {
+		params.Set("offset", fmt.Sprintf("%d", query.Offset))
+	}
+	if trimmed := strings.TrimSpace(query.Title); trimmed != "" {
+		params.Set("title", trimmed)
+	}
+
+	path := "/api-v2/task-list"
+	if encoded := params.Encode(); encoded != "" {
+		path += "?" + encoded
+	}
+
+	payload, err := c.doJSON(ctx, http.MethodGet, path, nil, true)
+	if err != nil {
+		return ListTasksResponse{}, err
+	}
+
+	result := ListTasksResponse{
+		Content: []TaskItem{},
+	}
+	if paging, ok := payload["paging"].(map[string]any); ok {
+		result.Paging = TasksPaging{
+			Count:  intFromAny(paging["count"]),
+			Limit:  intFromAny(paging["limit"]),
+			Offset: intFromAny(paging["offset"]),
+			Next:   boolFromAny(paging["next"]),
+		}
+	}
+	for _, raw := range extractItems(payload) {
+		item := TaskItem{
+			ID:            firstString(raw, "id"),
+			Deleted:       boolFromAny(raw["deleted"]),
+			Title:         firstString(raw, "title", "name"),
+			Timestamp:     millisTimeFromAny(raw["timestamp"]),
+			ColumnID:      firstString(raw, "columnId"),
+			Description:   stringFromAny(raw["description"]),
+			Archived:      boolFromAny(raw["archived"]),
+			Completed:     boolFromAny(raw["completed"]),
+			Subtasks:      stringSliceFromAny(raw["subtasks"]),
+			Assigned:      stringSliceFromAny(raw["assigned"]),
+			CreatedBy:     firstString(raw, "createdBy"),
+			Color:         firstString(raw, "color"),
+			IDTaskCommon:  firstString(raw, "idTaskCommon"),
+			IDTaskProject: firstString(raw, "idTaskProject"),
+			Type:          firstString(raw, "type"),
+		}
+		item.ArchivedTimestamp = millisTimeFromAny(raw["archivedTimestamp"])
+		item.CompletedTimestamp = millisTimeFromAny(raw["completedTimestamp"])
+		if deadlinePayload, ok := raw["deadline"].(map[string]any); ok {
+			item.Deadline = &TaskDeadline{
+				Deadline:  millisTimeFromAny(deadlinePayload["deadline"]),
+				StartDate: millisTimeFromAny(deadlinePayload["startDate"]),
+				WithTime:  boolFromAny(deadlinePayload["withTime"]),
+			}
+			item.DeadlineAt = item.Deadline.Deadline
+		}
+		result.Content = append(result.Content, item)
+	}
+	return result, nil
 }
 
 func (c *Client) doJSON(ctx context.Context, method, path string, body any, auth bool) (map[string]any, error) {
@@ -912,8 +1055,43 @@ func (s *Service) saveConnection(ctx context.Context, principal platformauth.Pri
 	var saved Connection
 	err := db.WithTx(ctx, s.db, func(tx *sql.Tx) error {
 		current, err := s.repo.GetCurrentConnectionByUser(ctx, principal.UserID, tx)
+		target, targetErr := s.repo.GetConnectionByUserAndCompany(ctx, principal.UserID, companyID, tx)
+
+		hasCurrent := err == nil
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return err
+		}
+		hasTarget := targetErr == nil
+		if targetErr != nil && !errors.Is(targetErr, sql.ErrNoRows) {
+			return targetErr
+		}
+
+		applyConnection := func(item storedConnection) error {
+			item.Title = trimStringPtr(title)
+			item.APIBaseURL = baseURL
+			item.YougileCompanyID = companyID
+			item.APIKeyEncrypted = apiKey
+			item.APIKeyLast4 = stringPtr(last4)
+			item.Status = "active"
+			item.LastError = nil
+			item.UpdatedAt = now
+			if item.CreatedAt.IsZero() {
+				item.CreatedAt = now
+			}
+			if err := s.repo.UpdateConnection(ctx, item, tx); err != nil {
+				return err
+			}
+			saved = item.Connection
+			return nil
+		}
+
 		switch {
-		case err == nil:
+		case hasCurrent && hasTarget && current.ID != target.ID:
+			if err := s.repo.RevokeConnection(ctx, current.ID, now, tx); err != nil {
+				return err
+			}
+			return applyConnection(target)
+		case hasCurrent:
 			if current.YougileCompanyID != companyID {
 				if err := s.repo.ResetConnectionData(ctx, current.ID, tx); err != nil {
 					return err
@@ -921,21 +1099,9 @@ func (s *Service) saveConnection(ctx context.Context, principal platformauth.Pri
 				current.LastSyncAt = nil
 				current.LastSuccessSyncAt = nil
 			}
-			current.Title = trimStringPtr(title)
-			current.APIBaseURL = baseURL
-			current.YougileCompanyID = companyID
-			current.APIKeyEncrypted = apiKey
-			current.APIKeyLast4 = stringPtr(last4)
-			current.Status = "active"
-			current.LastError = nil
-			current.UpdatedAt = now
-			if err := s.repo.UpdateConnection(ctx, current, tx); err != nil {
-				return err
-			}
-			saved = current.Connection
-			return nil
-		case !errors.Is(err, sql.ErrNoRows):
-			return err
+			return applyConnection(current)
+		case hasTarget:
+			return applyConnection(target)
 		}
 
 		item := storedConnection{
@@ -1215,6 +1381,131 @@ func (s *Service) ListBoards(ctx context.Context, connectionID uuid.UUID) ([]Boa
 
 func (s *Service) ListColumns(ctx context.Context, connectionID uuid.UUID) ([]Column, error) {
 	return s.repo.ListColumns(ctx, connectionID)
+}
+
+func (s *Service) ListTasks(ctx context.Context, connectionID uuid.UUID, query ListTasksQuery) (ListTasksResponse, error) {
+	conn, err := s.repo.GetConnection(ctx, connectionID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ListTasksResponse{}, httpx.NotFound("yougile_connection_not_found", "yougile connection not found")
+		}
+		return ListTasksResponse{}, err
+	}
+	client := NewClient(conn.APIBaseURL, conn.APIKeyEncrypted)
+	response, err := client.ListTasks(ctx, query)
+	if err != nil {
+		return ListTasksResponse{}, err
+	}
+
+	s.enrichTaskItems(ctx, connectionID, client, response.Content)
+	return response, nil
+}
+
+type taskStructureMeta struct {
+	BoardID     string
+	BoardTitle  string
+	ColumnTitle string
+}
+
+func (s *Service) enrichTaskItems(ctx context.Context, connectionID uuid.UUID, client *Client, items []TaskItem) {
+	if len(items) == 0 {
+		return
+	}
+
+	meta := s.loadTaskStructureMetaFromRepo(ctx, connectionID)
+	if len(meta) == 0 {
+		meta = s.loadTaskStructureMetaFromAPI(ctx, client)
+	}
+
+	for index := range items {
+		if items[index].DeadlineAt == nil && items[index].Deadline != nil {
+			items[index].DeadlineAt = items[index].Deadline.Deadline
+		}
+
+		structure, ok := meta[items[index].ColumnID]
+		if !ok {
+			continue
+		}
+
+		items[index].BoardID = structure.BoardID
+		items[index].BoardTitle = structure.BoardTitle
+		items[index].ColumnTitle = structure.ColumnTitle
+	}
+}
+
+func (s *Service) loadTaskStructureMetaFromRepo(ctx context.Context, connectionID uuid.UUID) map[string]taskStructureMeta {
+	boards, err := s.repo.ListBoards(ctx, connectionID)
+	if err != nil {
+		return nil
+	}
+
+	columns, err := s.repo.ListColumns(ctx, connectionID)
+	if err != nil || len(columns) == 0 {
+		return nil
+	}
+
+	boardTitles := make(map[string]string, len(boards))
+	for _, board := range boards {
+		if board.Deleted {
+			continue
+		}
+		boardTitles[board.YougileBoardID] = strings.TrimSpace(board.Title)
+	}
+
+	meta := make(map[string]taskStructureMeta, len(columns))
+	for _, column := range columns {
+		if column.Deleted {
+			continue
+		}
+		meta[column.YougileColumnID] = taskStructureMeta{
+			BoardID:     column.YougileBoardID,
+			BoardTitle:  boardTitles[column.YougileBoardID],
+			ColumnTitle: strings.TrimSpace(column.Title),
+		}
+	}
+	return meta
+}
+
+func (s *Service) loadTaskStructureMetaFromAPI(ctx context.Context, client *Client) map[string]taskStructureMeta {
+	boards, err := client.ListBoards(ctx)
+	if err != nil {
+		return nil
+	}
+
+	columns, err := client.ListColumns(ctx)
+	if err != nil || len(columns) == 0 {
+		return nil
+	}
+
+	boardTitles := make(map[string]string, len(boards))
+	for _, board := range boards {
+		if boolFromAny(board["deleted"]) {
+			continue
+		}
+		boardID := firstString(board, "id", "_id", "boardId")
+		if boardID == "" {
+			continue
+		}
+		boardTitles[boardID] = strings.TrimSpace(firstString(board, "title", "name"))
+	}
+
+	meta := make(map[string]taskStructureMeta, len(columns))
+	for _, column := range columns {
+		if boolFromAny(column["deleted"]) {
+			continue
+		}
+		columnID := firstString(column, "id", "_id", "columnId")
+		if columnID == "" {
+			continue
+		}
+		boardID := firstString(column, "boardId")
+		meta[columnID] = taskStructureMeta{
+			BoardID:     boardID,
+			BoardTitle:  boardTitles[boardID],
+			ColumnTitle: strings.TrimSpace(firstString(column, "title", "name")),
+		}
+	}
+	return meta
 }
 
 func (s *Service) AutoMatch(ctx context.Context, connectionID uuid.UUID, strategy string) (AutoMatchResponse, error) {
@@ -1750,6 +2041,37 @@ func (h *Handler) ListColumns(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 
+func (h *Handler) ListTasks(w http.ResponseWriter, r *http.Request) {
+	principal, ok := requireYougilePrincipal(w, r)
+	if !ok {
+		return
+	}
+	id, err := parseUUIDParam(chi.URLParam(r, "id"), "invalid_connection_id")
+	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	if _, err := h.service.GetConnection(r.Context(), principal, id); err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	limit, offset := parsePaging(r)
+	query := ListTasksQuery{
+		AssignedTo:     r.URL.Query().Get("assignedTo"),
+		ColumnID:       r.URL.Query().Get("columnId"),
+		IncludeDeleted: r.URL.Query().Get("includeDeleted") == "true" || r.URL.Query().Get("includeDeleted") == "1",
+		Limit:          limit,
+		Offset:         offset,
+		Title:          r.URL.Query().Get("title"),
+	}
+	items, err := h.service.ListTasks(r.Context(), id, query)
+	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, items)
+}
+
 func (h *Handler) AutoMatch(w http.ResponseWriter, r *http.Request) {
 	principal, ok := requireYougilePrincipal(w, r)
 	if !ok {
@@ -2022,6 +2344,27 @@ func normalizeOptionalString(values ...any) *string {
 	return nil
 }
 
+func millisTimeFromAny(value any) *time.Time {
+	switch typed := value.(type) {
+	case float64:
+		timestamp := time.UnixMilli(int64(typed)).UTC()
+		return &timestamp
+	case int64:
+		timestamp := time.UnixMilli(typed).UTC()
+		return &timestamp
+	case int:
+		timestamp := time.UnixMilli(int64(typed)).UTC()
+		return &timestamp
+	case string:
+		var parsed int64
+		if _, err := fmt.Sscanf(strings.TrimSpace(typed), "%d", &parsed); err == nil {
+			timestamp := time.UnixMilli(parsed).UTC()
+			return &timestamp
+		}
+	}
+	return nil
+}
+
 func timeFromAny(value any) *time.Time {
 	if text := stringFromAny(value); text != "" {
 		for _, layout := range []string{time.RFC3339, "2006-01-02T15:04:05", "2006-01-02"} {
@@ -2031,6 +2374,20 @@ func timeFromAny(value any) *time.Time {
 		}
 	}
 	return nil
+}
+
+func stringSliceFromAny(value any) []string {
+	items, ok := value.([]any)
+	if !ok {
+		return nil
+	}
+	result := make([]string, 0, len(items))
+	for _, item := range items {
+		if text := stringFromAny(item); text != "" {
+			result = append(result, text)
+		}
+	}
+	return result
 }
 
 func boolFromAny(value any) bool {

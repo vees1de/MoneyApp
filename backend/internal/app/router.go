@@ -71,6 +71,7 @@ func NewRouter(container *Container) http.Handler {
 				r.Get("/connections/{id}/projects", container.YougileHandler.ListProjects)
 				r.Get("/connections/{id}/boards", container.YougileHandler.ListBoards)
 				r.Get("/connections/{id}/columns", container.YougileHandler.ListColumns)
+				r.Get("/connections/{id}/tasks", container.YougileHandler.ListTasks)
 				r.Post("/connections/{id}/mappings/auto-match", container.YougileHandler.AutoMatch)
 				r.Get("/connections/{id}/mappings", container.YougileHandler.ListMappings)
 				r.Post("/connections/{id}/mappings", container.YougileHandler.CreateMapping)

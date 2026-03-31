@@ -53,7 +53,7 @@
       }
     </section>
 
-    @if (currentConnection(); as connection) {
+    @if (currentConnection()) {
       <section class="agile__panel">
         <div class="agile__toolbar">
           <div class="agile__chips">
@@ -66,12 +66,12 @@
               Все доски
             </button>
 
-            @for (board of boardOptions(); track trackBoard($index, board)) {
+            @for (board of boards(); track trackBoard($index, board)) {
               <button
                 class="agile__chip"
                 type="button"
-                [class.agile__chip--active]="selectedBoardId() === board.board_id"
-                (click)="selectBoard(board.board_id)"
+                [class.agile__chip--active]="selectedBoardId() === board.yougile_board_id"
+                (click)="selectBoard(board.yougile_board_id)"
               >
                 {{ board.title }}
               </button>
@@ -116,7 +116,7 @@
               </div>
 
               <div class="agile__boards">
-                @for (board of summary.boards; track trackBoard($index, board)) {
+                @for (board of summary.boards; track board.board_id) {
                   <article class="agile__board-card">
                     <div class="agile__board-top">
                       <strong>{{ board.title }}</strong>
@@ -157,6 +157,44 @@
             </section>
           </div>
         }
+
+        <section class="agile__panel agile__panel--nested">
+          <div class="agile__panel-head">
+            <h3>Текущие задачи</h3>
+          </div>
+
+          @if (tasksLoading()) {
+            <p class="agile__hint">Загружаю задачи...</p>
+          } @else if (tasksError()) {
+            <p class="agile__message agile__message--error">{{ tasksError() }}</p>
+          } @else if (!visibleTasks().length) {
+            <p class="agile__hint">Активных задач не найдено.</p>
+          } @else {
+            <ul class="agile__task-list">
+              @for (task of visibleTasks(); track task.id) {
+                <li class="agile__task-card">
+                  <div class="agile__task-card-copy">
+                    <div class="agile__task-card-top">
+                      <strong>{{ task.title }}</strong>
+                      <span>{{ taskIdentifier(task) }}</span>
+                    </div>
+                    <div class="agile__task-card-meta">
+                      <span>{{ taskBoardLabel(task) }}</span>
+                      <span>{{ taskColumnLabel(task) }}</span>
+                      @if (task.assigned?.length) {
+                        <span>Исполнители: {{ task.assigned?.length }}</span>
+                      }
+                    </div>
+                  </div>
+
+                  <div class="agile__task-card-side">
+                    <span>{{ taskDeadlineLabel(task) }}</span>
+                  </div>
+                </li>
+              }
+            </ul>
+          }
+        </section>
       </section>
     }
   </section>
