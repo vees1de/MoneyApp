@@ -1,17 +1,17 @@
-<section class="dashboard-grid">
-  <div class="span-3"><app-yougile-playground-widget /></div>
+<section class="test-role-dashboard">
+  <div class="test-role-dashboard__main">
+    <app-quick-actions-widget />
+    <app-yougile-playground-widget />
+    <app-team-overview-widget />
+    <app-jira-summary-widget />
+    <app-course-requests-widget />
+    <app-recommendations-widget />
+    <app-my-requests-widget />
+  </div>
 
-  <div class="span-2"><app-team-overview-widget /></div>
-  <div><app-upcoming-events-widget /></div>
-
-  <div class="span-3"><app-jira-summary-widget /></div>
-  <div class="span-3"><app-course-requests-widget /></div>
-
-  <div><app-current-learning-widget /></div>
-
-  <div class="span-3"><app-recommendations-widget /></div>
-  <div class="span-3"><app-quick-actions-widget /></div>
-
-  <div class="span-3"><app-my-requests-widget /></div>
-  <div class="span-3"><app-work-activity-widget /></div>
+  <aside class="test-role-dashboard__side">
+    <app-upcoming-events-widget />
+    <app-current-learning-widget />
+    <app-work-activity-widget />
+  </aside>
 </section>

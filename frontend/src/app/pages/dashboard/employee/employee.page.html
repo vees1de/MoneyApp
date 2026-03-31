@@ -1,11 +1,13 @@
-<section class="dashboard-grid">
-  <div class="span-2"><app-team-overview-widget /></div>
-  <div><app-upcoming-events-widget /></div>
+<section class="employee-dashboard">
+  <div class="employee-dashboard__main">
+    <app-quick-actions-widget />
+    <app-team-overview-widget />
+    <app-jira-summary-widget />
+    <app-recommendations-widget />
+  </div>
 
-  <div class="span-3"><app-jira-summary-widget /></div>
-
-  <div><app-current-learning-widget /></div>
-
-  <div class="span-3"><app-recommendations-widget /></div>
-  <div class="span-3"><app-quick-actions-widget /></div>
+  <aside class="employee-dashboard__side">
+    <app-upcoming-events-widget />
+    <app-current-learning-widget />
+  </aside>
 </section>
