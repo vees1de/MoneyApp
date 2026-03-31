@@ -2,17 +2,22 @@
   display: block;
 }
 
-.page-shell {
-  padding: 1rem;
+.request-detail-page {
+  display: grid;
+  gap: var(--space-4);
+  max-width: 920px;
 }
 
-.page-header {
-  margin-bottom: 1rem;
+.request-detail-page__comment {
+  width: 100%;
 }
 
-.page-content {
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 1rem;
-  background: #fff;
+.request-detail-page__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.request-detail-page__error {
+  color: #b42318;
 }

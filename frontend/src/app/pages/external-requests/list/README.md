@@ -1,41 +1,14 @@
 ﻿# Page: External Requests List
 
 ## Route
-$(System.Collections.Hashtable.Route)
+`/external-requests`
 
-## Назначение
-Реестр заявок на внешние курсы с фильтрами и статусами.
-
-## Зависимости
-### Features
-- `external-course-requests`
-- `approvals`
-
-### Entities
-- `request`
-- `approval-step`
-- `budget-limit`
-
-## Импорты (концептуально)
-```ts
-import { ExternalCourseRequestsFacade } from '@app/features/external-course-requests';
-import { ApprovalsFacade } from '@app/features/approvals';
-import type { Request } from '@app/entities/request';
-import type { ApprovalStep } from '@app/entities/approval-step';
-import type { BudgetLimit } from '@app/entities/budget-limit';
-```
-
-## Что происходит на странице
-- Показывает список заявок по ролям и фильтрам.
-- Показывает текущий шаг согласования и бюджетный контекст.
-
-## Состояния UI
-- loading: первичная загрузка данных.
-- error: ошибка запроса/операции.
-- empty: нет данных по текущим фильтрам.
-- eady: данные загружены, доступны действия.
-
-## Вопросы для уточнения
-- Какие роли имеют доступ к странице?
-- Какой минимальный набор данных обязателен для первого релиза?
-- Нужны ли особые правила аудита действий на этой странице?
+## Что реализовано
+- Реальный список заявок через `GET /api/v1/external-requests`.
+- Скоуп выбирается по роли:
+  - `employee|trainer` -> `scope=my`
+  - `manager` -> `scope=team`
+  - `hr|admin` -> `scope=all`
+- Фильтры: `status[]`, `assignee`.
+- Для employee фильтр "мои на согласовании" использует статусы `manager_approval`, `hr_approval`.
+- Fallback для employee: если фильтруемый endpoint недоступен, используется `/external-requests/my` с фронтовым фильтром статусов.

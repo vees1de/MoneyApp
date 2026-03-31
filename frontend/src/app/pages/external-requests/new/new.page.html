@@ -1,11 +1,77 @@
-﻿<section class="page-shell">
-  <header class="page-header">
-    <h1>ExternalRequestsNewPageComponent</h1>
-    <p>Route: <code>/external-requests/new</code></p>
+﻿<section class="request-new-page">
+  <header class="request-new-page__header">
+    <h1>Новая заявка на внешний курс</h1>
   </header>
 
-  <main class="page-content">
-    <p>Page scaffold created. Connect real widgets and data flows next.</p>
-    <a routerLink="/">Go to root</a>
-  </main>
+  <mat-card>
+    <mat-card-content>
+      <form class="request-new-form" [formGroup]="form" (ngSubmit)="submit()">
+        <mat-form-field appearance="outline">
+          <mat-label>Название курса</mat-label>
+          <input matInput formControlName="title" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Провайдер</mat-label>
+          <input matInput formControlName="provider_name" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Ссылка на курс</mat-label>
+          <input matInput formControlName="course_url" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Описание программы</mat-label>
+          <textarea matInput rows="3" formControlName="program_description"></textarea>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Плановый старт</mat-label>
+          <input matInput type="date" formControlName="planned_start_date" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Плановое завершение</mat-label>
+          <input matInput type="date" formControlName="planned_end_date" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Длительность (часы)</mat-label>
+          <input matInput formControlName="duration_hours" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Стоимость</mat-label>
+          <input matInput formControlName="cost_amount" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Валюта</mat-label>
+          <input matInput formControlName="currency" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Бизнес-цель</mat-label>
+          <textarea matInput rows="2" formControlName="business_goal"></textarea>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Комментарий сотрудника</mat-label>
+          <textarea matInput rows="2" formControlName="employee_comment"></textarea>
+        </mat-form-field>
+
+        @if (error()) {
+          <p class="request-new-page__error">{{ error() }}</p>
+        }
+
+        <div class="request-new-form__actions">
+          <button mat-flat-button color="primary" type="submit" [disabled]="submitting()">
+            {{ submitting() ? 'Создание...' : 'Создать заявку' }}
+          </button>
+          <a mat-stroked-button routerLink="/external-requests">Отмена</a>
+        </div>
+      </form>
+    </mat-card-content>
+  </mat-card>
 </section>

@@ -1,11 +1,51 @@
-﻿<section class="page-shell">
-  <header class="page-header">
-    <h1>LearningEnrollmentDetailPageComponent</h1>
-    <p>Route: <code>/learning/enrollment-detail</code></p>
+﻿<section class="enrollment-detail-page">
+  <header>
+    <h1>Детали обучения</h1>
   </header>
 
-  <main class="page-content">
-    <p>Page scaffold created. Connect real widgets and data flows next.</p>
-    <a routerLink="/">Go to root</a>
-  </main>
+  @if (loading()) {
+    <p>Загрузка...</p>
+  } @else if (error()) {
+    <p class="enrollment-detail-page__error">{{ error() }}</p>
+  } @else if (enrollment(); as item) {
+    <mat-card>
+      <mat-card-header>
+        <mat-card-title>Enrollment {{ item.id }}</mat-card-title>
+        <mat-card-subtitle>{{ item.status }}</mat-card-subtitle>
+      </mat-card-header>
+
+      <mat-card-content>
+        <mat-progress-bar mode="determinate" [value]="progressValue(item)"></mat-progress-bar>
+        <p>Прогресс: {{ progressValue(item) }}%</p>
+        @if (item.deadline_at) {
+          <p>Дедлайн: {{ item.deadline_at }}</p>
+        }
+
+        <div class="enrollment-detail-page__actions">
+          <button mat-flat-button color="primary" type="button" (click)="start()" [disabled]="acting()">
+            Старт
+          </button>
+          <button mat-flat-button color="primary" type="button" (click)="complete()" [disabled]="acting()">
+            Отметить завершенным
+          </button>
+        </div>
+
+        <form class="enrollment-detail-page__progress-form" [formGroup]="progressForm" (ngSubmit)="updateProgress()">
+          <mat-form-field appearance="outline">
+            <mat-label>Course module id</mat-label>
+            <input matInput formControlName="course_module_id" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Прогресс %</mat-label>
+            <input matInput type="number" min="0" max="100" formControlName="progress_percent" />
+          </mat-form-field>
+
+          <button mat-stroked-button type="submit" [disabled]="acting() || progressForm.invalid">
+            Обновить прогресс
+          </button>
+        </form>
+      </mat-card-content>
+    </mat-card>
+  }
 </section>

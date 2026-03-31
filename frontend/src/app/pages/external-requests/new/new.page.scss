@@ -2,17 +2,29 @@
   display: block;
 }
 
-.page-shell {
-  padding: 1rem;
+.request-new-page {
+  display: grid;
+  gap: var(--space-4);
 }
 
-.page-header {
-  margin-bottom: 1rem;
+.request-new-form {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.page-content {
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 1rem;
-  background: #fff;
+.request-new-form__actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.request-new-page__error {
+  color: #b42318;
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 1100px) {
+  .request-new-form {
+    grid-template-columns: 1fr;
+  }
 }
