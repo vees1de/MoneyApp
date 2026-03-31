@@ -1,45 +1,60 @@
-﻿<section class="requests-list-page">
+<section class="requests-list-page">
   <header class="requests-list-page__header">
-    <h1>Каталог заявок</h1>
-    <p>Роль: {{ role() }}</p>
+    <h1>Заявления</h1>
   </header>
 
-  <form class="requests-list-filters" [formGroup]="form" (ngSubmit)="applyFilters()">
-    <mat-form-field appearance="outline">
-      <mat-label>Статусы</mat-label>
-      <mat-select formControlName="statuses" multiple>
-        @for (item of statusOptions; track item.value) {
-          <mat-option [value]="item.value">{{ item.label }}</mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
+  <mat-card>
+    <mat-card-content>
+      <form class="requests-list-filters" [formGroup]="form" (ngSubmit)="applyFilters()">
+        <mat-form-field appearance="outline">
+          <mat-label>Статусы</mat-label>
+          <mat-select formControlName="statuses" multiple>
+            @for (item of statusOptions; track item.value) {
+              <mat-option [value]="item.value">{{ item.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
 
-    <mat-form-field appearance="outline">
-      <mat-label>Assignee</mat-label>
-      <input matInput formControlName="assignee" />
-    </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Согласующий</mat-label>
+          <input matInput formControlName="assignee" />
+        </mat-form-field>
 
-    <div class="requests-list-filters__actions">
-      <button mat-flat-button color="primary" type="submit">Применить</button>
-      <button mat-stroked-button type="button" (click)="clearFilters()">Сбросить</button>
-      @if (role() === 'employee') {
-        <button mat-stroked-button type="button" (click)="showAwaitingApprovalsForEmployee()">
-          Мои на согласовании
-        </button>
-      }
-    </div>
-  </form>
+        <div class="requests-list-filters__actions">
+          <button mat-flat-button color="primary" type="submit">
+            <mat-icon>tune</mat-icon>
+            Применить
+          </button>
+          <button mat-stroked-button type="button" (click)="clearFilters()">
+            <mat-icon>restart_alt</mat-icon>
+            Сбросить
+          </button>
+          @if (role() === 'employee') {
+            <button mat-stroked-button type="button" (click)="showAwaitingApprovalsForEmployee()">
+              <mat-icon>hourglass_top</mat-icon>
+              Мои на согласовании
+            </button>
+          }
+        </div>
+      </form>
+    </mat-card-content>
+  </mat-card>
 
   @if (loading()) {
-    <p>Загрузка заявок...</p>
+    <section class="requests-list-grid requests-list-grid--skeleton">
+      <div class="request-skeleton"></div>
+      <div class="request-skeleton"></div>
+      <div class="request-skeleton"></div>
+      <div class="request-skeleton"></div>
+    </section>
   } @else if (error()) {
     <p class="requests-list-page__error">{{ error() }}</p>
   } @else if (requests().length === 0) {
-    <p>Заявки не найдены.</p>
+    <p class="requests-list-page__empty">Заявки не найдены.</p>
   } @else {
     <section class="requests-list-grid">
       @for (item of requests(); track item.id) {
-        <mat-card>
+        <mat-card class="request-card">
           <mat-card-header>
             <mat-card-title>
               <a [routerLink]="'/external-requests/' + item.id">{{ item.title }}</a>
@@ -47,14 +62,19 @@
             <mat-card-subtitle>{{ statusLabel(item.status) }}</mat-card-subtitle>
           </mat-card-header>
 
-          <mat-card-content>
-            @if (item.program_description) {
-              <p>{{ item.program_description }}</p>
-            }
-            <p>Стоимость: {{ item.cost_amount }} {{ item.currency }}</p>
-            @if (item.planned_start_date || item.planned_end_date) {
-              <p>Сроки: {{ item.planned_start_date ?? '—' }} - {{ item.planned_end_date ?? '—' }}</p>
-            }
+          <mat-card-content class="request-card__content">
+            <p><span class="kv__key">Сотрудник:</span> <span class="kv__value">{{ item.employee_full_name || item.employee_email || '—' }}</span></p>
+            <p><span class="kv__key">Провайдер:</span> <span class="kv__value">{{ item.provider_name || '—' }}</span></p>
+            <p><span class="kv__key">Стоимость:</span> <span class="kv__value">{{ item.cost_amount || '0' }} {{ item.currency || 'RUB' }}</span></p>
+            <p>
+              <span class="kv__key">Сроки:</span>
+              <span class="kv__value">
+                {{ item.planned_start_date ? (item.planned_start_date | date: 'dd.MM.yyyy') : '—' }}
+                -
+                {{ item.planned_end_date ? (item.planned_end_date | date: 'dd.MM.yyyy') : '—' }}
+              </span>
+            </p>
+            <p><span class="kv__key">Обновлено:</span> <span class="kv__value">{{ item.updated_at | date: 'dd.MM.yyyy HH:mm' }}</span></p>
           </mat-card-content>
         </mat-card>
       }

@@ -58,11 +58,15 @@
   </mat-card>
 
   @if (loading()) {
-    <p>Загрузка курсов...</p>
+    <section class="catalog-grid catalog-grid--skeleton">
+      <div class="catalog-skeleton"></div>
+      <div class="catalog-skeleton"></div>
+      <div class="catalog-skeleton"></div>
+    </section>
   } @else if (error()) {
     <p class="catalog-page__error">{{ error() }}</p>
   } @else if (courses().length === 0) {
-    <p>Курсы не найдены.</p>
+    <p class="catalog-page__empty">Курсы не найдены.</p>
   } @else {
     <section class="catalog-grid">
       @for (course of courses(); track trackByCourse($index, course)) {
@@ -74,26 +78,16 @@
             <mat-card-subtitle>{{ course.source_type }} · {{ course.status }}</mat-card-subtitle>
           </mat-card-header>
 
-          <mat-card-content>
+          <mat-card-content class="course-card__content">
             @if (course.short_description) {
-              <p>{{ course.short_description }}</p>
+              <p class="course-card__description">{{ course.short_description }}</p>
             }
 
-            <p>
-              @if (course.level) {
-                <span>Уровень: {{ course.level }}</span>
-              }
-              @if (course.duration_hours) {
-                <span> · Часы: {{ course.duration_hours }}</span>
-              }
-              @if (course.language) {
-                <span> · Язык: {{ course.language }}</span>
-              }
-            </p>
-
-            @if (course.price) {
-              <p>Цена: {{ course.price }} {{ course.price_currency ?? '' }}</p>
-            }
+            <p><span class="kv__key">Уровень:</span> <span class="kv__value">{{ course.level || '—' }}</span></p>
+            <p><span class="kv__key">Часы:</span> <span class="kv__value">{{ course.duration_hours || '—' }}</span></p>
+            <p><span class="kv__key">Язык:</span> <span class="kv__value">{{ course.language || '—' }}</span></p>
+            <p><span class="kv__key">Стоимость:</span> <span class="kv__value">{{ course.price || '—' }} {{ course.price_currency || '' }}</span></p>
+            <p><span class="kv__key">Обновлено:</span> <span class="kv__value">{{ course.updated_at | date: 'dd.MM.yyyy HH:mm' }}</span></p>
           </mat-card-content>
         </mat-card>
       }
