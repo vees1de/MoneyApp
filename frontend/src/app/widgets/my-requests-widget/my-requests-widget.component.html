@@ -1,10 +1,17 @@
-﻿<app-widget-shell title="Мои заявки" listRoute="/external-requests">
+﻿<app-widget-shell
+  title="Мои заявки"
+  listRoute="/external-requests"
+  [loading]="loading()"
+  [error]="error()"
+  [empty]="requests().length === 0"
+>
   <mat-list>
-    <mat-list-item>
-      <a routerLink="/external-requests/11"><strong>AWS курс</strong> — На согласовании</a>
-    </mat-list-item>
-    <mat-list-item>
-      <a routerLink="/external-requests/12"><strong>Kubernetes</strong> — Одобрено</a>
-    </mat-list-item>
+    @for (request of requests(); track request.id) {
+      <mat-list-item>
+        <a [routerLink]="'/external-requests/' + request.id">
+          <strong>{{ request.title }}</strong> — {{ request.status }}
+        </a>
+      </mat-list-item>
+    }
   </mat-list>
 </app-widget-shell>

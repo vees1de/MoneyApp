@@ -29,5 +29,5 @@
 - `RolesApiService`
 
 ## Notes
-- DTO typing is partial for now. Methods with unstable contract use `Record<string, unknown>`.
-- Next step: replace placeholders with strict DTOs from `ENTITY_TS_REFERENCE.md`.
+- Added typed widget/dashboard contracts in `core/api/contracts.ts`.
+- Part of endpoints still use `Record<string, unknown>` where backend contract is not yet stable in reference.

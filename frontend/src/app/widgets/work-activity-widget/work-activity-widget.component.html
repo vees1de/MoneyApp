@@ -1,10 +1,15 @@
-﻿<app-widget-shell title="Рабочая активность" listRoute="/external-requests">
+﻿<app-widget-shell
+  title="Рабочая активность"
+  listRoute="/notifications"
+  [loading]="loading()"
+  [error]="error()"
+  [empty]="notifications().length === 0"
+>
   <mat-list>
-    <mat-list-item>
-      <a routerLink="/external-requests/21"><strong>AWS курс</strong> — На согласовании</a>
-    </mat-list-item>
-    <mat-list-item>
-      <a routerLink="/external-requests/22"><strong>Kubernetes</strong> — Одобрено</a>
-    </mat-list-item>
+    @for (item of notifications(); track item.id) {
+      <mat-list-item>
+        <a [routerLink]="routeFor(item)"><strong>{{ item.title }}</strong> — {{ item.status }}</a>
+      </mat-list-item>
+    }
   </mat-list>
 </app-widget-shell>

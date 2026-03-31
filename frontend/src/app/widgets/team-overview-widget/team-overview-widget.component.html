@@ -1,8 +1,20 @@
-﻿<app-widget-shell title="Моя команда">
-  <p>Эффективность: 24/35</p>
-  <p>Сотрудники: 12</p>
-  <mat-list>
-    <mat-list-item>Backend Team</mat-list-item>
-    <mat-list-item>QA Team</mat-list-item>
-  </mat-list>
+﻿<app-widget-shell
+  title="Моя команда"
+  [loading]="loading()"
+  [error]="error()"
+  [empty]="!loading() && teamMembers().length === 0 && teamSize() === null"
+>
+  <p><strong>{{ displayName() }}</strong></p>
+
+  @if (teamSize() !== null) {
+    <p>Сотрудники: {{ teamSize() }}</p>
+  }
+
+  @if (teamMembers().length > 0) {
+    <mat-list>
+      @for (member of teamMembers(); track member.id) {
+        <mat-list-item>{{ member.name }}{{ member.position ? ' — ' + member.position : '' }}</mat-list-item>
+      }
+    </mat-list>
+  }
 </app-widget-shell>

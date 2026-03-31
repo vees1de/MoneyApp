@@ -1,7 +1,17 @@
-﻿<app-widget-shell title="Заявки на курс" listRoute="/external-requests">
+﻿<app-widget-shell
+  title="Заявки на курс"
+  listRoute="/external-requests"
+  [loading]="loading()"
+  [error]="error()"
+  [empty]="requests().length === 0"
+>
   <div class="cards">
-    <mat-card><a routerLink="/external-requests/1">Kubernetes / Иванов И.И.</a></mat-card>
-    <mat-card><a routerLink="/external-requests/2">AWS / Петров П.П.</a></mat-card>
-    <mat-card><a routerLink="/external-requests/3">CI/CD / Смирнова А.А.</a></mat-card>
+    @for (item of requests(); track item.request.id) {
+      <mat-card>
+        <a [routerLink]="'/external-requests/' + item.request.id">
+          {{ item.request.title }} / {{ item.current_step.role_code }}
+        </a>
+      </mat-card>
+    }
   </div>
 </app-widget-shell>

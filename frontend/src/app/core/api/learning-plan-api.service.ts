@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '@core/config/api.config';
+import type { MyLearningPlan } from './contracts';
 
 @Injectable({ providedIn: 'root' })
 export class LearningPlanApiService {
@@ -10,7 +11,7 @@ export class LearningPlanApiService {
 
   constructor(private readonly http: HttpClient) {}
 
-  getMyPlan(): Observable<Record<string, unknown>> {
-    return this.http.get<Record<string, unknown>>(`${this.base}/my`);
+  getMyPlan(): Observable<MyLearningPlan> {
+    return this.http.get<MyLearningPlan>(`${this.base}/my`);
   }
 }

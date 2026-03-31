@@ -3,8 +3,8 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '@core/config/api.config';
-import type { Request } from '@entities/request';
 import type { ListQuery } from './api.types';
+import type { ExternalRequest, PendingApprovalItem } from './contracts';
 import { toHttpParams } from './http-params.util';
 
 @Injectable({ providedIn: 'root' })
@@ -13,47 +13,47 @@ export class ExternalRequestsApiService {
 
   constructor(private readonly http: HttpClient) {}
 
-  list(query?: ListQuery): Observable<Request[]> {
-    return this.http.get<Request[]>(this.base, { params: toHttpParams(query) });
+  list(query?: ListQuery): Observable<ExternalRequest[]> {
+    return this.http.get<ExternalRequest[]>(this.base, { params: toHttpParams(query) });
   }
 
-  listMy(): Observable<Request[]> {
-    return this.http.get<Request[]>(`${this.base}/my`);
+  listMy(): Observable<ExternalRequest[]> {
+    return this.http.get<ExternalRequest[]>(`${this.base}/my`);
   }
 
-  listPendingApprovals(): Observable<Record<string, unknown>[]> {
-    return this.http.get<Record<string, unknown>[]>(`${this.base}/pending-approvals`);
+  listPendingApprovals(): Observable<PendingApprovalItem[]> {
+    return this.http.get<PendingApprovalItem[]>(`${this.base}/pending-approvals`);
   }
 
-  getById(id: string): Observable<Request> {
-    return this.http.get<Request>(`${this.base}/${id}`);
+  getById(id: string): Observable<ExternalRequest> {
+    return this.http.get<ExternalRequest>(`${this.base}/${id}`);
   }
 
-  create(payload: Record<string, unknown>): Observable<Request> {
-    return this.http.post<Request>(this.base, payload);
+  create(payload: Record<string, unknown>): Observable<ExternalRequest> {
+    return this.http.post<ExternalRequest>(this.base, payload);
   }
 
-  update(id: string, payload: Record<string, unknown>): Observable<Request> {
-    return this.http.patch<Request>(`${this.base}/${id}`, payload);
+  update(id: string, payload: Record<string, unknown>): Observable<ExternalRequest> {
+    return this.http.patch<ExternalRequest>(`${this.base}/${id}`, payload);
   }
 
-  submit(id: string): Observable<Request> {
-    return this.http.post<Request>(`${this.base}/${id}/submit`, {});
+  submit(id: string): Observable<ExternalRequest> {
+    return this.http.post<ExternalRequest>(`${this.base}/${id}/submit`, {});
   }
 
-  approve(id: string, payload: Record<string, unknown>): Observable<Request> {
-    return this.http.post<Request>(`${this.base}/${id}/approve`, payload);
+  approve(id: string, payload: Record<string, unknown>): Observable<ExternalRequest> {
+    return this.http.post<ExternalRequest>(`${this.base}/${id}/approve`, payload);
   }
 
-  reject(id: string, payload: Record<string, unknown>): Observable<Request> {
-    return this.http.post<Request>(`${this.base}/${id}/reject`, payload);
+  reject(id: string, payload: Record<string, unknown>): Observable<ExternalRequest> {
+    return this.http.post<ExternalRequest>(`${this.base}/${id}/reject`, payload);
   }
 
-  requestRevision(id: string, payload: Record<string, unknown>): Observable<Request> {
-    return this.http.post<Request>(`${this.base}/${id}/request-revision`, payload);
+  requestRevision(id: string, payload: Record<string, unknown>): Observable<ExternalRequest> {
+    return this.http.post<ExternalRequest>(`${this.base}/${id}/request-revision`, payload);
   }
 
-  uploadCertificate(id: string, payload: Record<string, unknown>): Observable<Request> {
-    return this.http.post<Request>(`${this.base}/${id}/upload-certificate`, payload);
+  uploadCertificate(id: string, payload: Record<string, unknown>): Observable<ExternalRequest> {
+    return this.http.post<ExternalRequest>(`${this.base}/${id}/upload-certificate`, payload);
   }
 }

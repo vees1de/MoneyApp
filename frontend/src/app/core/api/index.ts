@@ -1,5 +1,6 @@
 export * from './analytics-api.service';
 export * from './api.types';
+export * from './contracts';
 export * from './approval-workflows-api.service';
 export * from './assignments-api.service';
 export * from './audit-logs-api.service';

@@ -1,7 +1,15 @@
-﻿<app-widget-shell title="Рекомендованные курсы" listRoute="/catalog">
+﻿<app-widget-shell
+  title="Рекомендованные курсы"
+  listRoute="/catalog"
+  [loading]="loading()"
+  [error]="error()"
+  [empty]="courses().length === 0"
+>
   <div class="cards">
-    <mat-card><a routerLink="/catalog/c-1">Курс: Kubernetes</a></mat-card>
-    <mat-card><a routerLink="/catalog/c-2">Курс: CI/CD для backend</a></mat-card>
-    <mat-card><a routerLink="/catalog/c-3">Курс: API Design</a></mat-card>
+    @for (course of courses(); track course.course_id) {
+      <mat-card>
+        <a [routerLink]="'/catalog/' + course.course_id">{{ course.title }}</a>
+      </mat-card>
+    }
   </div>
 </app-widget-shell>

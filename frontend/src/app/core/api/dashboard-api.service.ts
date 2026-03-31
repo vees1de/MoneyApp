@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '@core/config/api.config';
+import type { ManagerDashboard } from './contracts';
 
 @Injectable({ providedIn: 'root' })
 export class DashboardApiService {
@@ -14,7 +15,7 @@ export class DashboardApiService {
     return this.http.get<Record<string, unknown>>(`${this.base}/employee`);
   }
 
-  getManagerDashboard(): Observable<Record<string, unknown>> {
-    return this.http.get<Record<string, unknown>>(`${this.base}/manager`);
+  getManagerDashboard(): Observable<ManagerDashboard> {
+    return this.http.get<ManagerDashboard>(`${this.base}/manager`);
   }
 }
