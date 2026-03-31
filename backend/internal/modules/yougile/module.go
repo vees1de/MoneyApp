@@ -147,9 +147,10 @@ type DiscoverCompaniesRequest struct {
 }
 
 type ConnectConnectionRequest struct {
-	Login     string `json:"login" validate:"required"`
-	Password  string `json:"password" validate:"required"`
-	CompanyID string `json:"companyId" validate:"required"`
+	Login       string `json:"login" validate:"required"`
+	Password    string `json:"password" validate:"required"`
+	CompanyID   string `json:"companyId" validate:"required"`
+	CompanyName string `json:"companyName,omitempty"`
 }
 
 type UpdateConnectionRequest struct {
@@ -978,15 +979,15 @@ func (s *Service) ConnectConnection(ctx context.Context, principal platformauth.
 		return Connection{}, err
 	}
 
-	details, err := NewClient("", key).GetCompany(ctx, req.CompanyID)
-	if err != nil {
-		return Connection{}, err
-	}
-
-	title := trimStringPtr(stringPtr(details.Title))
-	companyID := strings.TrimSpace(details.ID)
-	if companyID == "" {
-		companyID = strings.TrimSpace(req.CompanyID)
+	title := trimStringPtr(stringPtr(req.CompanyName))
+	companyID := strings.TrimSpace(req.CompanyID)
+	if details, err := NewClient("", key).GetCompany(ctx, req.CompanyID); err == nil {
+		if normalizedTitle := trimStringPtr(stringPtr(details.Title)); normalizedTitle != nil {
+			title = normalizedTitle
+		}
+		if normalizedCompanyID := strings.TrimSpace(details.ID); normalizedCompanyID != "" {
+			companyID = normalizedCompanyID
+		}
 	}
 
 	return s.saveConnection(ctx, principal, title, "", companyID, key)

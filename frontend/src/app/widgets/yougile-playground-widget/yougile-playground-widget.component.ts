@@ -42,11 +42,13 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
   });
 
   protected readonly connectionLoading = signal(true);
+  protected readonly summaryLoading = signal(false);
+  protected readonly syncingConnection = signal(false);
+  protected readonly deletingConnection = signal(false);
+  protected readonly modalOpen = signal(false);
+  protected readonly reconnectMode = signal(false);
   protected readonly discoveringCompanies = signal(false);
   protected readonly connectingConnection = signal(false);
-  protected readonly deletingConnection = signal(false);
-  protected readonly syncingConnection = signal(false);
-  protected readonly reconnectMode = signal(false);
   protected readonly hasCompanySearch = signal(false);
   protected readonly availableCompanies = signal<YougileCompanyOption[]>([]);
   protected readonly selectedCompanyId = signal<string | null>(null);
@@ -54,20 +56,16 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
   protected readonly boardOptions = signal<BoardSummaryBoardItem[]>([]);
   protected readonly selectedBoardId = signal<string | null>(null);
   protected readonly summary = signal<BoardSummary | null>(null);
-  protected readonly summaryLoading = signal(false);
   protected readonly summaryError = signal<string | null>(null);
   protected readonly actionError = signal<string | null>(null);
   protected readonly actionNotice = signal<string | null>(null);
+  protected readonly modalError = signal<string | null>(null);
 
   protected readonly credentialsForm = this.fb.nonNullable.group({
     login: ['', [Validators.required]],
     password: ['', [Validators.required]],
     name: [''],
   });
-
-  protected readonly showWizard = computed(
-    () => !this.connectionLoading() && (!this.currentConnection() || this.reconnectMode()),
-  );
 
   protected readonly selectedCompany = computed(
     () => this.availableCompanies().find((item) => item.id === this.selectedCompanyId()) ?? null,
@@ -97,13 +95,32 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
     void this.loadCurrentConnection();
   }
 
+  protected openConnectModal(reconnect = false): void {
+    this.clearMessages();
+    this.modalError.set(null);
+    this.reconnectMode.set(reconnect);
+    this.modalOpen.set(true);
+    this.resetModalState(true);
+  }
+
+  protected closeConnectModal(force = false): void {
+    if (!force && (this.discoveringCompanies() || this.connectingConnection())) {
+      return;
+    }
+
+    this.modalOpen.set(false);
+    this.reconnectMode.set(false);
+    this.modalError.set(null);
+    this.resetModalState(true);
+  }
+
   protected async discoverCompanies(): Promise<void> {
     if (this.credentialsForm.invalid || this.discoveringCompanies()) {
       this.credentialsForm.markAllAsTouched();
       return;
     }
 
-    this.clearMessages();
+    this.modalError.set(null);
     this.discoveringCompanies.set(true);
     this.hasCompanySearch.set(true);
     this.availableCompanies.set([]);
@@ -123,11 +140,8 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
       if (response.content.length === 1) {
         this.selectedCompanyId.set(response.content[0].id);
       }
-      if (!response.content.length) {
-        this.actionNotice.set('Компании не найдены. Уточните фильтр или проверьте доступ.');
-      }
     } catch (error) {
-      this.actionError.set(this.describeError(error));
+      this.modalError.set(this.describeError(error));
       this.availableCompanies.set([]);
     } finally {
       this.discoveringCompanies.set(false);
@@ -136,18 +150,17 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
 
   protected chooseCompany(companyId: string): void {
     this.selectedCompanyId.set(companyId);
-    this.clearMessages();
+    this.modalError.set(null);
   }
 
   protected async connectSelectedCompany(): Promise<void> {
-    const companyId = this.selectedCompanyId();
-    if (!companyId || this.connectingConnection()) {
-      if (!companyId) {
-        this.actionError.set('Выберите компанию YouGile.');
-      }
+    const company = this.selectedCompany();
+    if (!company || this.connectingConnection()) {
+      this.modalError.set('Выберите компанию.');
       return;
     }
 
+    this.modalError.set(null);
     this.clearMessages();
     this.connectingConnection.set(true);
 
@@ -157,41 +170,29 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
         this.integrationsApi.connectYougileConnection({
           login: payload.login.trim(),
           password: payload.password,
-          companyId,
+          companyId: company.id,
+          companyName: company.name,
         }),
       );
 
-      let syncMessage = 'Подключение сохранено.';
+      let notice = 'Подключение сохранено.';
       try {
         await this.runSync(connection.id, true);
-        syncMessage = 'Подключение сохранено. Full sync запущен, summary обновится после импорта.';
+        notice = 'Подключение сохранено. Full sync запущен.';
       } catch (syncError) {
         this.actionError.set(this.describeError(syncError));
-        syncMessage = 'Подключение сохранено. Full sync не стартовал, его можно запустить вручную.';
+        notice = 'Подключение сохранено. Sync можно запустить вручную.';
       }
 
-      this.resetWizard(true);
-      this.reconnectMode.set(false);
+      this.closeConnectModal(true);
       this.selectedBoardId.set(null);
-      this.actionNotice.set(syncMessage);
+      this.actionNotice.set(notice);
       await this.loadCurrentConnection(connection.id);
     } catch (error) {
-      this.actionError.set(this.describeError(error));
+      this.modalError.set(this.describeError(error));
     } finally {
       this.connectingConnection.set(false);
     }
-  }
-
-  protected beginReconnect(): void {
-    this.clearMessages();
-    this.resetWizard(true);
-    this.reconnectMode.set(true);
-  }
-
-  protected cancelReconnect(): void {
-    this.clearMessages();
-    this.resetWizard(true);
-    this.reconnectMode.set(false);
   }
 
   protected async deleteCurrentConnection(): Promise<void> {
@@ -210,9 +211,7 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
       this.summaryError.set(null);
       this.boardOptions.set([]);
       this.selectedBoardId.set(null);
-      this.reconnectMode.set(false);
-      this.resetWizard(true);
-      this.actionNotice.set('Подключение удалено.');
+      this.actionNotice.set('Подключение отключено.');
     } catch (error) {
       this.actionError.set(this.describeError(error));
     } finally {
@@ -230,7 +229,7 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
 
     try {
       await this.runSync(connection.id, false);
-      this.actionNotice.set('Full sync запущен. Обновите summary через несколько секунд.');
+      this.actionNotice.set('Full sync запущен.');
     } catch (error) {
       this.actionError.set(this.describeError(error));
     }
@@ -268,11 +267,11 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
       case 'active':
         return 'Активно';
       case 'invalid':
-        return 'Нужна проверка ключа';
+        return 'Ключ недействителен';
       case 'sync_error':
         return 'Ошибка sync';
       case 'revoked':
-        return 'Удалено';
+        return 'Отключено';
       default:
         return status;
     }
@@ -310,6 +309,14 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
     }
 
     return item.title;
+  }
+
+  protected trackBoard(_: number, item: BoardSummaryBoardItem): string {
+    return item.board_id;
+  }
+
+  protected trackCompany(_: number, item: YougileCompanyOption): string {
+    return item.id;
   }
 
   private async loadCurrentConnection(_preferredConnectionId?: string): Promise<void> {
@@ -395,7 +402,7 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
     }
   }
 
-  private resetWizard(resetCredentials: boolean): void {
+  private resetModalState(resetCredentials: boolean): void {
     this.hasCompanySearch.set(false);
     this.availableCompanies.set([]);
     this.selectedCompanyId.set(null);
@@ -420,10 +427,10 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
         return 'Неверный login или password.';
       }
       if (error.status === 403) {
-        return 'Доступ к компании запрещён или у пользователя нет нужных прав.';
+        return 'Нет доступа к компании.';
       }
       if (error.status === 429) {
-        return 'YouGile временно ограничил запросы. Повторите позже.';
+        return 'Слишком много запросов. Повторите позже.';
       }
 
       const apiMessage = this.extractApiMessage(error.error);
