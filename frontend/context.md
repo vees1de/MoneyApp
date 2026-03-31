@@ -38,7 +38,10 @@
   - team overview (`auth/me` + manager dashboard)
   - upcoming events (`GET /calendar/events/upcoming`)
   - jira summary (`GET /jira/board-summary`)
-  - course requests (`GET /external-requests/pending-approvals`)
+  - course requests:
+    - employee: `GET /external-requests?scope=my&status=manager_approval&status=hr_approval`
+    - fallback if filters endpoint unavailable: `GET /external-requests/my` + frontend status filter
+    - approver roles: `GET /external-requests/pending-approvals`
   - current learning (`GET /learning-plan/my`)
   - recommendations (`GET /recommendations/courses`)
   - quick actions counters (`GET /learning-plan/my` + `GET /external-requests/my`)

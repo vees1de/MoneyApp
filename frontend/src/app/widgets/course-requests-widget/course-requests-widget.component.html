@@ -3,13 +3,13 @@
   listRoute="/external-requests"
   [loading]="loading()"
   [error]="error()"
-  [empty]="requests().length === 0"
+  [empty]="cards().length === 0"
 >
   <div class="cards">
-    @for (item of requests(); track item.request.id) {
+    @for (item of cards(); track item.id) {
       <mat-card>
-        <a [routerLink]="'/external-requests/' + item.request.id">
-          {{ item.request.title }} / {{ item.current_step.role_code }}
+        <a [routerLink]="'/external-requests/' + item.id">
+          {{ item.title }} / {{ item.subtitle }}
         </a>
       </mat-card>
     }
