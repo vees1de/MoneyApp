@@ -1,0 +1,100 @@
+<section class="intake-new-page">
+  <header class="intake-new-page__header">
+    <div>
+      <h1>Открыть набор</h1>
+      <p>Можно открыть набор на курс из общего пула или создать кастомный поток для внешнего провайдера.</p>
+    </div>
+
+    <a mat-stroked-button routerLink="/intakes">
+      <mat-icon>arrow_back</mat-icon>
+      К списку наборов
+    </a>
+  </header>
+
+  <mat-card>
+    <mat-card-content>
+      @if (loadingOptions()) {
+        <p>Загрузка справочников...</p>
+      } @else {
+        <form class="intake-form" [formGroup]="form" (ngSubmit)="submit()">
+          <mat-form-field appearance="outline">
+            <mat-label>Источник</mat-label>
+            <mat-select formControlName="source_mode">
+              <mat-option value="catalog">Выбрать из каталога</mat-option>
+              <mat-option value="custom">Кастомный набор</mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          @if (isCatalogMode()) {
+            <mat-form-field appearance="outline">
+              <mat-label>Курс из каталога</mat-label>
+              <mat-select formControlName="course_id" (selectionChange)="syncSelectedCourse($event.value)">
+                @for (course of courses(); track course.id) {
+                  <mat-option [value]="course.id">{{ course.title }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+          }
+
+          <mat-form-field appearance="outline">
+            <mat-label>Название набора</mat-label>
+            <input matInput formControlName="title" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="intake-form__wide">
+            <mat-label>Описание</mat-label>
+            <textarea matInput rows="4" formControlName="description"></textarea>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Руководитель-апрувер</mat-label>
+            <mat-select formControlName="approver_id">
+              <mat-option value="">Без руководителя</mat-option>
+              @for (user of approvers(); track user.id) {
+                <mat-option [value]="user.id">{{ approverLabel(user) }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Максимум участников</mat-label>
+            <input matInput type="number" min="1" formControlName="max_participants" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Дата старта</mat-label>
+            <input matInput type="date" formControlName="start_date" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Дата завершения</mat-label>
+            <input matInput type="date" formControlName="end_date" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Дедлайн подачи</mat-label>
+            <input matInput type="datetime-local" formControlName="application_deadline" />
+          </mat-form-field>
+
+          @if (directoryUnavailable()) {
+            <p class="intake-form__hint">
+              Список сотрудников для выбора апрувера сейчас недоступен. Набор всё равно можно открыть без руководителя.
+            </p>
+          }
+
+          @if (error()) {
+            <p class="intake-form__error">{{ error() }}</p>
+          }
+
+          <div class="intake-form__actions">
+            <button mat-flat-button color="primary" type="submit" [disabled]="submitting()">
+              <mat-icon>playlist_add_check</mat-icon>
+              Открыть набор
+            </button>
+            <a mat-stroked-button routerLink="/intakes">Отмена</a>
+          </div>
+        </form>
+      }
+    </mat-card-content>
+  </mat-card>
+</section>

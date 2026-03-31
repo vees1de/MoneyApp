@@ -118,6 +118,52 @@ export const routes: Routes = [
           import('@pages/catalog/detail/detail.page').then((m) => m.CatalogDetailPageComponent),
       },
       {
+        path: 'intakes',
+        loadComponent: () =>
+          import('@pages/intakes/list/list.page').then((m) => m.IntakesListPageComponent),
+      },
+      {
+        path: 'intakes/new',
+        canActivate: [roleGuard(['hr', 'admin'])],
+        loadComponent: () =>
+          import('@pages/intakes/new/new.page').then((m) => m.IntakesNewPageComponent),
+      },
+      {
+        path: 'intakes/:intakeId',
+        loadComponent: () =>
+          import('@pages/intakes/detail/detail.page').then((m) => m.IntakeDetailPageComponent),
+      },
+      {
+        path: 'applications/my',
+        loadComponent: () =>
+          import('@pages/applications/my/my.page').then((m) => m.ApplicationsMyPageComponent),
+      },
+      {
+        path: 'applications/pending-manager',
+        canActivate: [roleGuard(['manager', 'admin'])],
+        loadComponent: () =>
+          import('@pages/applications/pending-manager/pending-manager.page').then(
+            (m) => m.ApplicationsPendingManagerPageComponent,
+          ),
+      },
+      {
+        path: 'suggestions',
+        loadComponent: () =>
+          import('@pages/suggestions/list/list.page').then((m) => m.SuggestionsListPageComponent),
+      },
+      {
+        path: 'suggestions/new',
+        loadComponent: () =>
+          import('@pages/suggestions/new/new.page').then((m) => m.SuggestionsNewPageComponent),
+      },
+      {
+        path: 'suggestions/:suggestionId',
+        loadComponent: () =>
+          import('@pages/suggestions/detail/detail.page').then(
+            (m) => m.SuggestionDetailPageComponent,
+          ),
+      },
+      {
         path: 'my-learning',
         canActivate: [
           permissionGuard([PERMISSIONS.enrollmentsRead, PERMISSIONS.enrollmentsManage]),

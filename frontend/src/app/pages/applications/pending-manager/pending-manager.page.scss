@@ -1,0 +1,83 @@
+.pending-manager-page {
+  display: grid;
+  gap: 24px;
+}
+
+.pending-manager-page__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.pending-manager-page__header h1 {
+  margin: 0 0 8px;
+}
+
+.pending-manager-page__header p {
+  margin: 0;
+  color: var(--text-secondary);
+  max-width: 720px;
+}
+
+.pending-manager-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.pending-card__content {
+  display: grid;
+  gap: 8px;
+}
+
+.pending-card__comment {
+  width: 100%;
+}
+
+.pending-card__actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.kv__key {
+  color: var(--text-secondary);
+}
+
+.pending-manager-page__error,
+.pending-manager-page__empty {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.pending-manager-grid--skeleton {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.pending-skeleton {
+  min-height: 280px;
+  border-radius: 24px;
+  background: linear-gradient(90deg, rgba(8, 15, 29, 0.05), rgba(8, 15, 29, 0.11), rgba(8, 15, 29, 0.05));
+  background-size: 200% 100%;
+  animation: pending-shimmer 1.3s ease-in-out infinite;
+}
+
+@keyframes pending-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@media (max-width: 820px) {
+  .pending-manager-page__header {
+    flex-direction: column;
+  }
+
+  .pending-manager-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -16,6 +16,7 @@ import (
 	catalogmodule "moneyapp/backend/internal/modules/catalog"
 	certificatesmodule "moneyapp/backend/internal/modules/certificates"
 	courseintakesmodule "moneyapp/backend/internal/modules/course_intakes"
+	smartexportmodule "moneyapp/backend/internal/modules/smart_export"
 	courserequestsmodule "moneyapp/backend/internal/modules/course_requests"
 	dashboardapimodule "moneyapp/backend/internal/modules/dashboard_api"
 	externaltrainingmodule "moneyapp/backend/internal/modules/external_training"
@@ -64,6 +65,7 @@ type Container struct {
 	OutlookService          *outlookmodule.Service
 	NotificationsService    *notificationsmodule.Service
 	UniversityService       *universitymodule.Service
+	SmartExportService      *smartexportmodule.Service
 	AnalyticsService        *analyticsmodule.Service
 	AuditService            *auditmodule.Service
 	YougileService          *yougilemodule.Service
@@ -86,6 +88,7 @@ type Container struct {
 	OutlookHandler          *outlookmodule.Handler
 	NotificationsHandler    *notificationsmodule.Handler
 	UniversityHandler       *universitymodule.Handler
+	SmartExportHandler      *smartexportmodule.Handler
 	AnalyticsHandler        *analyticsmodule.Handler
 	AuditHandler            *auditmodule.Handler
 	YougileHandler          *yougilemodule.Handler

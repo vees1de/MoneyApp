@@ -11,25 +11,44 @@
 
   <div class="summary">
     <span>Активные обучения: <strong>{{ activeLearning() }}</strong></span>
-    <span>Мои заявки: <strong>{{ myRequests() }}</strong></span>
+    <span>Открытые наборы: <strong>{{ openIntakes() }}</strong></span>
+    <span>Мои заявки: <strong>{{ myApplications() }}</strong></span>
+    <span>Мои предложения: <strong>{{ mySuggestions() }}</strong></span>
   </div>
 
   <div class="actions">
-    <button mat-stroked-button routerLink="/external-requests/new">
-      <mat-icon>description</mat-icon>
-      Создать заявление
+    @if (canManageIntakes()) {
+      <button mat-stroked-button routerLink="/intakes/new">
+        <mat-icon>playlist_add_check</mat-icon>
+        Открыть набор
+      </button>
+    } @else {
+      <button mat-stroked-button routerLink="/intakes">
+        <mat-icon>search</mat-icon>
+        Найти набор
+      </button>
+    }
+
+    <button mat-stroked-button routerLink="/suggestions/new">
+      <mat-icon>lightbulb</mat-icon>
+      Предложить курс
     </button>
-    <button mat-stroked-button routerLink="/catalog">
-      <mat-icon>assignment_ind</mat-icon>
-      Назначить обучение
+
+    <button mat-stroked-button routerLink="/applications/my">
+      <mat-icon>fact_check</mat-icon>
+      Мои заявки
     </button>
+
     <button mat-stroked-button routerLink="/my-learning">
       <mat-icon>school</mat-icon>
       Перейти к назначениям
     </button>
-    <button mat-stroked-button routerLink="/catalog">
-      <mat-icon>add_circle</mat-icon>
-      Создать курс
-    </button>
+
+    @if (canReviewManager()) {
+      <button mat-stroked-button routerLink="/applications/pending-manager">
+        <mat-icon>approval</mat-icon>
+        Апрув руководителя
+      </button>
+    }
   </div>
 </app-widget-shell>

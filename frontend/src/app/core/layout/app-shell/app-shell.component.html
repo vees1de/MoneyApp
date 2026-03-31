@@ -3,7 +3,7 @@
     <a class="shell__brand" routerLink="/dashboard">ИМПУЛЬС</a>
 
     <nav class="shell__nav">
-      @for (item of navItems; track item.route) {
+      @for (item of navItems(); track item.route) {
         <a
           mat-button
           [routerLink]="item.route"

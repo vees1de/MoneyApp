@@ -1,0 +1,114 @@
+<section class="intakes-page">
+  <header class="intakes-page__header">
+    <div>
+      <h1>Наборы на курсы</h1>
+      <p>HR открывает поток, сотрудники подаются, руководитель и HR согласуют по статусам.</p>
+    </div>
+
+    <div class="intakes-page__actions">
+      <a mat-stroked-button routerLink="/applications/my">
+        <mat-icon>fact_check</mat-icon>
+        Мои заявки
+      </a>
+      <a mat-stroked-button routerLink="/suggestions">
+        <mat-icon>lightbulb</mat-icon>
+        Предложения курсов
+      </a>
+      @if (canManage()) {
+        <a mat-flat-button color="primary" routerLink="/intakes/new">
+          <mat-icon>add_circle</mat-icon>
+          Открыть набор
+        </a>
+      }
+    </div>
+  </header>
+
+  <mat-card>
+    <mat-card-content>
+      <form class="intakes-filters" [formGroup]="form" (ngSubmit)="applyFilters()">
+        <mat-form-field appearance="outline">
+          <mat-label>Статус</mat-label>
+          <mat-select formControlName="status">
+            @for (item of statusOptions; track item.value) {
+              <mat-option [value]="item.value">{{ item.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Поиск</mat-label>
+          <input matInput formControlName="query" placeholder="Название, описание, статус" />
+        </mat-form-field>
+
+        <div class="intakes-filters__actions">
+          <button mat-flat-button color="primary" type="submit">
+            <mat-icon>tune</mat-icon>
+            Применить
+          </button>
+          <button mat-stroked-button type="button" (click)="clearFilters()">
+            <mat-icon>restart_alt</mat-icon>
+            Сбросить
+          </button>
+        </div>
+      </form>
+    </mat-card-content>
+  </mat-card>
+
+  @if (loading()) {
+    <section class="intakes-grid intakes-grid--skeleton">
+      <div class="intake-skeleton"></div>
+      <div class="intake-skeleton"></div>
+      <div class="intake-skeleton"></div>
+    </section>
+  } @else if (error()) {
+    <p class="intakes-page__error">{{ error() }}</p>
+  } @else if (intakes().length === 0) {
+    <p class="intakes-page__empty">Наборы пока не найдены.</p>
+  } @else {
+    <section class="intakes-grid">
+      @for (item of intakes(); track item.id) {
+        <mat-card class="intake-card">
+          <mat-card-header>
+            <mat-card-title>
+              <a [routerLink]="'/intakes/' + item.id">{{ item.title }}</a>
+            </mat-card-title>
+            <mat-card-subtitle>{{ statusLabel(item.status) }}</mat-card-subtitle>
+          </mat-card-header>
+
+          <mat-card-content class="intake-card__content">
+            @if (item.description) {
+              <p class="intake-card__description">{{ item.description }}</p>
+            }
+
+            <p>
+              <span class="kv__key">Старт:</span>
+              <span class="kv__value">{{ item.start_date ? (item.start_date | date: 'dd.MM.yyyy') : '—' }}</span>
+            </p>
+            <p>
+              <span class="kv__key">Финиш:</span>
+              <span class="kv__value">{{ item.end_date ? (item.end_date | date: 'dd.MM.yyyy') : '—' }}</span>
+            </p>
+            <p>
+              <span class="kv__key">Дедлайн заявки:</span>
+              <span class="kv__value">
+                {{ item.application_deadline ? (item.application_deadline | date: 'dd.MM.yyyy HH:mm') : '—' }}
+              </span>
+            </p>
+            <p>
+              <span class="kv__key">Лимит участников:</span>
+              <span class="kv__value">{{ item.max_participants ?? '—' }}</span>
+            </p>
+            <p>
+              <span class="kv__key">Согласование руководителя:</span>
+              <span class="kv__value">{{ item.approver_id ? 'Да' : 'Нет' }}</span>
+            </p>
+            <p>
+              <span class="kv__key">Обновлено:</span>
+              <span class="kv__value">{{ item.updated_at | date: 'dd.MM.yyyy HH:mm' }}</span>
+            </p>
+          </mat-card-content>
+        </mat-card>
+      }
+    </section>
+  }
+</section>

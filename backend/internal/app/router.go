@@ -305,6 +305,13 @@ func NewRouter(container *Container) http.Handler {
 				r.Get("/trainers", container.AnalyticsHandler.Trainers)
 			})
 
+			r.Route("/reports/sources", func(r chi.Router) {
+				r.Get("/", container.SmartExportHandler.Sources)
+			})
+			r.Route("/reports/smart-export", func(r chi.Router) {
+				r.Post("/", container.SmartExportHandler.SmartExport)
+			})
+
 			r.Route("/reports/export", func(r chi.Router) {
 				r.Get("/excel", container.AnalyticsHandler.ExportExcel)
 				r.Get("/pdf", container.AnalyticsHandler.ExportPDF)

@@ -1,0 +1,60 @@
+<section class="applications-page">
+  <header class="applications-page__header">
+    <div>
+      <h1>Мои заявки в наборы</h1>
+      <p>Здесь видны статусы, комментарии согласующих и возможность отозвать заявку до зачисления.</p>
+    </div>
+
+    <a mat-stroked-button routerLink="/intakes">
+      <mat-icon>view_list</mat-icon>
+      Все наборы
+    </a>
+  </header>
+
+  @if (loading()) {
+    <section class="applications-grid applications-grid--skeleton">
+      <div class="application-skeleton"></div>
+      <div class="application-skeleton"></div>
+      <div class="application-skeleton"></div>
+    </section>
+  } @else if (error()) {
+    <p class="applications-page__error">{{ error() }}</p>
+  } @else if (applications().length === 0) {
+    <p class="applications-page__empty">У вас пока нет заявок в наборы.</p>
+  } @else {
+    <section class="applications-grid">
+      @for (application of applications(); track application.id) {
+        <mat-card class="application-card">
+          <mat-card-header>
+            <mat-card-title>
+              <a [routerLink]="'/intakes/' + application.intake_id">{{ intakeTitle(application.intake_id) }}</a>
+            </mat-card-title>
+            <mat-card-subtitle>{{ applicationStatusLabel(application.status) }}</mat-card-subtitle>
+          </mat-card-header>
+
+          <mat-card-content class="application-card__content">
+            <p><span class="kv__key">Статус набора:</span> <span class="kv__value">{{ intakeStatusLabel(intakeStatus(application.intake_id)) }}</span></p>
+            <p><span class="kv__key">Мотивация:</span> <span class="kv__value">{{ application.motivation || '—' }}</span></p>
+            <p><span class="kv__key">Комментарий руководителя:</span> <span class="kv__value">{{ application.manager_comment || '—' }}</span></p>
+            <p><span class="kv__key">Комментарий HR:</span> <span class="kv__value">{{ application.hr_comment || '—' }}</span></p>
+            <p><span class="kv__key">Создано:</span> <span class="kv__value">{{ application.created_at | date: 'dd.MM.yyyy HH:mm' }}</span></p>
+            <p><span class="kv__key">Обновлено:</span> <span class="kv__value">{{ application.updated_at | date: 'dd.MM.yyyy HH:mm' }}</span></p>
+
+            <div class="application-card__actions">
+              @if (canWithdraw(application)) {
+                <button mat-stroked-button type="button" (click)="withdraw(application)" [disabled]="acting()">
+                  <mat-icon>undo</mat-icon>
+                  Отозвать
+                </button>
+              }
+              <a mat-flat-button color="primary" [routerLink]="'/intakes/' + application.intake_id">
+                <mat-icon>open_in_new</mat-icon>
+                Открыть набор
+              </a>
+            </div>
+          </mat-card-content>
+        </mat-card>
+      }
+    </section>
+  }
+</section>

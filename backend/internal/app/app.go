@@ -16,6 +16,7 @@ import (
 	catalogmodule "moneyapp/backend/internal/modules/catalog"
 	certificatesmodule "moneyapp/backend/internal/modules/certificates"
 	courseintakesmodule "moneyapp/backend/internal/modules/course_intakes"
+	smartexportmodule "moneyapp/backend/internal/modules/smart_export"
 	courserequestsmodule "moneyapp/backend/internal/modules/course_requests"
 	dashboardapimodule "moneyapp/backend/internal/modules/dashboard_api"
 	externaltrainingmodule "moneyapp/backend/internal/modules/external_training"
@@ -112,6 +113,7 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 	outlookService := outlookmodule.NewService(database, outlookRepo, queue, appClock)
 	notificationsService := notificationsmodule.NewService(notificationsRepo, appClock)
 	universityService := universitymodule.NewService(universityRepo, appClock)
+	smartExportService := smartexportmodule.NewService(database)
 	analyticsService := analyticsmodule.NewService(database, queue)
 	auditService := auditmodule.NewService(database)
 	yougileService := yougilemodule.NewService(database, yougileRepo, queue, appClock)
@@ -149,6 +151,7 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 		OutlookService:          outlookService,
 		NotificationsService:    notificationsService,
 		UniversityService:       universityService,
+		SmartExportService:      smartExportService,
 		AnalyticsService:        analyticsService,
 		AuditService:            auditService,
 		YougileService:          yougileService,
@@ -170,6 +173,7 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 		OutlookHandler:          outlookmodule.NewHandler(outlookService),
 		NotificationsHandler:    notificationsmodule.NewHandler(notificationsService),
 		UniversityHandler:       universitymodule.NewHandler(universityService, validate),
+		SmartExportHandler:      smartexportmodule.NewHandler(smartExportService, validate),
 		AnalyticsHandler:        analyticsmodule.NewHandler(analyticsService),
 		AuditHandler:            auditmodule.NewHandler(auditService),
 		YougileHandler:          yougilemodule.NewHandler(yougileService, validate),

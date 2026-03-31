@@ -1,0 +1,92 @@
+<section class="suggestion-new-page">
+  <header class="suggestion-new-page__header">
+    <div>
+      <h1>Предложить внешний курс</h1>
+      <p>Сотрудник отправляет ссылку, провайдера и бюджет, а HR решает, открывать ли набор на этот курс.</p>
+    </div>
+
+    <a mat-stroked-button routerLink="/suggestions">
+      <mat-icon>arrow_back</mat-icon>
+      К предложениям
+    </a>
+  </header>
+
+  <mat-card>
+    <mat-card-content>
+      @if (loadingOptions()) {
+        <p>Подготавливаю форму...</p>
+      } @else {
+        <form class="suggestion-form" [formGroup]="form" (ngSubmit)="submit()">
+          <mat-form-field appearance="outline">
+            <mat-label>Название курса</mat-label>
+            <input matInput formControlName="title" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Провайдер</mat-label>
+            <input matInput formControlName="provider_name" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="suggestion-form__wide">
+            <mat-label>Ссылка на курс</mat-label>
+            <input matInput formControlName="external_url" placeholder="https://..." />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="suggestion-form__wide">
+            <mat-label>Описание</mat-label>
+            <textarea matInput rows="4" formControlName="description"></textarea>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Стоимость</mat-label>
+            <input matInput formControlName="price" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Валюта</mat-label>
+            <mat-select formControlName="price_currency">
+              <mat-option value="RUB">RUB</mat-option>
+              <mat-option value="USD">USD</mat-option>
+              <mat-option value="EUR">EUR</mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Длительность (часы)</mat-label>
+            <input matInput formControlName="duration_hours" />
+          </mat-form-field>
+
+          @if (approvers().length > 0) {
+            <mat-form-field appearance="outline">
+              <mat-label>Руководитель-апрувер</mat-label>
+              <mat-select formControlName="approver_id">
+                <mat-option value="">Без руководителя</mat-option>
+                @for (user of approvers(); track user.id) {
+                  <mat-option [value]="user.id">{{ approverLabel(user) }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+          }
+
+          @if (directoryUnavailable()) {
+            <p class="suggestion-form__hint">
+              Выбор руководителя сейчас недоступен из текущего профиля. Предложение можно отправить и без него.
+            </p>
+          }
+
+          @if (error()) {
+            <p class="suggestion-form__error">{{ error() }}</p>
+          }
+
+          <div class="suggestion-form__actions">
+            <button mat-flat-button color="primary" type="submit" [disabled]="submitting()">
+              <mat-icon>send</mat-icon>
+              Отправить предложение
+            </button>
+            <a mat-stroked-button routerLink="/suggestions">Отмена</a>
+          </div>
+        </form>
+      }
+    </mat-card-content>
+  </mat-card>
+</section>

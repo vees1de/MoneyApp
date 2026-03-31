@@ -1,0 +1,70 @@
+<section class="pending-manager-page">
+  <header class="pending-manager-page__header">
+    <div>
+      <h1>Заявки на мой апрув</h1>
+      <p>Руководитель подтверждает, что сотрудник может идти дальше к HR.</p>
+    </div>
+
+    <a mat-stroked-button routerLink="/intakes">
+      <mat-icon>view_list</mat-icon>
+      Все наборы
+    </a>
+  </header>
+
+  @if (loading()) {
+    <section class="pending-manager-grid pending-manager-grid--skeleton">
+      <div class="pending-skeleton"></div>
+      <div class="pending-skeleton"></div>
+    </section>
+  } @else if (error()) {
+    <p class="pending-manager-page__error">{{ error() }}</p>
+  } @else if (applications().length === 0) {
+    <p class="pending-manager-page__empty">На вашем согласовании сейчас нет заявок.</p>
+  } @else {
+    <section class="pending-manager-grid">
+      @for (application of applications(); track application.id) {
+        <mat-card class="pending-card">
+          <mat-card-header>
+            <mat-card-title>{{ applicantLabel(application.applicant_id) }}</mat-card-title>
+            <mat-card-subtitle>{{ statusLabel(application.status) }}</mat-card-subtitle>
+          </mat-card-header>
+
+          <mat-card-content class="pending-card__content">
+            <p><span class="kv__key">Набор:</span> <a class="kv__value" [routerLink]="'/intakes/' + application.intake_id">{{ intakeTitle(application.intake_id) }}</a></p>
+            <p><span class="kv__key">Мотивация:</span> <span class="kv__value">{{ application.motivation || '—' }}</span></p>
+            <p><span class="kv__key">Создано:</span> <span class="kv__value">{{ application.created_at | date: 'dd.MM.yyyy HH:mm' }}</span></p>
+
+            @if (canReview(application)) {
+              <mat-form-field appearance="outline" class="pending-card__comment">
+                <mat-label>Комментарий руководителя</mat-label>
+                <textarea
+                  matInput
+                  rows="3"
+                  [value]="comment(application.id)"
+                  (input)="setComment(application.id, $any($event.target).value)"
+                ></textarea>
+              </mat-form-field>
+            }
+
+            <div class="pending-card__actions">
+              @if (canReview(application)) {
+                <button mat-flat-button color="primary" type="button" (click)="approve(application)" [disabled]="acting()">
+                  <mat-icon>check_circle</mat-icon>
+                  Одобрить
+                </button>
+                <button mat-stroked-button type="button" (click)="reject(application)" [disabled]="acting()">
+                  <mat-icon>cancel</mat-icon>
+                  Отклонить
+                </button>
+              }
+              <a mat-stroked-button [routerLink]="'/intakes/' + application.intake_id">
+                <mat-icon>open_in_new</mat-icon>
+                Детали набора
+              </a>
+            </div>
+          </mat-card-content>
+        </mat-card>
+      }
+    </section>
+  }
+</section>

@@ -7,6 +7,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatToolbarModule } from '@angular/material/toolbar';
 
 import { AuthStateService } from '@core/auth/auth-state.service';
+import { PERMISSIONS } from '@core/auth/permissions';
 
 interface HeaderNotification {
   id: string;
@@ -40,14 +41,53 @@ export class AppShellComponent {
 
   protected readonly authState = inject(AuthStateService);
   protected readonly notificationsOpen = signal(false);
-  protected readonly navItems: HeaderNavItem[] = [
-    { label: 'Курсы', route: '/catalog' },
-    { label: 'Назначения', route: '/my-learning' },
-    { label: 'Заявления', route: '/external-requests' },
-    { label: 'Прогресс', route: '/reports/progress' },
-    { label: 'Календарь', route: '/calendar' },
-    { label: 'Аналитика', route: '/reports/overview' },
-  ];
+  protected readonly navItems = computed<HeaderNavItem[]>(() => {
+    const items: Array<HeaderNavItem & { visible: boolean }> = [
+      {
+        label: 'Курсы',
+        route: '/catalog',
+        visible: this.authState.hasPermission(PERMISSIONS.coursesRead),
+      },
+      {
+        label: 'Наборы',
+        route: '/intakes',
+        visible: true,
+      },
+      {
+        label: 'Заявки',
+        route: '/applications/my',
+        visible: true,
+      },
+      {
+        label: 'Предложения',
+        route: '/suggestions',
+        visible: true,
+      },
+      {
+        label: 'Назначения',
+        route: '/my-learning',
+        visible: this.authState.hasAnyPermission([
+          PERMISSIONS.enrollmentsRead,
+          PERMISSIONS.enrollmentsManage,
+        ]),
+      },
+      {
+        label: 'Календарь',
+        route: '/calendar',
+        visible: this.authState.hasPermission(PERMISSIONS.enrollmentsRead),
+      },
+      {
+        label: 'Аналитика',
+        route: '/reports/overview',
+        visible: this.authState.hasAnyPermission([
+          PERMISSIONS.analyticsReadHr,
+          PERMISSIONS.analyticsReadManager,
+        ]),
+      },
+    ];
+
+    return items.filter((item) => item.visible);
+  });
   protected readonly notifications = signal<HeaderNotification[]>([
     {
       id: 'n-1',
@@ -72,6 +112,10 @@ export class AppShellComponent {
   }
 
   protected isActive(route: string): boolean {
+    if (route === '/applications/my') {
+      return this.router.url.startsWith('/applications');
+    }
+
     return this.router.url.startsWith(route);
   }
 
