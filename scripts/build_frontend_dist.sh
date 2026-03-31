@@ -7,6 +7,8 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 FRONTEND_DIR="${REPO_ROOT}/frontend"
 OUTPUT_DIR="${1:-/opt/moneyapp/frontend/dist}"
 ENV_FILE="${REPO_ROOT}/.env"
+ANGULAR_BROWSER_DIST_DIR="${FRONTEND_DIR}/dist/frontend/browser"
+LEGACY_DIST_DIR="${FRONTEND_DIR}/dist"
 
 cleanup() {
   :
@@ -39,17 +41,22 @@ if [[ ! -d "${FRONTEND_DIR}/node_modules" ]]; then
 fi
 
 echo "building frontend in ${FRONTEND_DIR}"
+rm -rf "${LEGACY_DIST_DIR}"
 (
   cd "${FRONTEND_DIR}"
   npm run build
 )
 
-if [[ ! -d "${FRONTEND_DIR}/dist" ]]; then
-  echo "frontend build did not produce ${FRONTEND_DIR}/dist" >&2
+if [[ -d "${ANGULAR_BROWSER_DIST_DIR}" ]]; then
+  BUILD_OUTPUT_DIR="${ANGULAR_BROWSER_DIST_DIR}"
+elif [[ -f "${LEGACY_DIST_DIR}/index.html" ]]; then
+  BUILD_OUTPUT_DIR="${LEGACY_DIST_DIR}"
+else
+  echo "frontend build did not produce a deployable static bundle" >&2
   exit 1
 fi
 
 rm -rf "${OUTPUT_DIR}"
 mkdir -p "${OUTPUT_DIR}"
-cp -R "${FRONTEND_DIR}/dist/." "${OUTPUT_DIR}/"
+cp -R "${BUILD_OUTPUT_DIR}/." "${OUTPUT_DIR}/"
 chmod -R a+rX "${OUTPUT_DIR}"

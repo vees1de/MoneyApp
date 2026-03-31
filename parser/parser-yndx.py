@@ -1,19 +1,14 @@
 # -*- coding: utf-8 -*-
 """
-Парсер каталога Яндекс Практикум (https://practicum.yandex.ru/catalog/).
+Парсер каталога Яндекс Практикум.
 
-Стратегия: извлекаем window.__preloadedData__ из HTML — там лежит готовый JSON
-со всеми курсами, тегами, ценами и датами старта.
+Парсит https://practicum.yandex.ru/catalog/ и сохраняет результат
+в JSON-файл (data/yndx-courses.json).
 
-Собирает: название, цена, ближайший старт, длительность, уровень,
-категория (специализация), теги (skill_tags), ссылку на курс.
-
-Результат синхронизируется с БД MoneyApp:
-  - providers        -> upsert "Яндекс Практикум"
-  - course_categories -> upsert категории
-  - skill_tags        -> upsert теги
-  - courses           -> upsert курсы (по external_url)
-  - course_skill_tags -> связь курс <-> тег
+Запуск:
+  .venv/bin/python parser-yndx.py --no-headless
+  .venv/bin/python parser-yndx.py --no-headless --verbose
+  .venv/bin/python parser-yndx.py --no-headless -o my-output.json
 """
 
 import json
@@ -21,21 +16,11 @@ import os
 import re
 import sys
 import time
-import uuid
 import logging
-from datetime import datetime, date
+from datetime import date
 from pathlib import Path
 from urllib.parse import urljoin
 
-from dotenv import load_dotenv
-
-# Загружаем .env из корня проекта (MoneyApp/.env)
-_project_root = Path(__file__).resolve().parent.parent
-_env_path = _project_root / ".env"
-load_dotenv(_env_path)
-
-import psycopg2
-import psycopg2.extras
 import undetected_chromedriver as uc
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -48,29 +33,7 @@ CATALOG_URL = "https://practicum.yandex.ru/catalog/"
 PROVIDER_NAME = "Яндекс Практикум"
 PROVIDER_WEBSITE = "https://practicum.yandex.ru"
 
-
-def _build_database_url():
-    """Собирает DATABASE_URL из .env переменных или берёт готовый."""
-    # Если задан DATABASE_URL напрямую — используем его
-    url = os.getenv("DATABASE_URL")
-    if url:
-        return url
-
-    # Иначе собираем из отдельных переменных
-    db = os.getenv("POSTGRES_DB", "moneyapp")
-    user = os.getenv("POSTGRES_USER", "moneyapp")
-    password = os.getenv("POSTGRES_PASSWORD", "")
-    host = os.getenv("POSTGRES_HOST", "localhost")
-    port = os.getenv("POSTGRES_PORT", "5432")
-
-    # Если порт указан внутри хоста (POSTGRES_HOST=1.2.3.4:5432)
-    if ":" in host:
-        host, port = host.rsplit(":", 1)
-
-    return "postgres://%s:%s@%s:%s/%s?sslmode=disable" % (user, password, host, port, db)
-
-
-DATABASE_URL = _build_database_url()
+DEFAULT_OUTPUT = str(Path(__file__).resolve().parent / "data" / "yndx-courses.json")
 
 logging.basicConfig(
     level=logging.DEBUG if "--verbose" in sys.argv else logging.INFO,
@@ -82,23 +45,22 @@ log = logging.getLogger("parser-yndx")
 # Selenium
 # ---------------------------------------------------------------------------
 
-def build_driver(headless=True):
+def build_driver():
     options = uc.ChromeOptions()
     options.add_argument("--window-size=1600,2400")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
 
-    use_headless = headless and "--no-headless" not in sys.argv
-    log.info("Запуск undetected Chrome (headless=%s, version_main=146)...", use_headless)
+    use_headless = "--no-headless" not in sys.argv
+    log.info("Запуск Chrome (headless=%s, version_main=146)...", use_headless)
     driver = uc.Chrome(options=options, headless=use_headless, version_main=146)
-    # Даём Chrome стабилизироваться перед навигацией
     time.sleep(2)
     log.info("Chrome запущен")
     return driver
 
 
 # ---------------------------------------------------------------------------
-# Маппинг уровней
+# Маппинг
 # ---------------------------------------------------------------------------
 
 LEVEL_MAP = {
@@ -107,7 +69,6 @@ LEVEL_MAP = {
     "degree": "advanced",
 }
 
-# slug тегов-категорий (tag_type == "head") -> наше название категории
 HEAD_TAG_SLUGS = {
     "programming": "Программирование",
     "data-analysis": "Анализ данных",
@@ -119,52 +80,45 @@ HEAD_TAG_SLUGS = {
     "prof": "Кем стать в IT",
 }
 
-CATEGORIES = list(HEAD_TAG_SLUGS.values())
-
 
 # ---------------------------------------------------------------------------
 # Извлечение __preloadedData__
 # ---------------------------------------------------------------------------
 
 def extract_preloaded_data(driver):
-    """Извлекает window.__preloadedData__ из страницы через JS."""
-    log.info("Пытаемся извлечь window.__preloadedData__ через JS...")
+    log.info("Извлекаем window.__preloadedData__...")
 
     data = driver.execute_script("return window.__preloadedData__;")
     if data:
-        log.info("window.__preloadedData__ получен через JS execute")
+        log.info("Получен через JS execute")
         return data
 
-    # Фоллбэк: ищем в HTML source через regex
-    log.warning("JS execute вернул None, пробуем regex по page_source...")
+    log.warning("JS вернул None, пробуем regex...")
     html = driver.page_source
-    log.debug("Длина page_source: %d символов", len(html))
 
-    pattern = r'window\.__preloadedData__\s*=\s*(\{.*?\})\s*;?\s*</script>'
-    m = re.search(pattern, html, re.DOTALL)
+    m = re.search(r'window\.__preloadedData__\s*=\s*(\{.*?\})\s*;?\s*</script>', html, re.DOTALL)
     if m:
-        raw = m.group(1)
-        log.info("Найден __preloadedData__ через regex, длина JSON: %d", len(raw))
-        return json.loads(raw)
+        return json.loads(m.group(1))
 
-    # Сохраняем HTML для отладки
     debug_path = os.path.join(os.path.dirname(__file__), "debug_page.html")
     with open(debug_path, "w", encoding="utf-8") as f:
         f.write(html)
-    log.error("Не удалось найти __preloadedData__! HTML сохранён в %s", debug_path)
+    log.error("__preloadedData__ не найден! HTML -> %s", debug_path)
     return None
 
 
+# ---------------------------------------------------------------------------
+# Парсинг данных
+# ---------------------------------------------------------------------------
+
 def parse_preloaded_data(data):
-    """Парсит структуру __preloadedData__ и возвращает список курсов."""
     api_data = data.get("apiData", {})
     log.info("Ключи apiData: %s", list(api_data.keys()))
 
-    # --- Теги (getProfessionTags) ---
+    # Теги
     tags_raw = api_data.get("getProfessionTags", [])
-    log.info("Найдено тегов (getProfessionTags): %d", len(tags_raw))
+    log.info("Тегов: %d", len(tags_raw))
 
-    # Строим справочник тегов по id
     tags_by_id = {}
     for t in tags_raw:
         tags_by_id[t["id"]] = {
@@ -172,18 +126,13 @@ def parse_preloaded_data(data):
             "slug": t["slug"],
             "tag_type": t.get("tag_type", ""),
         }
-        log.debug("  Тег: %-30s  type=%-8s  slug=%s", t["name"], t.get("tag_type"), t["slug"])
 
-    # --- Курсы / профессии ---
-    # Ищем все ключи, которые содержат массив курсов
+    # Курсы
     profession_keys = [
         "getV2CatalogProfessions",
         "getCatalogProfessions",
         "getProfessions",
         "getCatalog",
-        "getProfessionCatalog",
-        "catalog",
-        "professions",
     ]
 
     professions_raw = []
@@ -194,89 +143,47 @@ def parse_preloaded_data(data):
             professions_raw = val
             used_key = key
             break
-        elif isinstance(val, dict):
-            # Может быть dict с items/results
-            for sub in ("items", "results", "professions", "courses"):
-                if isinstance(val.get(sub), list):
-                    professions_raw = val[sub]
-                    used_key = "%s.%s" % (key, sub)
-                    break
 
     if not professions_raw:
-        # Перебираем все ключи apiData для поиска массивов с курсами
-        log.warning("Известные ключи не найдены, сканируем все ключи apiData...")
         for key, val in api_data.items():
-            if key == "getProfessionTags" or key == "errors":
+            if key in ("getProfessionTags", "errors", "getProfessionTagGroups"):
                 continue
             if isinstance(val, list) and len(val) > 2:
-                # Проверяем, похоже ли на курсы (есть title или name)
                 sample = val[0] if val else {}
-                if isinstance(sample, dict) and ("title" in sample or "name" in sample or "slug" in sample):
+                if isinstance(sample, dict) and ("name" in sample or "title" in sample):
                     professions_raw = val
                     used_key = key
-                    log.info("Найден подходящий ключ: '%s' (%d элементов)", key, len(val))
                     break
-            elif isinstance(val, dict):
-                for sub_key, sub_val in val.items():
-                    if isinstance(sub_val, list) and len(sub_val) > 2:
-                        sample = sub_val[0] if sub_val else {}
-                        if isinstance(sample, dict) and ("title" in sample or "name" in sample):
-                            professions_raw = sub_val
-                            used_key = "%s.%s" % (key, sub_key)
-                            log.info("Найден подходящий вложенный ключ: '%s' (%d элементов)", used_key, len(sub_val))
-                            break
 
     if not professions_raw:
-        log.error("Не найден массив курсов в apiData!")
-        log.error("Доступные ключи и типы:")
-        for k, v in api_data.items():
-            if isinstance(v, list):
-                log.error("  '%s': list[%d]  sample=%s", k, len(v), str(v[0])[:200] if v else "empty")
-            elif isinstance(v, dict):
-                log.error("  '%s': dict keys=%s", k, list(v.keys())[:10])
-            else:
-                log.error("  '%s': %s = %s", k, type(v).__name__, str(v)[:100])
+        log.error("Массив курсов не найден в apiData!")
         return []
 
-    log.info("Используем ключ '%s': %d элементов", used_key, len(professions_raw))
+    log.info("Ключ '%s': %d курсов", used_key, len(professions_raw))
 
-    # Логируем первый элемент для понимания структуры
     if professions_raw:
         sample = professions_raw[0]
-        log.info("Пример элемента (ключи): %s", list(sample.keys()) if isinstance(sample, dict) else type(sample))
-        # Дампим первый элемент полностью для дебага полей
-        log.info("=== ПОЛНЫЙ ДАМП ПЕРВОГО ЭЛЕМЕНТА ===")
-        for k, v in sample.items():
-            log.info("  field %-30s = %s", k, repr(v)[:200])
-        log.info("=== КОНЕЦ ДАМПА ===")
+        log.info("Поля первого элемента: %s", list(sample.keys()) if isinstance(sample, dict) else type(sample))
 
-    # --- Парсим каждый курс ---
     courses = []
     for idx, item in enumerate(professions_raw):
         if not isinstance(item, dict):
-            log.debug("  [%d] пропуск — не dict: %s", idx, type(item))
             continue
 
-        # name — основное поле названия в Практикуме
         title = item.get("name") or item.get("title") or ""
-        # Убираем неразрывные пробелы
         title = title.replace("\xa0", " ")
         if not title:
-            log.debug("  [%d] пропуск — нет name/title", idx)
             continue
 
         slug = item.get("slug", "")
-        # URL строится как /profession/<slug>/ или /course/<slug>/
         item_type = item.get("type", "default")
         if slug:
-            if item_type in ("degree",):
-                external_url = PROVIDER_WEBSITE + "/degree/" + slug + "/"
-            else:
-                external_url = PROVIDER_WEBSITE + "/profession/" + slug + "/"
+            prefix = "degree" if item_type == "degree" else "profession"
+            external_url = PROVIDER_WEBSITE + "/" + prefix + "/" + slug + "/"
         else:
             external_url = ""
 
-        # Цена — число или null
+        # Цена
         price = None
         price_currency = "RUB"
         price_raw = item.get("price")
@@ -284,37 +191,26 @@ def parse_preloaded_data(data):
         if isinstance(price_raw, (int, float)):
             price = float(price_raw)
         elif price_raw is None:
-            # Бесплатный курс или цена не указана
             price = 0.0 if item.get("able_to_purchase") is False else None
-
         if currency_raw and isinstance(currency_raw, str):
             price_currency = currency_raw.upper()
 
-        # partial_price — цена в рассрочку (для справки)
-        partial_price = item.get("partial_price")
-
-        # Длительность — приходит в месяцах, конвертируем в часы (1 мес ~ 80 ч)
+        # Длительность (месяцы -> часы)
         duration_hours = None
         duration_raw = item.get("duration")
         if isinstance(duration_raw, (int, float)) and duration_raw > 0:
             duration_hours = int(duration_raw) * 80
 
-        # Ближайший старт — нет в каталоге, но может быть в landingsData
-        next_start = None
-
-        # Теги
+        # Теги, категория, уровень
         tag_names = []
         category = None
         level = None
 
-        # Теги могут быть как массив id, так и массив объектов
-        item_tags = item.get("tags") or item.get("tag_ids") or item.get("tagIds") or []
-        for tag_ref in item_tags:
+        for tag_ref in (item.get("tags") or []):
             tag_id = tag_ref if isinstance(tag_ref, str) else tag_ref.get("id", "") if isinstance(tag_ref, dict) else ""
             tag_info = tags_by_id.get(tag_id)
 
             if not tag_info:
-                # Если tag_ref — объект с name
                 if isinstance(tag_ref, dict) and tag_ref.get("name"):
                     tag_names.append(tag_ref["name"])
                     tag_slug = tag_ref.get("slug", "")
@@ -330,37 +226,33 @@ def parse_preloaded_data(data):
             if tag_info["slug"] in LEVEL_MAP:
                 level = LEVEL_MAP[tag_info["slug"]]
 
-        # Уровень может быть и отдельным полем
         if not level:
             level_raw = item.get("level") or item.get("difficulty") or ""
             if isinstance(level_raw, str):
-                level_raw_lower = level_raw.lower()
-                if level_raw_lower in LEVEL_MAP:
-                    level = LEVEL_MAP[level_raw_lower]
-                elif level_raw_lower in ("beginner", "intermediate", "advanced"):
-                    level = level_raw_lower
+                ll = level_raw.lower()
+                if ll in LEVEL_MAP:
+                    level = LEVEL_MAP[ll]
+                elif ll in ("beginner", "intermediate", "advanced"):
+                    level = ll
 
         log.info(
-            "  [%d] %-45s | level=%-10s | price=%-8s | start=%-12s | dur=%-5s | cat=%-20s | tags=%s",
-            idx,
-            title[:45],
-            level or "-",
+            "  [%d] %-45s | %-10s | price=%-8s | dur=%-5s | cat=%-20s | tags=%s",
+            idx, title[:45], level or "-",
             price if price is not None else "-",
-            str(next_start) if next_start else "-",
-            duration_hours or "-",
-            category or "-",
+            duration_hours or "-", category or "-",
             ", ".join(tag_names[:5]) or "-",
         )
 
         courses.append({
             "title": title,
             "external_url": external_url,
+            "provider": PROVIDER_NAME,
             "category": category,
             "level": level,
             "price": price,
             "price_currency": price_currency,
             "duration_hours": duration_hours,
-            "next_start_date": next_start,
+            "next_start_date": None,
             "tags": tag_names,
         })
 
@@ -368,45 +260,37 @@ def parse_preloaded_data(data):
 
 
 # ---------------------------------------------------------------------------
-# Scraping
+# Scraping с retry
 # ---------------------------------------------------------------------------
 
 def wait_for_page_load(driver, max_wait=30):
-    """Ждём пока капча пройдёт и страница загрузится."""
-    log.info("Проверяем наличие капчи...")
-    for attempt in range(max_wait):
+    log.info("Проверяем капчу...")
+    for i in range(max_wait):
         title = driver.title or ""
-        log.info("  [%d/%d] title='%s'", attempt + 1, max_wait, title)
+        log.info("  [%d/%d] title='%s'", i + 1, max_wait, title)
 
         if "робот" in title.lower() or "captcha" in title.lower():
-            # Капча — SmartCaptcha Яндекса автоматически решается
-            # для undetected_chromedriver, просто ждём
-            log.info("  Капча обнаружена, ждём автопрохождение...")
+            log.info("  Капча, ждём...")
             time.sleep(2)
             continue
 
-        # Проверяем есть ли __preloadedData__
         has_data = driver.execute_script(
             "return typeof window.__preloadedData__ !== 'undefined'"
         )
         if has_data:
             log.info("  __preloadedData__ доступен!")
             return True
-
-        # Страница загружена но без preloadedData — ждём гидратацию
         time.sleep(1)
 
-    log.warning("Не дождались загрузки страницы за %d сек", max_wait)
+    log.warning("Не дождались загрузки за %d сек", max_wait)
     return False
 
 
 def scrape_catalog():
-    """Загружает страницу каталога и извлекает данные."""
     max_retries = 3
     driver = None
 
     for attempt in range(1, max_retries + 1):
-        # Закрываем предыдущий драйвер если был
         if driver:
             try:
                 driver.quit()
@@ -416,34 +300,28 @@ def scrape_catalog():
         driver = build_driver()
 
         try:
-            log.info("[попытка %d/%d] Загрузка %s ...", attempt, max_retries, CATALOG_URL)
+            log.info("[попытка %d/%d] Загрузка %s", attempt, max_retries, CATALOG_URL)
             driver.get(CATALOG_URL)
 
-            log.info("Ожидание загрузки body...")
             WebDriverWait(driver, 25).until(
                 EC.presence_of_element_located((By.TAG_NAME, "body"))
             )
             time.sleep(2)
 
-            # Ждём прохождения капчи и загрузки данных
-            page_ok = wait_for_page_load(driver, max_wait=40)
-            if not page_ok:
-                log.warning("Страница не загрузилась, пробуем извлечь что есть...")
+            wait_for_page_load(driver, max_wait=40)
 
-            # Попробуем извлечь preloadedData
             preloaded = extract_preloaded_data(driver)
             if not preloaded:
-                log.error("preloadedData не найден — парсинг невозможен")
-                log.error("Попробуйте запустить с --no-headless для ручного прохождения капчи")
+                log.error("preloadedData не найден")
+                log.error("Попробуйте --no-headless")
                 return []
 
-            # Если дошли сюда — всё ок, выходим из retry-цикла
             break
 
         except Exception as e:
             log.warning("[попытка %d/%d] Ошибка: %s", attempt, max_retries, e)
             if attempt == max_retries:
-                log.error("Все %d попыток исчерпаны", max_retries)
+                log.error("Все попытки исчерпаны")
                 try:
                     driver.quit()
                 except Exception:
@@ -453,22 +331,9 @@ def scrape_catalog():
             time.sleep(3)
             continue
 
-        # Логируем верхнеуровневые ключи
-        log.info("Верхние ключи __preloadedData__: %s", list(preloaded.keys()))
-        api_data = preloaded.get("apiData", {})
-        log.info("Ключи apiData: %s", list(api_data.keys()))
-        for k, v in api_data.items():
-            if isinstance(v, list):
-                log.info("  apiData['%s']: list, %d элементов", k, len(v))
-            elif isinstance(v, dict):
-                log.info("  apiData['%s']: dict, ключи: %s", k, list(v.keys())[:8])
-            else:
-                log.info("  apiData['%s']: %s", k, type(v).__name__)
-
-    # Вне retry-цикла — данные получены
     try:
         courses = parse_preloaded_data(preloaded)
-        log.info("Итого спарсено курсов: %d", len(courses))
+        log.info("Спарсено курсов: %d", len(courses))
         return courses
     finally:
         if driver:
@@ -480,199 +345,55 @@ def scrape_catalog():
 
 
 # ---------------------------------------------------------------------------
-# Database sync
+# Сохранение в JSON
 # ---------------------------------------------------------------------------
 
-def slugify(text):
-    text = text.lower().strip()
-    text = re.sub(r"[^\w\s-]", "", text)
-    text = re.sub(r"[\s_]+", "-", text)
-    return text[:120]
+def save_json(courses, output_path):
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
+    # date -> str для сериализации
+    for c in courses:
+        if isinstance(c.get("next_start_date"), date):
+            c["next_start_date"] = c["next_start_date"].isoformat()
 
-def sync_to_db(courses):
-    """Синхронизирует спарсенные курсы с PostgreSQL."""
-    log.info("Подключение к БД: %s", DATABASE_URL.split("@")[-1])  # без пароля
-    conn = psycopg2.connect(DATABASE_URL)
-    conn.autocommit = False
-    cur = conn.cursor()
-    now = datetime.utcnow()
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump({
+            "provider": PROVIDER_NAME,
+            "provider_website": PROVIDER_WEBSITE,
+            "parsed_at": date.today().isoformat(),
+            "total": len(courses),
+            "courses": courses,
+        }, f, ensure_ascii=False, indent=2)
 
-    try:
-        # 1. Upsert provider
-        provider_id = str(uuid.uuid5(uuid.NAMESPACE_URL, PROVIDER_WEBSITE))
-        cur.execute(
-            """
-            INSERT INTO providers (id, type, name, website_url, is_active, created_at, updated_at)
-            VALUES (%s, 'external', %s, %s, true, %s, %s)
-            ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, updated_at = EXCLUDED.updated_at
-            """,
-            (provider_id, PROVIDER_NAME, PROVIDER_WEBSITE, now, now),
-        )
-        log.info("Provider upserted: %s (%s)", PROVIDER_NAME, provider_id)
-
-        # 2. Upsert categories
-        cat_ids = {}
-        for cat_name in CATEGORIES:
-            cat_code = slugify(cat_name)
-            cat_id = str(uuid.uuid5(uuid.NAMESPACE_URL, "yndx-cat:" + cat_code))
-            cur.execute(
-                """
-                INSERT INTO course_categories (id, name, code, is_active)
-                VALUES (%s, %s, %s, true)
-                ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name
-                RETURNING id
-                """,
-                (cat_id, cat_name, cat_code),
-            )
-            cat_ids[cat_name] = str(cur.fetchone()[0])
-        log.info("Категории upserted: %d", len(cat_ids))
-
-        # 3. Upsert skill tags
-        tag_ids = {}
-
-        def ensure_tag(tag_name):
-            if tag_name in tag_ids:
-                return tag_ids[tag_name]
-            slug = slugify(tag_name)
-            tag_id = str(uuid.uuid5(uuid.NAMESPACE_URL, "tag:" + slug))
-            cur.execute(
-                """
-                INSERT INTO skill_tags (id, name, slug)
-                VALUES (%s, %s, %s)
-                ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name
-                RETURNING id
-                """,
-                (tag_id, tag_name, slug),
-            )
-            tag_ids[tag_name] = str(cur.fetchone()[0])
-            return tag_ids[tag_name]
-
-        # 4. Upsert courses
-        created = 0
-        updated = 0
-
-        for c in courses:
-            course_slug = slugify(c["title"])[:550]
-            category_id = cat_ids.get(c["category"]) if c["category"] else None
-
-            cur.execute(
-                "SELECT id FROM courses WHERE external_url = %s",
-                (c["external_url"],),
-            )
-            row = cur.fetchone()
-
-            if row:
-                course_id = str(row[0])
-                cur.execute(
-                    """
-                    UPDATE courses SET
-                        title = %s,
-                        slug = %s,
-                        category_id = %s,
-                        level = %s,
-                        duration_hours = %s,
-                        price = %s,
-                        price_currency = %s,
-                        next_start_date = %s,
-                        status = 'published',
-                        updated_at = %s
-                    WHERE id = %s
-                    """,
-                    (
-                        c["title"], course_slug, category_id, c["level"],
-                        c["duration_hours"], c["price"], c["price_currency"],
-                        c["next_start_date"], now, course_id,
-                    ),
-                )
-                updated += 1
-                log.debug("  UPDATE '%s'", c["title"])
-            else:
-                course_id = str(uuid.uuid4())
-                cur.execute(
-                    """
-                    INSERT INTO courses (
-                        id, type, source_type, title, slug, provider_id, category_id,
-                        level, duration_hours, language, is_mandatory_default, status,
-                        external_url, price, price_currency, next_start_date,
-                        created_at, updated_at
-                    ) VALUES (
-                        %s, 'external', 'imported', %s, %s, %s, %s,
-                        %s, %s, 'ru', false, 'published',
-                        %s, %s, %s, %s,
-                        %s, %s
-                    )
-                    """,
-                    (
-                        course_id, c["title"], course_slug, provider_id, category_id,
-                        c["level"], c["duration_hours"],
-                        c["external_url"], c["price"], c["price_currency"],
-                        c["next_start_date"], now, now,
-                    ),
-                )
-                created += 1
-                log.debug("  INSERT '%s'", c["title"])
-
-            # 5. Sync skill tags
-            cur.execute("DELETE FROM course_skill_tags WHERE course_id = %s", (course_id,))
-            for tag_name in c.get("tags", []):
-                tid = ensure_tag(tag_name)
-                cur.execute(
-                    """
-                    INSERT INTO course_skill_tags (course_id, skill_tag_id)
-                    VALUES (%s, %s) ON CONFLICT DO NOTHING
-                    """,
-                    (course_id, tid),
-                )
-
-        conn.commit()
-        log.info("Синхронизация завершена: создано %d, обновлено %d", created, updated)
-
-    except Exception:
-        conn.rollback()
-        log.exception("Ошибка при синхронизации с БД")
-        raise
-    finally:
-        cur.close()
-        conn.close()
+    log.info("Сохранено в %s (%d курсов)", output_path, len(courses))
 
 
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
+def get_output_path():
+    for i, arg in enumerate(sys.argv):
+        if arg == "-o" and i + 1 < len(sys.argv):
+            return sys.argv[i + 1]
+    return DEFAULT_OUTPUT
+
+
 def main():
     log.info("=" * 60)
-    log.info("Парсер Яндекс Практикум — старт")
+    log.info("Парсер Яндекс Практикум")
     log.info("=" * 60)
 
     courses = scrape_catalog()
 
     if not courses:
         log.warning("Курсы не найдены!")
-        log.warning("Проверьте debug_page.html (если создан) и логи выше")
         sys.exit(1)
 
-    log.info("-" * 60)
-    log.info("РЕЗУЛЬТАТ: %d курсов", len(courses))
-    log.info("-" * 60)
-    for c in courses:
-        log.info(
-            "  %-45s | %-10s | price=%-8s | start=%-12s | dur=%-5s | tags=%s",
-            c["title"][:45],
-            c["level"] or "-",
-            c["price"] if c["price"] is not None else "-",
-            str(c["next_start_date"]) if c["next_start_date"] else "-",
-            c["duration_hours"] or "-",
-            ", ".join(c["tags"][:5]),
-        )
+    log.info("ИТОГО: %d курсов", len(courses))
 
-    if "--dry-run" in sys.argv:
-        log.info("Dry run — синхронизация с БД пропущена")
-        return
-
-    sync_to_db(courses)
-    log.info("Готово!")
+    output_path = get_output_path()
+    save_json(courses, output_path)
 
 
 if __name__ == "__main__":
