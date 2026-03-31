@@ -23,6 +23,9 @@
   - `/dashboard/employee` -> widgets `1,2,3,5,6,7`
   - `/dashboard/trainer` -> widgets `1,2,3,4,5,6,7`
 - `/dashboard/test-role` is a playground page with all widgets, without role switcher.
+- `dashboard/hr` rebuilt to two-column layout:
+  - main column: quick actions, requests board, process board
+  - side column: upcoming calendar events
 
 ## Widget Data Integration Status
 - Connected to backend now:
@@ -33,7 +36,7 @@
     - employee: `GET /external-requests?scope=my&status=manager_approval&status=hr_approval`
     - fallback if filters endpoint unavailable: `GET /external-requests/my` + frontend status filter
     - approver roles: `GET /external-requests/pending-approvals`
-  - current learning (`GET /learning-plan/my`)
+  - current learning / process (`GET /enrollments/my` + `GET /courses`)
   - recommendations (`GET /recommendations/courses`)
   - quick actions counters (`GET /learning-plan/my` + `GET /external-requests/my`)
   - my requests (`GET /external-requests/my`)
@@ -77,8 +80,11 @@
 - cold "diamond" palette on white base
 - subtle gradients and minimal shadows
 - no dark theme planned
+- new radii standard: `24px` and `40px`
+- app font: `Inter_18pt-Regular.ttf` from `/public` applied globally
 
 ## Styling architecture
 - design tokens: `src/styles/tokens.scss`
 - material overrides: `src/styles/material-overrides.scss`
 - global entry: `src/styles.scss`
+- protected shell restyled with horizontal nav + icon actions in `src/app/core/layout/app-shell`

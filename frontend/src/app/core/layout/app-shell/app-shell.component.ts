@@ -15,6 +15,11 @@ interface HeaderNotification {
   read: boolean;
 }
 
+interface HeaderNavItem {
+  label: string;
+  route: string;
+}
+
 @Component({
   selector: 'app-shell',
   standalone: true,
@@ -36,6 +41,14 @@ export class AppShellComponent {
 
   protected readonly authState = inject(AuthStateService);
   protected readonly notificationsOpen = signal(false);
+  protected readonly navItems: HeaderNavItem[] = [
+    { label: 'Курсы', route: '/catalog' },
+    { label: 'Назначения', route: '/my-learning' },
+    { label: 'Заявления', route: '/external-requests' },
+    { label: 'Прогресс', route: '/reports/progress' },
+    { label: 'Календарь', route: '/calendar' },
+    { label: 'Аналитика', route: '/reports/overview' },
+  ];
   protected readonly notifications = signal<HeaderNotification[]>([
     {
       id: 'n-1',
@@ -61,6 +74,10 @@ export class AppShellComponent {
 
   protected toggleNotifications(): void {
     this.notificationsOpen.update((state) => !state);
+  }
+
+  protected isActive(route: string): boolean {
+    return this.router.url.startsWith(route);
   }
 
   protected markAsRead(id: string): void {

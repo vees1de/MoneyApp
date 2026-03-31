@@ -1,16 +1,44 @@
-﻿<app-widget-shell
-  title="Заявки на курс"
+<app-widget-shell
+  title="Заявления"
   listRoute="/external-requests"
   [loading]="loading()"
   [error]="error()"
-  [empty]="cards().length === 0"
+  [empty]="filteredCards().length === 0"
 >
-  <div class="cards">
-    @for (item of cards(); track item.id) {
-      <mat-card>
-        <a [routerLink]="'/external-requests/' + item.id">
-          {{ item.title }} / {{ item.subtitle }}
-        </a>
+  <div class="filters">
+    @for (status of statuses; track status.key) {
+      <button
+        type="button"
+        class="filters__item"
+        [class.filters__item--active]="selectedStatus() === status.key"
+        (click)="setStatus(status.key)"
+      >
+        {{ status.label }}
+        <span>{{ statusCount(status.key) }}</span>
+      </button>
+    }
+  </div>
+
+  <div class="rows">
+    @for (item of filteredCards(); track item.id) {
+      <mat-card class="rows__item">
+        <div class="rows__identity">
+          <a [routerLink]="'/external-requests/' + item.id">
+            <strong>{{ item.employee }}</strong>
+          </a>
+          <small>{{ item.subtitle }}</small>
+        </div>
+
+        <div class="rows__course">
+          <strong>{{ item.title }}</strong>
+          <small>{{ item.status }}</small>
+        </div>
+
+        <div class="rows__amount">{{ item.amount }}</div>
+
+        <div class="rows__action">
+          <a mat-flat-button [routerLink]="'/external-requests/' + item.id">Перейти к заявлению</a>
+        </div>
       </mat-card>
     }
   </div>

@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 
 import { CourseRequestsWidgetComponent } from '@app/widgets/course-requests-widget/course-requests-widget.component';
+import { CurrentLearningWidgetComponent } from '@app/widgets/current-learning-widget/current-learning-widget.component';
 import { QuickActionsWidgetComponent } from '@app/widgets/quick-actions-widget/quick-actions-widget.component';
 import { UpcomingEventsWidgetComponent } from '@app/widgets/upcoming-events-widget/upcoming-events-widget.component';
 
@@ -10,9 +11,10 @@ import { UpcomingEventsWidgetComponent } from '@app/widgets/upcoming-events-widg
   standalone: true,
   imports: [
     CommonModule,
+    QuickActionsWidgetComponent,
     UpcomingEventsWidgetComponent,
     CourseRequestsWidgetComponent,
-    QuickActionsWidgetComponent,
+    CurrentLearningWidgetComponent,
   ],
   templateUrl: './hr.page.html',
   styleUrl: './hr.page.scss',

@@ -1,31 +1,64 @@
-﻿import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { MatListModule } from '@angular/material/list';
+import { MatButtonModule } from '@angular/material/button';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { forkJoin } from 'rxjs';
 
-import { LearningPlanApiService } from '@core/api/learning-plan-api.service';
-import type { LearningPlanItem } from '@core/api/contracts';
+import { CoursesApiService } from '@core/api/courses-api.service';
+import { EnrollmentsApiService } from '@core/api/enrollments-api.service';
+import type { Course } from '@entities/course';
+import type { Enrollment } from '@entities/enrollment';
 import { WidgetShellComponent } from '@app/widgets/widget-shell/widget-shell.component';
+
+interface ProcessItem {
+  id: string;
+  title: string;
+  progress: number;
+  status: string;
+  deadlineText: string;
+  overdue: boolean;
+}
 
 @Component({
   selector: 'app-current-learning-widget',
   standalone: true,
-  imports: [CommonModule, RouterLink, MatListModule, MatProgressBarModule, WidgetShellComponent],
+  imports: [CommonModule, RouterLink, MatButtonModule, MatProgressBarModule, WidgetShellComponent],
   templateUrl: './current-learning-widget.component.html',
   styleUrl: './current-learning-widget.component.scss',
 })
 export class CurrentLearningWidgetComponent implements OnInit {
-  private readonly api = inject(LearningPlanApiService);
+  private readonly enrollmentsApi = inject(EnrollmentsApiService);
+  private readonly coursesApi = inject(CoursesApiService);
 
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
-  protected readonly items = signal<LearningPlanItem[]>([]);
+  protected readonly items = signal<ProcessItem[]>([]);
+  protected readonly selectedTab = signal<string>('all');
+  protected readonly tabs = [
+    { key: 'all', label: 'Все курсы' },
+    { key: 'in_progress', label: 'В процессе' },
+    { key: 'overdue', label: 'Просроченные' },
+    { key: 'completed', label: 'Завершенные' },
+  ];
+  protected readonly filteredItems = computed(() => {
+    const status = this.selectedTab();
+    if (status === 'all') {
+      return this.items();
+    }
+    if (status === 'overdue') {
+      return this.items().filter((item) => item.overdue);
+    }
+    return this.items().filter((item) => item.status === status);
+  });
 
   ngOnInit(): void {
-    this.api.getMyPlan().subscribe({
-      next: (payload) => {
-        this.items.set((payload?.in_progress ?? []).slice(0, 3));
+    forkJoin({
+      enrollments: this.enrollmentsApi.listMy(),
+      courses: this.coursesApi.list({ limit: 300, offset: 0 }),
+    }).subscribe({
+      next: ({ enrollments, courses }) => {
+        this.items.set(this.mapToProcessItems(enrollments ?? [], courses ?? []).slice(0, 8));
         this.loading.set(false);
       },
       error: () => {
@@ -35,11 +68,59 @@ export class CurrentLearningWidgetComponent implements OnInit {
     });
   }
 
-  protected progressValue(item: LearningPlanItem): number {
-    const value = Number(item.completion_percent);
-    if (Number.isNaN(value)) {
+  protected setTab(tab: string): void {
+    this.selectedTab.set(tab);
+  }
+
+  protected tabCount(tab: string): number {
+    if (tab === 'all') {
+      return this.items().length;
+    }
+    if (tab === 'overdue') {
+      return this.items().filter((item) => item.overdue).length;
+    }
+    return this.items().filter((item) => item.status === tab).length;
+  }
+
+  private mapToProcessItems(enrollments: Enrollment[], courses: Course[]): ProcessItem[] {
+    const courseMap = new Map(courses.map((course) => [course.id, course.title]));
+
+    return enrollments.map((item) => {
+      const progress = this.progressValue(item.completion_percent);
+      const deadline = this.deadlineText(item.deadline_at);
+      const isOverdue =
+        item.status !== 'completed' &&
+        !!item.deadline_at &&
+        !Number.isNaN(new Date(item.deadline_at).getTime()) &&
+        new Date(item.deadline_at).getTime() < Date.now();
+
+      return {
+        id: item.id,
+        title: courseMap.get(item.course_id) || `Курс ${item.course_id.slice(0, 8)}`,
+        progress,
+        status: item.status,
+        deadlineText: deadline,
+        overdue: isOverdue,
+      };
+    });
+  }
+
+  private progressValue(value: string): number {
+    const normalized = Number(value);
+    if (Number.isNaN(normalized)) {
       return 0;
     }
-    return Math.max(0, Math.min(100, value));
+    return Math.max(0, Math.min(100, normalized));
+  }
+
+  private deadlineText(date: string | null | undefined): string {
+    if (!date) {
+      return 'Дедлайн не задан';
+    }
+    const parsed = new Date(date);
+    if (Number.isNaN(parsed.getTime())) {
+      return 'Дедлайн не задан';
+    }
+    return `Дедлайн: ${parsed.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}`;
   }
 }

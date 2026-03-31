@@ -7,6 +7,14 @@
 @use './styles/tokens';
 @use './styles/material-overrides';
 
+@font-face {
+  font-family: 'Inter Impuls';
+  src: url('/Inter_18pt-Regular.ttf') format('truetype');
+  font-display: swap;
+  font-style: normal;
+  font-weight: 100 900;
+}
+
 html {
   height: 100%;
   @include mat.theme(
@@ -15,7 +23,7 @@ html {
         primary: mat.$cyan-palette,
         tertiary: mat.$blue-palette,
       ),
-      typography: Roboto,
+      typography: var(--font-family),
       density: 0,
     )
   );
@@ -24,12 +32,14 @@ html {
 body {
   color-scheme: light;
   background:
-    radial-gradient(1200px 480px at 10% -10%, rgb(139 184 209 / 24%), transparent 60%),
-    radial-gradient(900px 420px at 110% 0%, rgb(114 169 201 / 18%), transparent 65%),
+    radial-gradient(1200px 600px at -10% -20%, rgb(181 199 255 / 22%), transparent 60%),
+    radial-gradient(900px 540px at 110% -30%, rgb(190 205 255 / 18%), transparent 62%),
     var(--app-bg);
   color: var(--app-text);
   font-size: 16px;
-  font: var(--mat-sys-body-large);
+  font-family: var(--font-family);
+  font-weight: 400;
+  letter-spacing: 0.01em;
   margin: 0;
   height: 100%;
 }
@@ -46,5 +56,17 @@ a {
 }
 
 a:hover {
-  color: #3d7491;
+  color: var(--app-primary-hover);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  letter-spacing: 0.01em;
+  margin: 0;
+}
+
+p {
+  margin: 0;
 }

@@ -1,13 +1,30 @@
-﻿.actions {
-  column-gap: var(--space-4);
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.summary span {
+  color: var(--app-muted);
+  font-size: 0.9rem;
+}
+
+.summary strong {
+  color: var(--app-text);
+  font-weight: 600;
+}
+
+.actions {
+  column-gap: var(--space-3);
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  row-gap: var(--space-4);
+  row-gap: var(--space-3);
 }
 
 .actions .mat-mdc-outlined-button,
 .actions .mat-mdc-unelevated-button,
 .actions .mat-mdc-button-base {
+  background: var(--app-surface-soft);
   justify-content: flex-start;
-  min-height: 42px;
+  min-height: 44px;
 }

@@ -1,3 +1,71 @@
-﻿:host {
+:host {
   display: block;
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.tabs__item {
+  background: var(--app-surface-soft);
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--app-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 500;
+  padding: 7px 12px;
+}
+
+.tabs__item span {
+  background: #f7cfd5;
+  border-radius: 999px;
+  color: #a13044;
+  margin-left: var(--space-2);
+  padding: 1px 7px;
+}
+
+.tabs__item--active {
+  background: var(--app-primary-soft);
+  border-color: var(--app-ring);
+  color: var(--app-primary);
+}
+
+.cards {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.cards__item {
+  background: var(--app-surface-soft);
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4);
+}
+
+.cards__item--overdue {
+  border-color: rgb(198 40 40 / 28%);
+}
+
+.cards__title {
+  color: var(--app-text);
+  font-weight: 600;
+}
+
+.cards__percent {
+  font-size: 1.85rem;
+  font-weight: 700;
+}
+
+.cards__meta {
+  color: var(--app-muted);
+  display: flex;
+  font-size: 0.82rem;
+  gap: var(--space-4);
 }

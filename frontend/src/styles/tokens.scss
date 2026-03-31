@@ -1,29 +1,37 @@
 :root {
-  --app-bg: #f6f9fc;
+  --app-bg: #f1f3f7;
   --app-surface: #ffffff;
-  --app-surface-soft: #eef4fb;
-  --app-header: #152235;
-  --app-header-accent: #69a8c8;
-  --app-text: #12233a;
-  --app-muted: #5d6f84;
-  --app-border: #cbd9e8;
-  --app-primary: #4f89a8;
-  --app-primary-soft: #d8eaf4;
+  --app-surface-soft: #f7f8fb;
+  --app-surface-muted: #eceef3;
+  --app-header: #ffffff;
+  --app-header-accent: #3a475d;
+  --app-text: #1f242d;
+  --app-muted: #6d7483;
+  --app-border: #dfe3ea;
+  --app-primary: #4f67d7;
+  --app-primary-soft: #e5e9ff;
+  --app-primary-hover: #4058c8;
+  --app-ring: rgb(79 103 215 / 24%);
 
   --status-success: #2e7d32;
-  --status-warning: #ef6c00;
+  --status-warning: #d39200;
   --status-error: #c62828;
-  --status-info: #1565c0;
+  --status-info: #3f51b5;
 
-  --radius-sm: 4px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
+  --radius-sm: 12px;
+  --radius-md: 24px;
+  --radius-lg: 40px;
 
+  --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
   --space-5: 20px;
   --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
 
-  --shadow-card: 0 6px 16px rgb(18 35 58 / 8%);
+  --font-family: 'Inter Impuls', 'Inter', 'Segoe UI', Arial, sans-serif;
+  --shadow-card: 0 10px 30px rgb(17 24 39 / 6%);
+  --shadow-soft: 0 4px 16px rgb(17 24 39 / 4%);
 }

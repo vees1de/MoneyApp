@@ -1,10 +1,10 @@
-:host {
+﻿:host {
   display: block;
 }
 
 .dashboard-grid {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--space-6);
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
@@ -28,6 +28,7 @@
 
 @media (max-width: 760px) {
   .dashboard-grid {
+    gap: var(--space-4);
     grid-template-columns: 1fr;
   }
 

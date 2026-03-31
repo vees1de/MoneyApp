@@ -1,10 +1,23 @@
 <div class="shell">
-  <mat-toolbar>
-    <span class="shell__brand">Diamond Learning</span>
+  <mat-toolbar class="shell__toolbar">
+    <span class="shell__brand">ИМПУЛЬС</span>
 
     @if (showBackButton) {
-      <button mat-stroked-button type="button" (click)="goBack()">Назад</button>
+      <button mat-stroked-button type="button" class="shell__back" (click)="goBack()">Назад</button>
     }
+
+    <nav class="shell__nav">
+      @for (item of navItems; track item.route) {
+        <a
+          mat-button
+          [routerLink]="item.route"
+          [class.shell__nav-link--active]="isActive(item.route)"
+          class="shell__nav-link"
+        >
+          {{ item.label }}
+        </a>
+      }
+    </nav>
 
     <span class="spacer"></span>
 
@@ -37,12 +50,11 @@
     </div>
 
     @if (showTestAdminLink()) {
-      <a mat-button routerLink="/testadmin" class="shell__admin-link">HR/Admin</a>
+      <a mat-stroked-button routerLink="/testadmin" class="shell__admin-link">HR/Admin</a>
     }
 
-    <a mat-button routerLink="/profile" class="shell__profile-link">
+    <a mat-icon-button routerLink="/profile" class="shell__profile-link" aria-label="Профиль">
       <mat-icon>person</mat-icon>
-      Профиль
     </a>
   </mat-toolbar>
 

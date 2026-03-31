@@ -1,5 +1,5 @@
-﻿<mat-card class="widget-shell">
-  <mat-card-header>
+<mat-card class="widget-shell">
+  <mat-card-header class="widget-shell__header">
     @if (listRoute()) {
       <a class="widget-shell__title-link" [routerLink]="listRoute()">{{ title() }}</a>
     } @else {
@@ -9,7 +9,7 @@
 
   <mat-card-content class="widget-shell__content">
     @if (loading()) {
-      <p>Loading...</p>
+      <p class="widget-shell__state">Загрузка...</p>
     } @else if (error()) {
       <p class="widget-shell__error">Данные не подгрузились :(</p>
     } @else if (empty()) {

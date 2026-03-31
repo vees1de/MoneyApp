@@ -1,19 +1,37 @@
-﻿<app-widget-shell
-  title="Курсы которые проходит"
+<app-widget-shell
+  title="Процесс"
   listRoute="/my-learning"
   [loading]="loading()"
   [error]="error()"
-  [empty]="items().length === 0"
+  [empty]="filteredItems().length === 0"
 >
-  <mat-list>
-    @for (item of items(); track item.enrollment_id) {
-      <mat-list-item>
-        <div>
-          <a [routerLink]="'/learning/' + item.enrollment_id"><strong>{{ item.title }}</strong></a>
-          <mat-progress-bar mode="determinate" [value]="progressValue(item)"></mat-progress-bar>
-          <small>Прогресс: {{ progressValue(item) }}%</small>
-        </div>
-      </mat-list-item>
+  <div class="tabs">
+    @for (tab of tabs; track tab.key) {
+      <button
+        type="button"
+        class="tabs__item"
+        [class.tabs__item--active]="selectedTab() === tab.key"
+        (click)="setTab(tab.key)"
+      >
+        {{ tab.label }}
+        <span>{{ tabCount(tab.key) }}</span>
+      </button>
     }
-  </mat-list>
+  </div>
+
+  <div class="cards">
+    @for (item of filteredItems(); track item.id) {
+      <article class="cards__item" [class.cards__item--overdue]="item.overdue">
+        <a [routerLink]="'/learning/' + item.id" class="cards__title">
+          {{ item.title }}
+        </a>
+        <strong class="cards__percent">{{ item.progress }}%</strong>
+        <mat-progress-bar mode="determinate" [value]="item.progress"></mat-progress-bar>
+        <div class="cards__meta">
+          <span>{{ item.deadlineText }}</span>
+          <span>{{ item.status }}</span>
+        </div>
+      </article>
+    }
+  </div>
 </app-widget-shell>

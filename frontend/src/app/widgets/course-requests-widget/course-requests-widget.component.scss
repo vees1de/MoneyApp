@@ -1,20 +1,73 @@
-﻿.cards {
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.filters__item {
+  background: var(--app-surface-soft);
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--app-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 500;
+  padding: 8px 12px;
+}
+
+.filters__item span {
+  background: var(--app-primary-soft);
+  border-radius: 999px;
+  color: var(--app-primary);
+  margin-left: var(--space-2);
+  padding: 1px 7px;
+}
+
+.filters__item--active {
+  background: var(--app-primary-soft);
+  border-color: var(--app-ring);
+  color: var(--app-primary);
+}
+
+.rows {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.rows__item {
+  align-items: center;
   display: grid;
   gap: var(--space-3);
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) auto auto;
+  padding: var(--space-4);
 }
 
-.cards mat-card {
-  transition: border-color 160ms ease, box-shadow 160ms ease;
+.rows__identity,
+.rows__course {
+  display: grid;
+  gap: 2px;
 }
 
-.cards mat-card:hover {
-  border-color: var(--app-primary);
-  box-shadow: 0 6px 18px rgb(18 35 58 / 10%);
-}
-
-.cards a {
+.rows__identity a,
+.rows__course strong {
   color: var(--app-text);
-  display: block;
-  font-weight: 500;
+  font-size: 0.94rem;
+}
+
+.rows__identity small,
+.rows__course small {
+  color: var(--app-muted);
+  font-size: 0.79rem;
+}
+
+.rows__amount {
+  font-size: 0.94rem;
+  font-weight: 600;
+}
+
+@media (max-width: 1040px) {
+  .rows__item {
+    grid-template-columns: 1fr;
+  }
 }

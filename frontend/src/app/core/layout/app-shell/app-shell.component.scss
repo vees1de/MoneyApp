@@ -6,17 +6,43 @@
   min-height: 100vh;
 }
 
-mat-toolbar {
+.shell__toolbar {
+  align-items: center;
+  min-height: 66px;
   gap: var(--space-3);
+  padding: 0 var(--space-6);
   position: sticky;
   top: 0;
   z-index: 40;
 }
 
 .shell__brand {
-  font-size: 1rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  margin-right: var(--space-2);
+}
+
+.shell__back {
+  margin-right: var(--space-2);
+}
+
+.shell__nav {
+  align-items: center;
+  display: flex;
+  gap: var(--space-1);
+}
+
+.shell__nav-link {
+  color: var(--app-header-accent) !important;
+  font-size: 0.9rem;
   font-weight: 500;
-  letter-spacing: 0.02em;
+  min-width: unset;
+}
+
+.shell__nav-link--active {
+  background: var(--app-primary-soft);
+  color: var(--app-primary) !important;
 }
 
 .spacer {
@@ -25,8 +51,8 @@ mat-toolbar {
 
 .shell__content {
   margin-inline: auto;
-  max-width: 1440px;
-  padding: var(--space-5);
+  max-width: 1380px;
+  padding: var(--space-6);
   width: 100%;
 }
 
@@ -38,16 +64,17 @@ mat-toolbar {
   background: var(--app-surface);
   border: 1px solid var(--app-border);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow-soft);
   min-width: 320px;
   padding: var(--space-3);
   position: absolute;
   right: 0;
-  top: 42px;
+  top: 48px;
 }
 
 .notifications__panel h3 {
-  font-size: 1rem;
+  font-size: 1.05rem;
+  font-weight: 600;
   margin: 0 0 var(--space-2);
 }
 
@@ -68,7 +95,7 @@ mat-toolbar {
 
 .notifications__item--read a {
   color: var(--app-muted);
-  font-weight: 300;
+  font-weight: 400;
 }
 
 .notifications__item span {
@@ -76,7 +103,22 @@ mat-toolbar {
   font-size: 0.85rem;
 }
 
-.shell__admin-link,
+.shell__admin-link {
+  color: var(--app-header-accent) !important;
+}
+
 .shell__profile-link {
-  color: #f4f8fc !important;
+  color: var(--app-header-accent) !important;
+}
+
+@media (max-width: 1280px) {
+  .shell__toolbar {
+    flex-wrap: wrap;
+    padding-block: var(--space-2);
+  }
+
+  .shell__nav {
+    order: 2;
+    width: 100%;
+  }
 }

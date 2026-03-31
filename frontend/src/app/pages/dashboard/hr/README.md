@@ -3,12 +3,20 @@
 ## Route
 `/dashboard/hr`
 
-## Widget set
-- `2` Upcoming events
-- `4` Course requests
-- `7` Quick actions
+## Layout
+- Two-column desktop layout:
+  - main: quick actions, requests, process
+  - side: calendar/upcoming events
+- Single-column on narrow screens.
 
-## Data sources (planned)
+## Widget set
+- `quick-actions-widget`
+- `course-requests-widget` (status tabs + counts)
+- `current-learning-widget` as process board (`enrollments`)
+- `upcoming-events-widget`
+
+## Data sources
 - `CalendarApiService`
 - `ExternalRequestsApiService`
-- `NotificationsApiService`
+- `EnrollmentsApiService`
+- `CoursesApiService`
