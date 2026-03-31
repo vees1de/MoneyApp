@@ -12,7 +12,7 @@
   } @else {
     <section class="my-learning-grid">
       @for (item of enrollments(); track item.id) {
-        <mat-card>
+        <mat-card class="my-learning-card">
           <mat-card-header>
             <mat-card-title>
               <a [routerLink]="'/learning/' + item.id">Enrollment {{ item.id }}</a>
@@ -20,11 +20,11 @@
             <mat-card-subtitle>{{ item.status }}</mat-card-subtitle>
           </mat-card-header>
 
-          <mat-card-content>
+          <mat-card-content class="my-learning-card__content">
             <mat-progress-bar mode="determinate" [value]="progressValue(item)"></mat-progress-bar>
-            <p>Прогресс: {{ progressValue(item) }}%</p>
+            <p><span class="kv__key">Прогресс:</span><span class="kv__value">{{ progressValue(item) }}%</span></p>
             @if (item.deadline_at) {
-              <p>Дедлайн: {{ item.deadline_at }}</p>
+              <p><span class="kv__key">Дедлайн:</span><span class="kv__value">{{ item.deadline_at }}</span></p>
             }
           </mat-card-content>
         </mat-card>

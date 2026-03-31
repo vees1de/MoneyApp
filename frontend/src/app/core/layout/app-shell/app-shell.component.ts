@@ -1,10 +1,10 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
-import { Router, RouterLink, RouterOutlet } from '@angular/router';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatToolbarModule } from '@angular/material/toolbar';
+import { Router, RouterLink, RouterOutlet } from '@angular/router';
 
 import { AuthStateService } from '@core/auth/auth-state.service';
 import { PERMISSIONS } from '@core/auth/permissions';
@@ -49,7 +49,7 @@ export class AppShellComponent {
         visible: this.authState.hasPermission(PERMISSIONS.coursesRead),
       },
       {
-        label: 'Наборы',
+        label: 'Назначения',
         route: '/intakes',
         visible: true,
       },
@@ -64,7 +64,7 @@ export class AppShellComponent {
         visible: true,
       },
       {
-        label: 'Назначения',
+        label: 'Мое обучение',
         route: '/my-learning',
         visible: this.authState.hasAnyPermission([
           PERMISSIONS.enrollmentsRead,
@@ -88,10 +88,11 @@ export class AppShellComponent {
 
     return items.filter((item) => item.visible);
   });
+
   protected readonly notifications = signal<HeaderNotification[]>([
     {
       id: 'n-1',
-      text: 'Новая заявка ждёт согласования',
+      text: 'Новая заявка ждет согласования',
       route: '/approvals/inbox',
       read: false,
     },
@@ -102,6 +103,7 @@ export class AppShellComponent {
       read: false,
     },
   ]);
+
   protected readonly unreadCount = computed(
     () => this.notifications().filter((item) => !item.read).length,
   );
@@ -124,5 +126,4 @@ export class AppShellComponent {
       state.map((item) => (item.id === id ? { ...item, read: true } : item)),
     );
   }
-
 }

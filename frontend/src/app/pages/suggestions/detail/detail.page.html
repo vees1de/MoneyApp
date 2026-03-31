@@ -3,7 +3,7 @@
     <div>
       <h1>{{ suggestion()?.title || 'Предложение курса' }}</h1>
       <p>
-        HR может одобрить предложение, отклонить его или сразу открыть набор с той же моделью цены и
+        HR может одобрить предложение, отклонить его или сразу открыть назначение с той же моделью цены и
         дат, что и в `intakes/new`.
       </p>
     </div>
@@ -15,7 +15,7 @@
       </a>
       <a mat-stroked-button routerLink="/intakes">
         <mat-icon>view_list</mat-icon>
-        Наборы
+        Назначения
       </a>
     </div>
   </header>
@@ -79,7 +79,7 @@
           @if (item.intake_id) {
             <a mat-stroked-button [routerLink]="'/intakes/' + item.intake_id">
               <mat-icon>open_in_new</mat-icon>
-              Открыть связанный набор
+              Открыть связанное назначение
             </a>
           }
         </mat-card-content>
@@ -89,7 +89,7 @@
         <mat-card class="suggestion-review-card">
           <mat-card-header>
             <mat-card-title>Решение HR</mat-card-title>
-            <mat-card-subtitle>Можно оставить комментарий и сразу открыть набор.</mat-card-subtitle>
+            <mat-card-subtitle>Можно оставить комментарий и сразу открыть назначение.</mat-card-subtitle>
           </mat-card-header>
 
           <mat-card-content>
@@ -119,7 +119,7 @@
 
             @if (canOpenIntake()) {
               <section class="open-intake-form">
-                <h3>Открыть набор по предложению</h3>
+                <h3>Открыть назначение по предложению</h3>
 
                 <div class="open-intake-form__wide open-intake-form__catalog">
                   <div class="open-intake-form__catalog-actions">
@@ -156,7 +156,7 @@
                 </div>
 
                 <mat-form-field appearance="outline">
-                  <mat-label>Название набора</mat-label>
+                  <mat-label>Название назначения</mat-label>
                   <input matInput [formControl]="intakeForm.controls.title" />
                 </mat-form-field>
 
@@ -258,7 +258,7 @@
                   [disabled]="acting()"
                 >
                   <mat-icon>playlist_add_check</mat-icon>
-                  Открыть набор
+                  Открыть назначение
                 </button>
               </section>
             }
@@ -268,3 +268,4 @@
     </section>
   }
 </section>
+

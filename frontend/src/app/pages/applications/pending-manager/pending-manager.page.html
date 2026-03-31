@@ -1,4 +1,4 @@
-<section class="pending-manager-page">
+﻿<section class="pending-manager-page">
   <header class="pending-manager-page__header">
     <div>
       <h1>Заявки на мой апрув</h1>
@@ -7,7 +7,7 @@
 
     <a mat-stroked-button routerLink="/intakes">
       <mat-icon>view_list</mat-icon>
-      Все наборы
+      Все назначения
     </a>
   </header>
 
@@ -30,7 +30,7 @@
           </mat-card-header>
 
           <mat-card-content class="pending-card__content">
-            <p><span class="kv__key">Набор:</span> <a class="kv__value" [routerLink]="'/intakes/' + application.intake_id">{{ intakeTitle(application.intake_id) }}</a></p>
+            <p><span class="kv__key">Назначение:</span> <a class="kv__value" [routerLink]="'/intakes/' + application.intake_id">{{ intakeTitle(application.intake_id) }}</a></p>
             <p><span class="kv__key">Мотивация:</span> <span class="kv__value">{{ application.motivation || '—' }}</span></p>
             <p><span class="kv__key">Создано:</span> <span class="kv__value">{{ application.created_at | date: 'dd.MM.yyyy HH:mm' }}</span></p>
 
@@ -59,7 +59,7 @@
               }
               <a mat-stroked-button [routerLink]="'/intakes/' + application.intake_id">
                 <mat-icon>open_in_new</mat-icon>
-                Детали набора
+                Детали назначения
               </a>
             </div>
           </mat-card-content>
@@ -68,3 +68,4 @@
     </section>
   }
 </section>
+

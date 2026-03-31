@@ -1,26 +1,22 @@
 <section class="intake-detail-page">
   <header class="intake-detail-page__header">
     <div>
-      <h1>{{ intake()?.title || 'Набор на курс' }}</h1>
+      <h1>{{ intake()?.title || 'Назначение на курс' }}</h1>
       <p>
-        @if (managerApprovalEnabled) {
-          Сотрудник сам решает, нужно ли согласование с руководителем, а HR ведёт отбор, закрытие
-          набора и оплату.
-        } @else {
-          HR ведёт отбор, закрытие набора и оплату без обязательного апрува руководителя.
-        }
+        Страница показывает одну фокусную заявку по назначению: где она в процессе согласования,
+        какие есть риски и какие действия должен сделать HR.
       </p>
     </div>
 
     <div class="intake-detail-page__header-actions">
       <a mat-stroked-button routerLink="/intakes">
         <mat-icon>arrow_back</mat-icon>
-        Все наборы
+        Все назначения
       </a>
       @if (canManage()) {
         <button mat-flat-button color="primary" type="button" (click)="openManageDialog()">
           <mat-icon>tune</mat-icon>
-          Настроить набор
+          Настроить назначение
         </button>
       }
       <a mat-stroked-button routerLink="/applications/my">
@@ -35,288 +31,290 @@
   } @else if (error()) {
     <p class="intake-detail-page__error">{{ error() }}</p>
   } @else if (intake(); as item) {
-    <section class="intake-detail-grid">
-      <div class="intake-detail-primary">
-        <mat-card class="intake-summary-card">
+    <mat-card class="intake-summary-card">
+      <mat-card-header>
+        <mat-card-title>{{ item.title }}</mat-card-title>
+        <mat-card-subtitle>{{ intakeStatusLabel(item.status) }}</mat-card-subtitle>
+      </mat-card-header>
+
+      <mat-card-content class="intake-summary-card__content">
+        <p>
+          <span class="kv__key">Старт:</span
+          ><span class="kv__value">{{
+            item.start_date ? (item.start_date | date: 'dd.MM.yyyy') : '—'
+          }}</span>
+        </p>
+        <p>
+          <span class="kv__key">Окончание:</span
+          ><span class="kv__value">{{
+            item.end_date ? (item.end_date | date: 'dd.MM.yyyy') : '—'
+          }}</span>
+        </p>
+        <p>
+          <span class="kv__key">Дедлайн подачи:</span
+          ><span class="kv__value">{{
+            item.application_deadline ? (item.application_deadline | date: 'dd.MM.yyyy HH:mm') : '—'
+          }}</span>
+        </p>
+        <p>
+          <span class="kv__key">Лимит участников:</span
+          ><span class="kv__value">{{ item.max_participants ?? 'не ограничено' }}</span>
+        </p>
+        <p>
+          <span class="kv__key">Цена:</span
+          ><span class="kv__value">{{ item.price || '—' }} {{ item.price_currency || 'RUB' }}</span>
+        </p>
+      </mat-card-content>
+    </mat-card>
+
+    @if (canManage()) {
+      @if (applications().length > 1) {
+        <section class="application-selector">
+          <span class="application-selector__label">Фокус заявки:</span>
+          <div class="application-selector__list">
+            @for (application of applications(); track application.id) {
+              <button
+                mat-stroked-button
+                type="button"
+                [class.application-selector__item--active]="isSelectedApplication(application.id)"
+                (click)="selectApplication(application.id)"
+              >
+                {{ userLabel(application.applicant_id) }} ·
+                {{ applicationStatusLabel(application.status) }}
+              </button>
+            }
+          </div>
+        </section>
+      }
+
+      @if (focusedApplication(); as focus) {
+        <mat-card class="application-roadmap-card">
           <mat-card-header>
-            <mat-card-title>{{ item.title }}</mat-card-title>
-            <mat-card-subtitle>{{ intakeStatusLabel(item.status) }}</mat-card-subtitle>
+            <mat-card-title>Заявка {{ userLabel(focus.applicant_id) }}</mat-card-title>
+            <mat-card-subtitle>{{ applicationStatusLabel(focus.status) }}</mat-card-subtitle>
           </mat-card-header>
 
-          <mat-card-content class="intake-summary-card__content">
-            @if (item.description) {
-              <p class="intake-summary-card__description">{{ item.description }}</p>
-            }
+          <mat-card-content class="application-roadmap-card__content">
+            <div class="application-roadmap-card__actions">
+              @if (canHrApprove(focus)) {
+                <button
+                  mat-flat-button
+                  color="primary"
+                  type="button"
+                  (click)="approveByHr(focus)"
+                  [disabled]="acting()"
+                >
+                  <mat-icon>check_circle</mat-icon>
+                  Одобрить
+                </button>
+                <button
+                  mat-stroked-button
+                  type="button"
+                  (click)="rejectByHr(focus)"
+                  [disabled]="acting()"
+                >
+                  <mat-icon>cancel</mat-icon>
+                  Отклонить
+                </button>
+              }
+              @if (canHrEnroll(focus)) {
+                <button
+                  mat-flat-button
+                  color="primary"
+                  type="button"
+                  (click)="enroll(focus)"
+                  [disabled]="acting()"
+                >
+                  <mat-icon>groups</mat-icon>
+                  Взять сотрудника
+                </button>
+              }
+            </div>
 
-            @if (course(); as selectedCourse) {
-              <p>
-                <span class="kv__key">Курс из каталога:</span>
-                <a class="kv__value" [routerLink]="'/catalog/' + selectedCourse.id">{{
-                  selectedCourse.title
-                }}</a>
-              </p>
-            }
-            <p>
-              <span class="kv__key">Старт:</span>
-              <span class="kv__value">{{
-                item.start_date ? (item.start_date | date: 'dd.MM.yyyy') : '—'
-              }}</span>
-            </p>
-            <p>
-              <span class="kv__key">Окончание:</span>
-              <span class="kv__value">{{
-                item.end_date ? (item.end_date | date: 'dd.MM.yyyy') : '—'
-              }}</span>
-            </p>
-            <p>
-              <span class="kv__key">Длительность:</span>
-              <span class="kv__value">{{
-                item.duration_weeks ? item.duration_weeks + ' нед.' : 'по дате окончания'
-              }}</span>
-            </p>
-            <p>
-              <span class="kv__key">Цена:</span>
-              <span class="kv__value"
-                >{{ item.price || '—' }} {{ item.price_currency || 'RUB' }}</span
-              >
-            </p>
-            <p>
-              <span class="kv__key">Дедлайн подачи:</span>
-              <span class="kv__value">{{
-                item.application_deadline
-                  ? (item.application_deadline | date: 'dd.MM.yyyy HH:mm')
-                  : '—'
-              }}</span>
-            </p>
-            <p>
-              <span class="kv__key">Количество участников:</span>
-              <span class="kv__value">{{ item.max_participants ?? 'не ограничено' }}</span>
-            </p>
-            <p>
-              <span class="kv__key">Открыт:</span>
-              <span class="kv__value">{{ item.created_at | date: 'dd.MM.yyyy HH:mm' }}</span>
-            </p>
+            <mat-horizontal-stepper
+              [selectedIndex]="roadmapIndex(focus)"
+              class="application-roadmap"
+            >
+              @for (step of roadmapSteps; track step) {
+                <mat-step
+                  [label]="step"
+                  [completed]="isRoadmapStepCompleted(focus, $index)"
+                  [editable]="false"
+                  [hasError]="isRoadmapStepWarning(focus, $index)"
+                ></mat-step>
+              }
+            </mat-horizontal-stepper>
           </mat-card-content>
         </mat-card>
 
-        @if (shouldShowSelfServiceInline()) {
-          <ng-container [ngTemplateOutlet]="selfServiceCard"></ng-container>
-        }
-      </div>
-    </section>
+        <section class="intake-application-layout">
+          <mat-card class="application-context-card">
+            <mat-card-header>
+              <mat-card-title>Сотрудник</mat-card-title>
+              <mat-card-subtitle>{{ userLabel(focus.applicant_id) }}</mat-card-subtitle>
+            </mat-card-header>
 
-    @if (canManage()) {
-      <section class="applications-section">
-        <div class="applications-section__header">
-          <div>
-            <h2>Заявки в наборе</h2>
-            <p>{{ applications().length }} сотрудников и их текущие статусы</p>
-          </div>
+            <mat-card-content class="application-context-card__content">
+              <p>
+                <span class="kv__key">Руководитель:</span
+                ><span class="kv__value">{{ userLabel(focus.manager_approver_id) }}</span>
+              </p>
+              <p>
+                <span class="kv__key">Создано:</span
+                ><span class="kv__value">{{ focus.created_at | date: 'dd.MM.yyyy HH:mm' }}</span>
+              </p>
+              <p>
+                <span class="kv__key">Обновлено:</span
+                ><span class="kv__value">{{ focus.updated_at | date: 'dd.MM.yyyy HH:mm' }}</span>
+              </p>
+            </mat-card-content>
+          </mat-card>
 
-          <div class="applications-section__bulk-actions">
-            <button
-              mat-flat-button
-              color="primary"
-              type="button"
-              (click)="updateAllPayments('paid')"
-              [disabled]="acting() || !hasEnrolledApplications()"
-            >
-              <mat-icon>payments</mat-icon>
-              Отметить взятых как оплаченных
-            </button>
-            <button
-              mat-flat-button
-              color="primary"
-              type="button"
-              (click)="startEnrolledApplications()"
-              [disabled]="acting() || !hasStartableEnrollments()"
-            >
-              <mat-icon>play_circle</mat-icon>
-              Стартовать курс по набору
-            </button>
-            <button
-              mat-stroked-button
-              type="button"
-              (click)="updateAllPayments('unpaid')"
-              [disabled]="acting() || !hasEnrolledApplications()"
-            >
-              <mat-icon>money_off</mat-icon>
-              Отметить взятых как неоплаченных
-            </button>
-          </div>
-        </div>
+          <mat-card class="application-course-card">
+            <mat-card-header>
+              <mat-card-title>Курс и обоснование</mat-card-title>
+              <mat-card-subtitle>{{ course()?.title || 'Курс не выбран' }}</mat-card-subtitle>
+            </mat-card-header>
 
-        @if (!hasStartableEnrollments()) {
-          <p class="applications-section__hint">{{ startButtonHint() }}</p>
-        }
+            <mat-card-content class="application-course-card__content">
+              <p>
+                <span class="kv__key">Курс:</span
+                ><span class="kv__value">{{ course()?.title || '—' }}</span>
+              </p>
+              <p>
+                <span class="kv__key">Оплата:</span
+                ><span class="kv__value">{{ paymentStatusLabel(focus.payment_status) }}</span>
+              </p>
+              <p>
+                <span class="kv__key">Статус обучения:</span
+                ><span class="kv__value">{{ enrollmentStatusLabel(focus.enrollment_status) }}</span>
+              </p>
+              <p>
+                <span class="kv__key">Мотивация:</span
+                ><span class="kv__value">{{ focus.motivation || '—' }}</span>
+              </p>
+              <p>
+                <span class="kv__key">Комментарий руководителя:</span
+                ><span class="kv__value">{{ focus.manager_comment || '—' }}</span>
+              </p>
+              <p>
+                <span class="kv__key">Комментарий HR:</span
+                ><span class="kv__value">{{ focus.hr_comment || '—' }}</span>
+              </p>
 
-        @if (applications().length === 0) {
-          <p class="applications-section__empty">Пока никто не подался в этот набор.</p>
-        } @else {
-          <div class="applications-grid">
-            @for (application of applications(); track application.id) {
-              <mat-card class="application-card">
-                <mat-card-header>
-                  <mat-card-title>{{ userLabel(application.applicant_id) }}</mat-card-title>
-                  <mat-card-subtitle>{{
-                    applicationStatusLabel(application.status)
-                  }}</mat-card-subtitle>
-                </mat-card-header>
+              @if (canHrApprove(focus)) {
+                <mat-form-field appearance="outline" class="application-course-card__comment">
+                  <mat-label>Комментарий HR</mat-label>
+                  <textarea
+                    matInput
+                    rows="3"
+                    [value]="applicationComment(focus.id)"
+                    (input)="setApplicationComment(focus.id, $any($event.target).value)"
+                  ></textarea>
+                </mat-form-field>
+              }
+            </mat-card-content>
+          </mat-card>
 
-                <mat-card-content class="application-card__content">
-                  <p>
-                    <span class="kv__key">Оплата:</span>
-                    <span class="kv__value">{{
-                      paymentStatusLabel(application.payment_status)
-                    }}</span>
-                  </p>
-                  <p>
-                    <span class="kv__key">Статус обучения:</span>
-                    <span class="kv__value">{{
-                      enrollmentStatusLabel(application.enrollment_status)
-                    }}</span>
-                  </p>
-                  <p>
-                    <span class="kv__key">Руководитель:</span>
-                    <span class="kv__value">{{ userLabel(application.manager_approver_id) }}</span>
-                  </p>
-                  <p>
-                    <span class="kv__key">Мотивация:</span>
-                    <span class="kv__value">{{ application.motivation || '—' }}</span>
-                  </p>
-                  <p>
-                    <span class="kv__key">Комментарий руководителя:</span>
-                    <span class="kv__value">{{ application.manager_comment || '—' }}</span>
-                  </p>
-                  <p>
-                    <span class="kv__key">Комментарий HR:</span>
-                    <span class="kv__value">{{ application.hr_comment || '—' }}</span>
-                  </p>
-                  <p>
-                    <span class="kv__key">Создано:</span>
-                    <span class="kv__value">{{
-                      application.created_at | date: 'dd.MM.yyyy HH:mm'
-                    }}</span>
-                  </p>
-                  <p>
-                    <span class="kv__key">Сертификат:</span>
-                    <span class="kv__value">{{
-                      certificateStatusLabel(application.certificate_status)
-                    }}</span>
-                  </p>
-                  <p>
-                    <span class="kv__key">Загружен:</span>
-                    <span class="kv__value">{{
-                      application.certificate_uploaded_at
-                        ? (application.certificate_uploaded_at | date: 'dd.MM.yyyy HH:mm')
-                        : '—'
-                    }}</span>
-                  </p>
-                  @if (application.enrollment_id) {
-                    <p>
-                      <span class="kv__key">Карточка обучения:</span>
-                      <a class="kv__value" [routerLink]="'/learning/' + application.enrollment_id">
-                        Открыть обучение
-                      </a>
-                    </p>
-                  }
+          <mat-card class="application-budget-card">
+            <mat-card-header>
+              <mat-card-title>Бюджет и риски</mat-card-title>
+              <mat-card-subtitle>Оперативные действия по назначению</mat-card-subtitle>
+            </mat-card-header>
 
-                  @if (canHrApprove(application)) {
-                    <mat-form-field appearance="outline" class="application-card__comment">
-                      <mat-label>Комментарий HR</mat-label>
-                      <textarea
-                        matInput
-                        rows="3"
-                        [value]="applicationComment(application.id)"
-                        (input)="setApplicationComment(application.id, $any($event.target).value)"
-                      ></textarea>
-                    </mat-form-field>
-                  }
-                  @if (canReviewCertificate(application)) {
-                    <mat-form-field appearance="outline" class="application-card__comment">
-                      <mat-label>Комментарий по сертификату</mat-label>
-                      <textarea
-                        matInput
-                        rows="3"
-                        [value]="certificateComment(application.id)"
-                        (input)="setCertificateComment(application.id, $any($event.target).value)"
-                      ></textarea>
-                    </mat-form-field>
-                  }
+            <mat-card-content class="application-budget-card__content">
+              <p>
+                <span class="kv__key">Цена:</span
+                ><span class="kv__value"
+                  >{{ item.price || '—' }} {{ item.price_currency || 'RUB' }}</span
+                >
+              </p>
+              <p>
+                <span class="kv__key">Участников в назначении:</span
+                ><span class="kv__value">{{ applications().length }}</span>
+              </p>
+              <p>
+                <span class="kv__key">Лимит мест:</span
+                ><span class="kv__value">{{ item.max_participants ?? 'не ограничено' }}</span>
+              </p>
 
-                  <div class="application-card__actions">
-                    @if (canHrApprove(application)) {
-                      <button
-                        mat-flat-button
-                        color="primary"
-                        type="button"
-                        (click)="approveByHr(application)"
-                        [disabled]="acting()"
-                      >
-                        <mat-icon>check_circle</mat-icon>
-                        Одобрить HR
-                      </button>
-                      <button
-                        mat-stroked-button
-                        type="button"
-                        (click)="rejectByHr(application)"
-                        [disabled]="acting()"
-                      >
-                        <mat-icon>cancel</mat-icon>
-                        Отклонить
-                      </button>
-                    }
-                    @if (canHrEnroll(application)) {
-                      <button
-                        mat-flat-button
-                        color="primary"
-                        type="button"
-                        (click)="enroll(application)"
-                        [disabled]="acting()"
-                      >
-                        <mat-icon>groups</mat-icon>
-                        Взять сотрудника
-                      </button>
-                    }
-                    @if (canReviewCertificate(application)) {
-                      <button
-                        mat-flat-button
-                        color="primary"
-                        type="button"
-                        (click)="verifyCertificate(application)"
-                        [disabled]="acting()"
-                      >
-                        <mat-icon>verified</mat-icon>
-                        Подтвердить сертификат
-                      </button>
-                      <button
-                        mat-stroked-button
-                        type="button"
-                        (click)="rejectCertificate(application)"
-                        [disabled]="acting()"
-                      >
-                        <mat-icon>report_problem</mat-icon>
-                        Отклонить сертификат
-                      </button>
-                    }
-                  </div>
-                </mat-card-content>
-              </mat-card>
-            }
-          </div>
-        }
+              <div class="application-budget-card__bulk-actions">
+                <button
+                  mat-flat-button
+                  color="primary"
+                  type="button"
+                  (click)="updateAllPayments('paid')"
+                  [disabled]="acting() || !hasEnrolledApplications()"
+                >
+                  <mat-icon>payments</mat-icon>
+                  Отметить выделенных как "оплаченные"
+                </button>
+                <button
+                  mat-stroked-button
+                  type="button"
+                  (click)="updateAllPayments('unpaid')"
+                  [disabled]="acting() || !hasEnrolledApplications()"
+                >
+                  <mat-icon>money_off</mat-icon>
+                  Отметить выделенных как неоплаченных
+                </button>
+                <button
+                  mat-flat-button
+                  color="primary"
+                  type="button"
+                  (click)="startEnrolledApplications()"
+                  [disabled]="acting() || !hasStartableEnrollments()"
+                >
+                  <mat-icon>play_circle</mat-icon>
+                  Стартовать курс по назначению
+                </button>
+              </div>
 
-        <div class="intake-self-service-toggle">
-          <button mat-stroked-button type="button" (click)="toggleSelfService()">
-            <mat-icon>person</mat-icon>
-            {{ selfServiceToggleLabel() }}
-          </button>
-        </div>
+              @if (!hasStartableEnrollments()) {
+                <p class="applications-section__hint">{{ startButtonHint() }}</p>
+              }
 
-        @if (selfServiceOpen()) {
-          <ng-container [ngTemplateOutlet]="selfServiceCard"></ng-container>
-        }
-      </section>
+              @if (canReviewCertificate(focus)) {
+                <mat-form-field appearance="outline" class="application-course-card__comment">
+                  <mat-label>Комментарий по сертификату</mat-label>
+                  <textarea
+                    matInput
+                    rows="3"
+                    [value]="certificateComment(focus.id)"
+                    (input)="setCertificateComment(focus.id, $any($event.target).value)"
+                  ></textarea>
+                </mat-form-field>
+
+                <div class="application-roadmap-card__actions">
+                  <button
+                    mat-flat-button
+                    color="primary"
+                    type="button"
+                    (click)="verifyCertificate(focus)"
+                    [disabled]="acting()"
+                  >
+                    <mat-icon>verified</mat-icon>
+                    Подтвердить сертификат
+                  </button>
+                  <button
+                    mat-stroked-button
+                    type="button"
+                    (click)="rejectCertificate(focus)"
+                    [disabled]="acting()"
+                  >
+                    <mat-icon>report_problem</mat-icon>
+                    Отклонить сертификат
+                  </button>
+                </div>
+              }
+            </mat-card-content>
+          </mat-card>
+        </section>
+      } @else {
+        <p class="applications-section__empty">Для этого назначения пока нет заявок.</p>
+      }
+    } @else {
+      <ng-container [ngTemplateOutlet]="selfServiceCard"></ng-container>
     }
   }
 </section>
@@ -324,7 +322,7 @@
 <ng-template #selfServiceCard>
   <mat-card class="intake-self-service-card">
     <mat-card-header>
-      <mat-card-title>{{ myApplication() ? 'Моя заявка' : 'Участие в наборе' }}</mat-card-title>
+      <mat-card-title>{{ myApplication() ? 'Моя заявка' : 'Участие в назначении' }}</mat-card-title>
       <mat-card-subtitle>
         @if (myApplication(); as application) {
           {{ applicationStatusLabel(application.status) }}
@@ -340,51 +338,52 @@
       @if (myApplication(); as application) {
         <section class="application-state">
           <p>
-            <span class="kv__key">Статус:</span>
-            <span class="kv__value">{{ applicationStatusLabel(application.status) }}</span>
+            <span class="kv__key">Статус:</span
+            ><span class="kv__value">{{ applicationStatusLabel(application.status) }}</span>
           </p>
           <p>
-            <span class="kv__key">Оплата:</span>
-            <span class="kv__value">{{ paymentStatusLabel(application.payment_status) }}</span>
+            <span class="kv__key">Оплата:</span
+            ><span class="kv__value">{{ paymentStatusLabel(application.payment_status) }}</span>
           </p>
           <p>
-            <span class="kv__key">Мотивация:</span>
-            <span class="kv__value">{{ application.motivation || '—' }}</span>
+            <span class="kv__key">Мотивация:</span
+            ><span class="kv__value">{{ application.motivation || '—' }}</span>
           </p>
           <p>
-            <span class="kv__key">Руководитель:</span>
-            <span class="kv__value">{{ userLabel(application.manager_approver_id) }}</span>
+            <span class="kv__key">Руководитель:</span
+            ><span class="kv__value">{{ userLabel(application.manager_approver_id) }}</span>
           </p>
           <p>
-            <span class="kv__key">Комментарий руководителя:</span>
-            <span class="kv__value">{{ application.manager_comment || '—' }}</span>
+            <span class="kv__key">Комментарий руководителя:</span
+            ><span class="kv__value">{{ application.manager_comment || '—' }}</span>
           </p>
           <p>
-            <span class="kv__key">Комментарий HR:</span>
-            <span class="kv__value">{{ application.hr_comment || '—' }}</span>
+            <span class="kv__key">Комментарий HR:</span
+            ><span class="kv__value">{{ application.hr_comment || '—' }}</span>
           </p>
+
           @if (application.enrollment_id) {
             <section class="application-state application-state--learning">
               <h3>Обучение и сертификат</h3>
               <p>
                 <span class="kv__key">Карточка обучения:</span>
-                <a class="kv__value" [routerLink]="'/learning/' + application.enrollment_id">
-                  Открыть обучение
-                </a>
+                <a class="kv__value" [routerLink]="'/learning/' + application.enrollment_id"
+                  >Открыть обучение</a
+                >
               </p>
               <p>
-                <span class="kv__key">Статус обучения:</span>
-                <span class="kv__value">{{ enrollmentStatusLabel(myEnrollment()?.status) }}</span>
+                <span class="kv__key">Статус обучения:</span
+                ><span class="kv__value">{{ enrollmentStatusLabel(myEnrollment()?.status) }}</span>
               </p>
               <p>
-                <span class="kv__key">Сертификат:</span>
-                <span class="kv__value">{{
+                <span class="kv__key">Сертификат:</span
+                ><span class="kv__value">{{
                   certificateStatusLabel(application.certificate_status)
                 }}</span>
               </p>
               <p>
-                <span class="kv__key">Загружен:</span>
-                <span class="kv__value">{{
+                <span class="kv__key">Загружен:</span
+                ><span class="kv__value">{{
                   application.certificate_uploaded_at
                     ? (application.certificate_uploaded_at | date: 'dd.MM.yyyy HH:mm')
                     : '—'
@@ -407,7 +406,7 @@
         </section>
       } @else if (canApply()) {
         <section class="application-state">
-          <h3>Податься в набор</h3>
+          <h3>Податься в назначение</h3>
           <mat-form-field appearance="outline" class="application-state__motivation">
             <mat-label>Мотивация</mat-label>
             <textarea matInput rows="4" [formControl]="applyForm.controls.motivation"></textarea>
@@ -433,9 +432,9 @@
       } @else {
         <p class="application-state__hint">
           @if (intake()?.status !== 'open') {
-            Набор уже не принимает новые заявки.
+            Назначение уже не принимает новые заявки.
           } @else {
-            Заявка по этому набору уже создана.
+            Заявка по этому назначению уже создана.
           }
         </p>
       }

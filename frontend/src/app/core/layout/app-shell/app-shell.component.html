@@ -1,6 +1,9 @@
 <div class="shell">
   <mat-toolbar class="shell__toolbar">
-    <a class="shell__brand" routerLink="/dashboard">ИМПУЛЬС</a>
+    <a class="shell__brand" routerLink="/dashboard">
+      <img src="/impuls-icon.svg" alt="Импульс" class="shell__brand-icon" />
+      <span>ИМПУЛЬС</span>
+    </a>
 
     <nav class="shell__nav">
       @for (item of navItems(); track item.route) {
@@ -15,51 +18,58 @@
       }
     </nav>
 
-    <span class="spacer"></span>
+    <div class="shell__toolbar-actions">
+      <div class="notifications">
+        <button
+          mat-icon-button
+          type="button"
+          (click)="toggleNotifications()"
+          [matBadge]="unreadCount()"
+          matBadgeSize="small"
+        >
+          <mat-icon>notifications</mat-icon>
+        </button>
 
-    <div class="notifications">
-      <button
+        @if (notificationsOpen()) {
+          <section class="notifications__panel">
+            <h3>Уведомления</h3>
+            @for (item of notifications(); track item.id) {
+              <div class="notifications__item" [class.notifications__item--read]="item.read">
+                <a [routerLink]="item.route">{{ item.text }}</a>
+                @if (!item.read) {
+                  <button
+                    mat-button
+                    type="button"
+                    class="notifications__action"
+                    (click)="markAsRead(item.id)"
+                  >
+                    Прочитать
+                  </button>
+                } @else {
+                  <span class="notifications__action notifications__action--read">Прочитано</span>
+                }
+              </div>
+            }
+          </section>
+        }
+      </div>
+
+      <!-- @if (showTestAdminLink()) {
+        <a mat-stroked-button routerLink="/testadmin" class="shell__admin-link">
+          <mat-icon>admin_panel_settings</mat-icon>
+          HR/Admin
+        </a>
+      } -->
+
+      <a
         mat-icon-button
-        type="button"
-        (click)="toggleNotifications()"
-        [matBadge]="unreadCount()"
-        matBadgeSize="small"
+        routerLink="/profile/overview"
+        class="shell__profile-link"
+        aria-label="Профиль"
       >
-        <mat-icon>notifications</mat-icon>
-      </button>
-
-      @if (notificationsOpen()) {
-        <section class="notifications__panel">
-          <h3>Уведомления</h3>
-          @for (item of notifications(); track item.id) {
-            <div class="notifications__item" [class.notifications__item--read]="item.read">
-              <a [routerLink]="item.route">{{ item.text }}</a>
-              @if (!item.read) {
-                <button mat-button type="button" (click)="markAsRead(item.id)">Прочитать</button>
-              } @else {
-                <span>Прочитано</span>
-              }
-            </div>
-          }
-        </section>
-      }
-    </div>
-
-    @if (showTestAdminLink()) {
-      <a mat-stroked-button routerLink="/testadmin" class="shell__admin-link">
-        <mat-icon>admin_panel_settings</mat-icon>
-        HR/Admin
+        <mat-icon>person</mat-icon>
       </a>
-    }
-
-    <a
-      mat-icon-button
-      routerLink="/profile/overview"
-      class="shell__profile-link"
-      aria-label="Профиль"
-    >
-      <mat-icon>person</mat-icon>
-    </a>
+    </div>
   </mat-toolbar>
 
   <main class="shell__content">

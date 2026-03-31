@@ -1,7 +1,7 @@
-<section class="applications-page">
+﻿<section class="applications-page">
   <header class="applications-page__header">
     <div>
-      <h1>Мои заявки в наборы</h1>
+      <h1>Мои заявки в назначения</h1>
       <p>
         Здесь видны статусы, комментарии согласующих и возможность отозвать заявку до зачисления.
       </p>
@@ -9,7 +9,7 @@
 
     <a mat-stroked-button routerLink="/intakes">
       <mat-icon>view_list</mat-icon>
-      Все наборы
+      Все назначения
     </a>
   </header>
 
@@ -22,7 +22,7 @@
   } @else if (error()) {
     <p class="applications-page__error">{{ error() }}</p>
   } @else if (applications().length === 0) {
-    <p class="applications-page__empty">У вас пока нет заявок в наборы.</p>
+    <p class="applications-page__empty">У вас пока нет заявок в назначения.</p>
   } @else {
     <section class="applications-grid">
       @for (application of applications(); track application.id) {
@@ -38,7 +38,7 @@
 
           <mat-card-content class="application-card__content">
             <p>
-              <span class="kv__key">Статус набора:</span>
+              <span class="kv__key">Статус назначения:</span>
               <span class="kv__value">{{
                 intakeStatusLabel(intakeStatus(application.intake_id))
               }}</span>
@@ -82,7 +82,7 @@
               }
               <a mat-flat-button color="primary" [routerLink]="'/intakes/' + application.intake_id">
                 <mat-icon>open_in_new</mat-icon>
-                Открыть набор
+                Открыть назначение
               </a>
             </div>
           </mat-card-content>
@@ -91,3 +91,4 @@
     </section>
   }
 </section>
+

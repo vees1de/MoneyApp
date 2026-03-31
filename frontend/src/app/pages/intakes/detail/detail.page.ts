@@ -11,6 +11,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
+import { MatStepperModule } from '@angular/material/stepper';
 import { catchError, forkJoin, of } from 'rxjs';
 
 import { CertificatesApiService } from '@core/api/certificates-api.service';
@@ -66,6 +67,7 @@ import {
     MatIconModule,
     MatInputModule,
     MatSelectModule,
+    MatStepperModule,
   ],
   templateUrl: './detail.page.html',
   styleUrl: './detail.page.scss',
@@ -95,6 +97,7 @@ export class IntakeDetailPageComponent implements OnInit {
   protected readonly users = signal<IdentityUserView[]>([]);
   protected readonly applicationComments = signal<Record<string, string>>({});
   protected readonly certificateComments = signal<Record<string, string>>({});
+  protected readonly selectedApplicationId = signal<string | null>(null);
 
   protected readonly editForm = this.fb.group({
     title: ['', [Validators.required]],
@@ -139,6 +142,17 @@ export class IntakeDetailPageComponent implements OnInit {
     const application = this.myApplication();
     return !!application && canWithdrawApplication(application.status);
   });
+  protected readonly focusedApplication = computed<CourseApplication | null>(() => {
+    const selectedId = this.selectedApplicationId();
+    if (selectedId) {
+      const selected = this.applications().find((application) => application.id === selectedId);
+      if (selected) {
+        return selected;
+      }
+    }
+
+    return this.myApplication() ?? this.applications()[0] ?? null;
+  });
   protected readonly isWeeksMode = computed(
     () => this.editForm.controls.schedule_mode.value === 'weeks',
   );
@@ -154,6 +168,14 @@ export class IntakeDetailPageComponent implements OnInit {
     { value: 'closed', label: 'Набор закрыт' },
     { value: 'canceled', label: 'Отменён' },
     { value: 'completed', label: 'Завершён' },
+  ];
+  protected readonly roadmapSteps = [
+    'Создано',
+    'На согласовании у руководителя',
+    'На согласовании у HR',
+    'Одобрено',
+    'Оплачено',
+    'Курс готов',
   ];
 
   ngOnInit(): void {
@@ -255,6 +277,60 @@ export class IntakeDetailPageComponent implements OnInit {
 
   protected hasEnrolledApplications(): boolean {
     return this.applications().some((application) => application.status === 'enrolled');
+  }
+
+  protected selectApplication(applicationId: string): void {
+    this.selectedApplicationId.set(applicationId);
+  }
+
+  protected isSelectedApplication(applicationId: string): boolean {
+    return this.focusedApplication()?.id === applicationId;
+  }
+
+  protected roadmapIndex(application: CourseApplication): number {
+    const status = application.status;
+
+    if (status === 'pending_manager') {
+      return 1;
+    }
+    if (status === 'approved_by_manager' || status === 'pending') {
+      return 2;
+    }
+    if (status === 'approved') {
+      return 3;
+    }
+    if (status === 'enrolled') {
+      if (application.payment_status === 'paid') {
+        const completed =
+          application.enrollment_status === 'completed' || application.certificate_status === 'verified';
+        return completed ? 5 : 4;
+      }
+
+      return 3;
+    }
+    if (status === 'rejected_by_manager') {
+      return 1;
+    }
+    if (status === 'rejected_by_hr' || status === 'withdrawn') {
+      return 2;
+    }
+
+    return 0;
+  }
+
+  protected isRoadmapStepCompleted(application: CourseApplication, stepIndex: number): boolean {
+    return stepIndex <= this.roadmapIndex(application);
+  }
+
+  protected isRoadmapStepWarning(application: CourseApplication, stepIndex: number): boolean {
+    const status = application.status;
+    const isRejected = status === 'rejected_by_manager' || status === 'rejected_by_hr';
+    const isWithdrawn = status === 'withdrawn';
+    if (!isRejected && !isWithdrawn) {
+      return false;
+    }
+
+    return stepIndex === this.roadmapIndex(application);
   }
 
   protected hasStartableEnrollments(): boolean {
@@ -593,6 +669,7 @@ export class IntakeDetailPageComponent implements OnInit {
             this.applications.set(applications ?? []);
             this.myApplication.set(currentMyApplication);
             this.users.set(users ?? []);
+            this.selectedApplicationId.set((applications ?? [])[0]?.id ?? currentMyApplication?.id ?? null);
 
             if (!currentMyApplication?.enrollment_id) {
               this.myEnrollment.set(null);

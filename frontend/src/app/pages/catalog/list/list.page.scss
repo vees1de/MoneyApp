@@ -5,6 +5,7 @@
 .catalog-page {
   display: grid;
   gap: var(--space-6);
+  min-height: calc(100vh + 64px);
 }
 
 .catalog-page__header h1 {
@@ -80,22 +81,29 @@
   border-radius: 999px;
   display: inline-flex;
   gap: 0.45rem;
+  justify-content: center;
   min-height: 2.25rem;
   padding: 0.4rem 0.75rem;
 }
 
 .course-pill__label {
+  align-items: center;
   color: var(--pill-label);
+  display: inline-flex;
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.04em;
+  line-height: 1;
   text-transform: uppercase;
 }
 
 .course-pill__value {
+  align-items: center;
   color: var(--pill-text);
+  display: inline-flex;
   font-size: 0.88rem;
   font-weight: 700;
+  line-height: 1;
 }
 
 .course-pill--neutral {
@@ -147,6 +155,9 @@
 }
 
 .course-card__content p {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
   margin: 0;
 }
 

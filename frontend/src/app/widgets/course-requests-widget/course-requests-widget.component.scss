@@ -57,7 +57,7 @@
 }
 
 .rows__item {
-  background: #f7f8fb;
+  background: #fff;
   align-items: center;
   display: grid;
   gap: var(--space-3);
@@ -65,14 +65,15 @@
   padding: var(--space-4);
 }
 
-.rows__item:nth-child(odd) {
-  background: #fff;
-}
-
 .rows__identity,
 .rows__course {
   display: grid;
   gap: 2px;
+  min-width: 0;
+}
+
+.rows__amount {
+  min-width: 0;
 }
 
 .rows__identity p,
@@ -107,8 +108,14 @@
 
 .kv__value {
   color: var(--app-text);
+  display: inline-block;
   font-size: 0.94rem;
   font-weight: 700;
+  max-width: 26ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+  white-space: nowrap;
 }
 
 .rows__empty {
