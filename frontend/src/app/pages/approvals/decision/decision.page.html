@@ -1,11 +1,47 @@
-﻿<section class="page-shell">
-  <header class="page-header">
-    <h1>ApprovalsDecisionPageComponent</h1>
-    <p>Route: <code>/approvals/decision</code></p>
+﻿<section class="approvals-decision-page">
+  <header>
+    <h1>Решение по заявке</h1>
   </header>
 
-  <main class="page-content">
-    <p>Page scaffold created. Connect real widgets and data flows next.</p>
-    <a routerLink="/">Go to root</a>
-  </main>
+  @if (loading()) {
+    <p>Загрузка...</p>
+  } @else if (error()) {
+    <p class="approvals-decision-page__error">{{ error() }}</p>
+  } @else if (request(); as item) {
+    <mat-card>
+      <mat-card-header>
+        <mat-card-title>{{ item.title }}</mat-card-title>
+        <mat-card-subtitle>{{ statusLabel(item.status) }}</mat-card-subtitle>
+      </mat-card-header>
+
+      <mat-card-content>
+        <p>Провайдер: {{ item.provider_name ?? '—' }}</p>
+        <p>Стоимость: {{ item.cost_amount }} {{ item.currency }}</p>
+        <p>Бюджет: ручная проверка HR (MVP)</p>
+
+        <mat-form-field appearance="outline" class="approvals-decision-page__comment">
+          <mat-label>Комментарий</mat-label>
+          <textarea matInput rows="3" [formControl]="form.controls.comment"></textarea>
+        </mat-form-field>
+
+        <div class="approvals-decision-page__actions">
+          @if (canApprove()) {
+            <button mat-flat-button color="primary" type="button" (click)="approve()" [disabled]="acting()">
+              Approve
+            </button>
+          }
+          @if (canRevision()) {
+            <button mat-stroked-button type="button" (click)="requestRevision()" [disabled]="acting()">
+              Request revision
+            </button>
+          }
+          @if (canReject()) {
+            <button mat-stroked-button type="button" (click)="reject()" [disabled]="acting()">
+              Reject
+            </button>
+          }
+        </div>
+      </mat-card-content>
+    </mat-card>
+  }
 </section>

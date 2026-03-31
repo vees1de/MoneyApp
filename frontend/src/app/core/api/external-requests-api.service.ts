@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 
 import { API_BASE_URL } from '@core/config/api.config';
@@ -19,6 +19,28 @@ export class ExternalRequestsApiService {
       .pipe(map((response) => response.items ?? []));
   }
 
+  listFiltered(options: {
+    scope?: 'my' | 'team' | 'all';
+    statuses?: string[];
+    assignee?: string;
+  }): Observable<ExternalRequest[]> {
+    let params = new HttpParams();
+
+    if (options.scope) {
+      params = params.set('scope', options.scope);
+    }
+    if (options.assignee) {
+      params = params.set('assignee', options.assignee);
+    }
+    (options.statuses ?? []).forEach((status) => {
+      params = params.append('status', status);
+    });
+
+    return this.http
+      .get<ListResponse<ExternalRequest>>(this.base, { params })
+      .pipe(map((response) => response.items ?? []));
+  }
+
   listMy(): Observable<ExternalRequest[]> {
     return this.http
       .get<ListResponse<ExternalRequest>>(`${this.base}/my`)
@@ -29,10 +51,13 @@ export class ExternalRequestsApiService {
     scope: 'my' | 'team' | 'all',
     statuses: string[],
   ): Observable<ExternalRequest[]> {
-    return this.list({
-      scope,
-      status: statuses,
+    let params = new HttpParams().set('scope', scope);
+    statuses.forEach((status) => {
+      params = params.append('status', status);
     });
+    return this.http
+      .get<ListResponse<ExternalRequest>>(this.base, { params })
+      .pipe(map((response) => response.items ?? []));
   }
 
   listPendingApprovals(query?: ListQuery): Observable<PendingApprovalItem[]> {

@@ -2,17 +2,31 @@
   display: block;
 }
 
-.page-shell {
-  padding: 1rem;
+.enrollment-detail-page {
+  display: grid;
+  gap: var(--space-4);
+  max-width: 920px;
 }
 
-.page-header {
-  margin-bottom: 1rem;
+.enrollment-detail-page__actions {
+  display: flex;
+  gap: var(--space-2);
+  margin: var(--space-3) 0;
 }
 
-.page-content {
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 1rem;
-  background: #fff;
+.enrollment-detail-page__progress-form {
+  align-items: end;
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: 2fr 1fr auto;
+}
+
+.enrollment-detail-page__error {
+  color: #b42318;
+}
+
+@media (max-width: 1100px) {
+  .enrollment-detail-page__progress-form {
+    grid-template-columns: 1fr;
+  }
 }

@@ -8,7 +8,7 @@
 - Protected unknown routes redirect to `/dashboard`
 
 ## Role Rule
-- One user has exactly one role (backend still returns array, frontend uses first role as primary).
+- One user has exactly one role (backend returns array, frontend uses first role as primary).
 
 ## Header for protected routes
 - dark top bar
@@ -23,15 +23,6 @@
   - `/dashboard/employee` -> widgets `1,2,3,5,6,7`
   - `/dashboard/trainer` -> widgets `1,2,3,4,5,6,7`
 - `/dashboard/test-role` is a playground page with all widgets, without role switcher.
-
-## Widget Numbering
-1. Team overview
-2. Upcoming events
-3. Jira summary
-4. Course requests
-5. Current learning
-6. Recommendations
-7. Quick actions
 
 ## Widget Data Integration Status
 - Connected to backend now:
@@ -48,8 +39,23 @@
   - my requests (`GET /external-requests/my`)
   - work activity (`GET /notifications`)
 
+## External Request Workflow (MVP)
+- Implemented domain rules in `src/app/core/domain/external-request.workflow.ts`.
+- Status labels + allowed actions per role are centralized.
+- Implemented pages:
+  - `/external-requests` (list with filters)
+  - `/external-requests/new` (create)
+  - `/external-requests/:requestId` (detail + actions)
+  - `/approvals/inbox` (pending approvals)
+  - `/approvals/:requestId` (decision)
+- Budget check in MVP is manual HR decision (no hard-stop automation).
+
+## Learning Execution (MVP)
+- `/my-learning` loads real enrollments.
+- `/learning/:enrollmentId` supports start/progress/complete actions.
+
 ## Catalog Page
-- `/catalog` now loads real courses from `GET /api/v1/courses`.
+- `/catalog` loads real courses from `GET /api/v1/courses`.
 - Filters sent as query params: `status`, `source_type`, `level`, `limit`, `offset`.
 
 ## Auth implementation status

@@ -1,11 +1,63 @@
-﻿<section class="page-shell">
-  <header class="page-header">
-    <h1>ExternalRequestsListPageComponent</h1>
-    <p>Route: <code>/external-requests/list</code></p>
+﻿<section class="requests-list-page">
+  <header class="requests-list-page__header">
+    <h1>Каталог заявок</h1>
+    <p>Роль: {{ role() }}</p>
   </header>
 
-  <main class="page-content">
-    <p>Page scaffold created. Connect real widgets and data flows next.</p>
-    <a routerLink="/">Go to root</a>
-  </main>
+  <form class="requests-list-filters" [formGroup]="form" (ngSubmit)="applyFilters()">
+    <mat-form-field appearance="outline">
+      <mat-label>Статусы</mat-label>
+      <mat-select formControlName="statuses" multiple>
+        @for (item of statusOptions; track item.value) {
+          <mat-option [value]="item.value">{{ item.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Assignee</mat-label>
+      <input matInput formControlName="assignee" />
+    </mat-form-field>
+
+    <div class="requests-list-filters__actions">
+      <button mat-flat-button color="primary" type="submit">Применить</button>
+      <button mat-stroked-button type="button" (click)="clearFilters()">Сбросить</button>
+      @if (role() === 'employee') {
+        <button mat-stroked-button type="button" (click)="showAwaitingApprovalsForEmployee()">
+          Мои на согласовании
+        </button>
+      }
+    </div>
+  </form>
+
+  @if (loading()) {
+    <p>Загрузка заявок...</p>
+  } @else if (error()) {
+    <p class="requests-list-page__error">{{ error() }}</p>
+  } @else if (requests().length === 0) {
+    <p>Заявки не найдены.</p>
+  } @else {
+    <section class="requests-list-grid">
+      @for (item of requests(); track item.id) {
+        <mat-card>
+          <mat-card-header>
+            <mat-card-title>
+              <a [routerLink]="'/external-requests/' + item.id">{{ item.title }}</a>
+            </mat-card-title>
+            <mat-card-subtitle>{{ statusLabel(item.status) }}</mat-card-subtitle>
+          </mat-card-header>
+
+          <mat-card-content>
+            @if (item.program_description) {
+              <p>{{ item.program_description }}</p>
+            }
+            <p>Стоимость: {{ item.cost_amount }} {{ item.currency }}</p>
+            @if (item.planned_start_date || item.planned_end_date) {
+              <p>Сроки: {{ item.planned_start_date ?? '—' }} - {{ item.planned_end_date ?? '—' }}</p>
+            }
+          </mat-card-content>
+        </mat-card>
+      }
+    </section>
+  }
 </section>
