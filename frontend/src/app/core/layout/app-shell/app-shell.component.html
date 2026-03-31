@@ -1,4 +1,4 @@
-﻿<div class="shell">
+<div class="shell">
   <mat-toolbar>
     <span class="shell__brand">Diamond Learning</span>
 
@@ -35,6 +35,10 @@
         </section>
       }
     </div>
+
+    @if (showTestAdminLink()) {
+      <a mat-button routerLink="/testadmin" class="shell__admin-link">HR/Admin</a>
+    }
 
     <a mat-button routerLink="/profile" class="shell__profile-link">
       <mat-icon>person</mat-icon>

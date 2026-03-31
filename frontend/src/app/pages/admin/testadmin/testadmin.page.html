@@ -1,0 +1,750 @@
+<section class="admin-room">
+  <header class="hero">
+    <div>
+      <p class="hero__eyebrow">HR + Administrator Control Room</p>
+      <h1>/testadmin</h1>
+      <p class="hero__copy">
+        Единая рабочая поверхность для HR и администраторов: сотрудники, роли, каталог, согласование
+        пользовательских заявок и настройки маршрутов.
+      </p>
+    </div>
+
+    <div class="hero__actions">
+      <button mat-stroked-button type="button" (click)="refresh()" [disabled]="facade.loading()">
+        {{ facade.loading() ? 'Обновляем…' : 'Обновить данные' }}
+      </button>
+      <a mat-flat-button routerLink="/approvals/inbox">Inbox согласований</a>
+    </div>
+  </header>
+
+  @if (facade.error()) {
+    <section class="banner banner--error">
+      <div>
+        <strong>Есть проблема с данными.</strong>
+        <p>{{ facade.error() }}</p>
+      </div>
+      <button mat-button type="button" (click)="facade.clearError()">Скрыть</button>
+    </section>
+  }
+
+  @if (facade.notice()) {
+    <section class="banner banner--success">
+      <div>
+        <strong>Изменение применено.</strong>
+        <p>{{ facade.notice() }}</p>
+      </div>
+      <button mat-button type="button" (click)="facade.clearMessage()">Скрыть</button>
+    </section>
+  }
+
+  <section class="metrics-grid">
+    @for (metric of metrics(); track metric.label) {
+      <article
+        class="metric-card"
+        [class.metric-card--info]="metric.tone === 'info'"
+        [class.metric-card--success]="metric.tone === 'success'"
+        [class.metric-card--warning]="metric.tone === 'warning'"
+      >
+        <span class="metric-card__label">{{ metric.label }}</span>
+        <strong class="metric-card__value">{{ metric.value }}</strong>
+      </article>
+    }
+  </section>
+
+  <section class="quick-links">
+    <a mat-stroked-button routerLink="/external-requests">Все внешние заявки</a>
+    <a mat-stroked-button routerLink="/catalog">Каталог курсов</a>
+    @if (facade.canSeeAnalytics()) {
+      <a mat-stroked-button routerLink="/reports/overview">HR analytics</a>
+      <a mat-stroked-button routerLink="/reports/budget">Бюджет</a>
+    }
+    @if (facade.canApproveRequests()) {
+      <a mat-stroked-button routerLink="/approvals/inbox">Очередь approve</a>
+    }
+    <a mat-stroked-button routerLink="/notifications">Уведомления</a>
+  </section>
+
+  <mat-tab-group animationDuration="0ms">
+    <mat-tab label="Сотрудники">
+      <div class="tab-stack">
+        <mat-card class="workspace-card">
+          <div class="section-header">
+            <div>
+              <h2>Команда и роли</h2>
+              <p>
+                Все сотрудники в системе, их статусы и роль-модель. Назначение ролей доступно только
+                пользователям с permission `roles.manage`.
+              </p>
+            </div>
+
+            <mat-form-field appearance="outline" class="search-field">
+              <mat-label>Поиск сотрудника</mat-label>
+              <input
+                matInput
+                [ngModel]="userSearch()"
+                (ngModelChange)="userSearch.set($event)"
+                placeholder="Имя, email, должность, роль"
+              />
+            </mat-form-field>
+          </div>
+
+          <div class="table">
+            <div class="table__row table__row--head">
+              <div>Сотрудник</div>
+              <div>Позиция</div>
+              <div>Статус</div>
+              <div>Роли</div>
+              <div>Управление</div>
+            </div>
+
+            @for (user of filteredUsers(); track user.id) {
+              <div class="table__row">
+                <div class="identity-cell">
+                  <strong>{{ userName(user) }}</strong>
+                  <span>{{ user.email }}</span>
+                </div>
+
+                <div class="muted-cell">
+                  {{ user.employee_profile?.position_title || 'Без должности' }}
+                </div>
+
+                <div>
+                  <span class="status-badge" [class]="statusClass(user.status)">
+                    {{ user.status }}
+                  </span>
+                </div>
+
+                <div>
+                  <mat-chip-set>
+                    @for (roleCode of user.roles; track roleCode) {
+                      <mat-chip>{{ roleName(roleCode) }}</mat-chip>
+                    }
+                  </mat-chip-set>
+                </div>
+
+                <div class="role-toggle-list">
+                  @for (roleCode of roleCodes(); track roleCode) {
+                    <button
+                      mat-stroked-button
+                      type="button"
+                      class="role-toggle"
+                      [class.role-toggle--active]="user.roles.includes(roleCode)"
+                      [disabled]="
+                        !facade.canManageRoles() ||
+                        facade.isBusy('role:' + user.id + ':' + roleCode)
+                      "
+                      (click)="toggleRole(user, roleCode)"
+                    >
+                      {{ roleName(roleCode) }}
+                    </button>
+                  }
+                </div>
+              </div>
+            } @empty {
+              <p class="empty-state">Сотрудники не загрузились или не найдены по фильтру.</p>
+            }
+          </div>
+        </mat-card>
+      </div>
+    </mat-tab>
+
+    <mat-tab label="Каталог">
+      <div class="tab-stack">
+        <section class="dual-grid">
+          <mat-card class="workspace-card">
+            <div class="section-header">
+              <div>
+                <h2>{{ editingCourseId() ? 'Редактирование курса' : 'Новый курс' }}</h2>
+                <p>Создание черновика, подготовка карточки и публикация в каталог.</p>
+              </div>
+
+              @if (editingCourseId()) {
+                <button mat-button type="button" (click)="resetCourseForm()">Сбросить форму</button>
+              }
+            </div>
+
+            <form [formGroup]="courseForm" (ngSubmit)="submitCourse()" class="form-grid">
+              <mat-form-field appearance="outline" class="span-2">
+                <mat-label>Название курса</mat-label>
+                <input matInput formControlName="title" />
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Тип</mat-label>
+                <mat-select formControlName="type">
+                  <mat-option value="internal">internal</mat-option>
+                  <mat-option value="external">external</mat-option>
+                </mat-select>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Источник</mat-label>
+                <mat-select formControlName="source_type">
+                  <mat-option value="catalog">catalog</mat-option>
+                  <mat-option value="requested">requested</mat-option>
+                  <mat-option value="imported">imported</mat-option>
+                </mat-select>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="span-2">
+                <mat-label>Короткое описание</mat-label>
+                <input matInput formControlName="short_description" />
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="span-2">
+                <mat-label>Полное описание</mat-label>
+                <textarea matInput rows="4" formControlName="description"></textarea>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Язык</mat-label>
+                <input matInput formControlName="language" />
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Продолжительность, часы</mat-label>
+                <input matInput formControlName="duration_hours" />
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Внешняя ссылка</mat-label>
+                <input matInput formControlName="external_url" />
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Дата старта</mat-label>
+                <input matInput type="date" formControlName="next_start_date" />
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Цена</mat-label>
+                <input matInput formControlName="price" />
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Валюта</mat-label>
+                <input matInput formControlName="price_currency" />
+              </mat-form-field>
+
+              <mat-checkbox formControlName="is_mandatory_default" class="span-2">
+                Назначать как mandatory по умолчанию
+              </mat-checkbox>
+
+              <div class="form-actions span-2">
+                <button
+                  mat-flat-button
+                  type="submit"
+                  [disabled]="
+                    facade.isBusy(
+                      editingCourseId() ? 'course:update:' + editingCourseId() : 'course:create'
+                    )
+                  "
+                >
+                  {{ editingCourseId() ? 'Сохранить курс' : 'Добавить курс' }}
+                </button>
+                <button mat-button type="button" (click)="resetCourseForm()">Очистить форму</button>
+              </div>
+            </form>
+          </mat-card>
+
+          <mat-card class="workspace-card">
+            <div class="section-header">
+              <div>
+                <h2>Назначить обучение</h2>
+                <p>Дополнительная HR-возможность: выдача курса конкретному сотруднику.</p>
+              </div>
+            </div>
+
+            <form [formGroup]="assignmentForm" (ngSubmit)="submitAssignment()" class="form-grid">
+              <mat-form-field appearance="outline" class="span-2">
+                <mat-label>Курс</mat-label>
+                <mat-select formControlName="course_id">
+                  @for (course of facade.courses(); track course.id) {
+                    <mat-option [value]="course.id">{{ course.title }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="span-2">
+                <mat-label>Сотрудник</mat-label>
+                <mat-select formControlName="target_id">
+                  @for (user of facade.users(); track user.id) {
+                    <mat-option [value]="user.id">{{ userName(user) }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Приоритет</mat-label>
+                <mat-select formControlName="priority">
+                  <mat-option value="recommended">recommended</mat-option>
+                  <mat-option value="mandatory">mandatory</mat-option>
+                </mat-select>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Дата старта</mat-label>
+                <input matInput type="date" formControlName="start_at" />
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="span-2">
+                <mat-label>Дедлайн</mat-label>
+                <input matInput type="date" formControlName="deadline_at" />
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="span-2">
+                <mat-label>Причина назначения</mat-label>
+                <textarea matInput rows="3" formControlName="reason"></textarea>
+              </mat-form-field>
+
+              <div class="form-actions span-2">
+                <button
+                  mat-flat-button
+                  type="submit"
+                  [disabled]="facade.isBusy('assignment:create')"
+                >
+                  Назначить
+                </button>
+              </div>
+            </form>
+
+            <div class="mini-list">
+              <h3>Последние назначения</h3>
+              @for (assignment of facade.assignments().slice(0, 5); track assignment.id) {
+                <div class="mini-list__item">
+                  <strong>{{ assignmentCourseTitle(assignment.course_id) }}</strong>
+                  <span>{{ assignment.priority }} · {{ assignment.status }}</span>
+                </div>
+              } @empty {
+                <p class="empty-state">Назначений пока нет.</p>
+              }
+            </div>
+          </mat-card>
+        </section>
+
+        <mat-card class="workspace-card">
+          <div class="section-header">
+            <div>
+              <h2>Управление каталогом</h2>
+              <p>Поиск, скрытие, возврат в каталог и быстрый переход к редактированию.</p>
+            </div>
+
+            <mat-form-field appearance="outline" class="search-field">
+              <mat-label>Поиск по курсам</mat-label>
+              <input
+                matInput
+                [ngModel]="courseSearch()"
+                (ngModelChange)="courseSearch.set($event)"
+                placeholder="Название, язык, описание"
+              />
+            </mat-form-field>
+          </div>
+
+          <div class="card-list">
+            @for (course of filteredCourses(); track course.id) {
+              <article class="catalog-card">
+                <div class="catalog-card__top">
+                  <div>
+                    <h3>{{ course.title }}</h3>
+                    <p>{{ course.short_description || 'Описание будет добавлено позже.' }}</p>
+                  </div>
+                  <span class="status-badge" [class]="statusClass(course.status)">
+                    {{ courseState(course) }}
+                  </span>
+                </div>
+
+                <div class="catalog-card__meta">
+                  <span>{{ course.type }} / {{ course.source_type }}</span>
+                  <span>{{ course.language || 'language n/a' }}</span>
+                  <span>{{ course.duration_hours || 'duration n/a' }}</span>
+                  <span>updated {{ course.updated_at | date: 'dd.MM.yyyy HH:mm' }}</span>
+                </div>
+
+                <div class="catalog-card__actions">
+                  <button mat-button type="button" (click)="startEditingCourse(course)">
+                    Редактировать
+                  </button>
+                  @if (course.status === 'archived' || course.archived_at) {
+                    <button
+                      mat-flat-button
+                      type="button"
+                      (click)="publishCourse(course)"
+                      [disabled]="facade.isBusy('course:publish:' + course.id)"
+                    >
+                      Вернуть в каталог
+                    </button>
+                  } @else {
+                    <button
+                      mat-flat-button
+                      type="button"
+                      (click)="publishCourse(course)"
+                      [disabled]="facade.isBusy('course:publish:' + course.id)"
+                    >
+                      Опубликовать
+                    </button>
+                    <button
+                      mat-stroked-button
+                      type="button"
+                      (click)="archiveCourse(course)"
+                      [disabled]="facade.isBusy('course:archive:' + course.id)"
+                    >
+                      Скрыть
+                    </button>
+                  }
+                </div>
+              </article>
+            } @empty {
+              <p class="empty-state">Курсы не найдены по текущему фильтру.</p>
+            }
+          </div>
+        </mat-card>
+      </div>
+    </mat-tab>
+
+    <mat-tab label="Заявки">
+      <div class="tab-stack">
+        <mat-card class="workspace-card">
+          <div class="section-header">
+            <div>
+              <h2>Пользовательские заявки на обучение</h2>
+              <p>
+                Рассмотрение курсов от сотрудников, быстрый approve/reject/revision и просмотр
+                текущего шага согласования.
+              </p>
+            </div>
+
+            <div class="filters-row">
+              <mat-form-field appearance="outline" class="search-field">
+                <mat-label>Поиск заявки</mat-label>
+                <input
+                  matInput
+                  [ngModel]="requestSearch()"
+                  (ngModelChange)="requestSearch.set($event)"
+                  placeholder="Курс, сотрудник, провайдер"
+                />
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="filter-field">
+                <mat-label>Статус</mat-label>
+                <mat-select [ngModel]="requestStatus()" (ngModelChange)="requestStatus.set($event)">
+                  <mat-option value="all">Все</mat-option>
+                  <mat-option value="draft">draft</mat-option>
+                  <mat-option value="pending">pending</mat-option>
+                  <mat-option value="submitted">submitted</mat-option>
+                  <mat-option value="approved">approved</mat-option>
+                  <mat-option value="rejected">rejected</mat-option>
+                  <mat-option value="sent_to_revision">sent_to_revision</mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+          </div>
+
+          <div class="request-list">
+            @for (request of filteredRequests(); track request.id) {
+              <article class="request-card">
+                <div class="request-card__top">
+                  <div>
+                    <h3>{{ request.title }}</h3>
+                    <p>
+                      {{
+                        request.employee_full_name ||
+                          request.employee_email ||
+                          'Неизвестный сотрудник'
+                      }}
+                      @if (request.provider_name) {
+                        <span>· {{ request.provider_name }}</span>
+                      }
+                    </p>
+                  </div>
+
+                  <div class="request-card__badges">
+                    <span class="status-badge" [class]="statusClass(request.status)">
+                      {{ request.status }}
+                    </span>
+                    <span class="status-badge status-badge--info">{{ requestStep(request) }}</span>
+                  </div>
+                </div>
+
+                <div class="request-card__meta">
+                  <span>{{ request.department_name || 'Без департамента' }}</span>
+                  <span>{{ request.cost_amount || '0' }} {{ request.currency || 'RUB' }}</span>
+                  <span>updated {{ request.updated_at | date: 'dd.MM.yyyy HH:mm' }}</span>
+                </div>
+
+                <p class="request-card__body">
+                  {{
+                    request.program_description ||
+                      request.business_goal ||
+                      request.employee_comment ||
+                      'Комментарий сотрудника не заполнен.'
+                  }}
+                </p>
+
+                <mat-form-field appearance="outline" class="comment-field">
+                  <mat-label>Комментарий HR/Admin</mat-label>
+                  <textarea
+                    matInput
+                    rows="3"
+                    [ngModel]="requestComment(request.id)"
+                    (ngModelChange)="setRequestComment(request.id, $event)"
+                  ></textarea>
+                </mat-form-field>
+
+                <div class="request-card__actions">
+                  <a mat-button [routerLink]="'/external-requests/' + request.id"
+                    >Открыть карточку</a
+                  >
+                  @if (canActOnRequest(request)) {
+                    <button
+                      mat-flat-button
+                      type="button"
+                      (click)="approveRequest(request)"
+                      [disabled]="facade.isBusy('request:approve:' + request.id)"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      mat-stroked-button
+                      type="button"
+                      (click)="requestRevision(request)"
+                      [disabled]="facade.isBusy('request:request-revision:' + request.id)"
+                    >
+                      Revision
+                    </button>
+                    <button
+                      mat-stroked-button
+                      type="button"
+                      (click)="rejectRequest(request)"
+                      [disabled]="facade.isBusy('request:reject:' + request.id)"
+                    >
+                      Reject
+                    </button>
+                  } @else {
+                    <span class="muted-note">Действия недоступны: заявка не в pending-step.</span>
+                  }
+                </div>
+              </article>
+            } @empty {
+              <p class="empty-state">Заявок по текущему фильтру нет.</p>
+            }
+          </div>
+        </mat-card>
+      </div>
+    </mat-tab>
+
+    <mat-tab label="HR инструменты">
+      <div class="tab-stack">
+        <section class="dual-grid">
+          <mat-card class="workspace-card">
+            <div class="section-header">
+              <div>
+                <h2>HR analytics snapshot</h2>
+                <p>Быстрый срез по пользователям, каталогу и approve pipeline.</p>
+              </div>
+            </div>
+
+            <div class="analytics-list">
+              @for (row of analyticsRows(); track row.label) {
+                <div class="analytics-list__item">
+                  <span>{{ row.label }}</span>
+                  <strong>{{ row.value }}</strong>
+                </div>
+              } @empty {
+                <p class="empty-state">Analytics ещё не загрузилась.</p>
+              }
+            </div>
+          </mat-card>
+
+          <mat-card class="workspace-card">
+            <div class="section-header">
+              <div>
+                <h2>Лимиты бюджета</h2>
+                <p>
+                  Ещё одна HR-возможность: управление лимитами по компании, сотруднику или отделу.
+                </p>
+              </div>
+            </div>
+
+            <form [formGroup]="budgetLimitForm" (ngSubmit)="submitBudgetLimit()" class="form-grid">
+              <mat-form-field appearance="outline">
+                <mat-label>Scope</mat-label>
+                <mat-select formControlName="scope_type">
+                  <mat-option value="company">company</mat-option>
+                  <mat-option value="employee">employee</mat-option>
+                  <mat-option value="department">department</mat-option>
+                </mat-select>
+              </mat-form-field>
+
+              @if (budgetLimitForm.get('scope_type')?.value === 'employee') {
+                <mat-form-field appearance="outline">
+                  <mat-label>Сотрудник</mat-label>
+                  <mat-select formControlName="scope_id">
+                    @for (user of facade.users(); track user.id) {
+                      <mat-option [value]="user.id">{{ userName(user) }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+              } @else if (budgetLimitForm.get('scope_type')?.value === 'department') {
+                <mat-form-field appearance="outline">
+                  <mat-label>Department UUID</mat-label>
+                  <input matInput formControlName="scope_id" />
+                </mat-form-field>
+              }
+
+              <mat-form-field appearance="outline">
+                <mat-label>Год</mat-label>
+                <input matInput type="number" formControlName="period_year" />
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Месяц</mat-label>
+                <input matInput type="number" min="1" max="12" formControlName="period_month" />
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Лимит</mat-label>
+                <input matInput formControlName="limit_amount" />
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Валюта</mat-label>
+                <input matInput formControlName="currency" />
+              </mat-form-field>
+
+              <mat-checkbox formControlName="is_active" class="span-2">Лимит активен</mat-checkbox>
+
+              <div class="form-actions span-2">
+                <button mat-flat-button type="submit" [disabled]="facade.isBusy('budget:create')">
+                  Сохранить лимит
+                </button>
+              </div>
+            </form>
+
+            <div class="mini-list">
+              <h3>Текущие лимиты</h3>
+              @for (item of facade.budgetLimits(); track item.id) {
+                <div class="mini-list__item">
+                  <strong>{{ budgetScopeLabel(item) }}</strong>
+                  <span>
+                    {{ item.limit_amount }} {{ item.currency }} · {{ item.period_year }}
+                    @if (item.period_month) {
+                      <span>/ {{ item.period_month }}</span>
+                    }
+                  </span>
+                </div>
+              } @empty {
+                <p class="empty-state">Лимитов бюджета пока нет.</p>
+              }
+            </div>
+          </mat-card>
+        </section>
+
+        <mat-card class="workspace-card">
+          <div class="section-header">
+            <div>
+              <h2>Маршруты согласования</h2>
+              <p>
+                Настройка approve workflow для внешних заявок. По умолчанию шаги стартуют с manager
+                и HR.
+              </p>
+            </div>
+          </div>
+
+          <form [formGroup]="workflowForm" (ngSubmit)="submitWorkflow()" class="form-grid">
+            <mat-form-field appearance="outline" class="span-2">
+              <mat-label>Название workflow</mat-label>
+              <input matInput formControlName="name" />
+            </mat-form-field>
+
+            <mat-checkbox formControlName="is_active" class="span-2">
+              Активировать сразу после сохранения
+            </mat-checkbox>
+
+            <div class="steps-list span-2">
+              @for (step of workflowStepGroups(); track step; let index = $index) {
+                <div class="step-card" [formGroup]="step">
+                  <div class="step-card__header">
+                    <strong>Шаг {{ index + 1 }}</strong>
+                    <button mat-button type="button" (click)="removeWorkflowStep(index)">
+                      Удалить
+                    </button>
+                  </div>
+
+                  <div class="form-grid form-grid--compact">
+                    <mat-form-field appearance="outline">
+                      <mat-label>Role code</mat-label>
+                      <mat-select formControlName="role_code">
+                        @for (roleCode of roleCodes(); track roleCode) {
+                          <mat-option [value]="roleCode">{{ roleName(roleCode) }}</mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline">
+                      <mat-label>Approver source</mat-label>
+                      <mat-select formControlName="approver_source">
+                        <mat-option value="line_manager">line_manager</mat-option>
+                        <mat-option value="specific_role">specific_role</mat-option>
+                        <mat-option value="static_user">static_user</mat-option>
+                        <mat-option value="department_head">department_head</mat-option>
+                      </mat-select>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline">
+                      <mat-label>Static approver</mat-label>
+                      <mat-select formControlName="approver_user_id">
+                        <mat-option value="">Авто-резолв</mat-option>
+                        @for (user of facade.users(); track user.id) {
+                          <mat-option [value]="user.id">{{ userName(user) }}</mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline">
+                      <mat-label>SLA, hours</mat-label>
+                      <input matInput type="number" formControlName="sla_hours" />
+                    </mat-form-field>
+
+                    <mat-checkbox formControlName="is_required">Required step</mat-checkbox>
+                  </div>
+                </div>
+              }
+            </div>
+
+            <div class="form-actions span-2">
+              <button mat-stroked-button type="button" (click)="addWorkflowStep()">
+                Добавить шаг
+              </button>
+              <button mat-flat-button type="submit" [disabled]="facade.isBusy('workflow:create')">
+                Сохранить workflow
+              </button>
+            </div>
+          </form>
+
+          <div class="card-list card-list--compact">
+            @for (workflow of facade.workflows(); track workflow.id) {
+              <article class="catalog-card catalog-card--compact">
+                <div class="catalog-card__top">
+                  <div>
+                    <h3>{{ workflow.name }}</h3>
+                    <p>
+                      {{ workflowSummary(workflow) || 'Шаги будут загружены после сохранения.' }}
+                    </p>
+                  </div>
+                  <span
+                    class="status-badge"
+                    [class]="statusClass(workflow.is_active ? 'active' : 'draft')"
+                  >
+                    {{ workflow.is_active ? 'active' : 'inactive' }}
+                  </span>
+                </div>
+              </article>
+            } @empty {
+              <p class="empty-state">Workflow пока не создан.</p>
+            }
+          </div>
+        </mat-card>
+      </div>
+    </mat-tab>
+  </mat-tab-group>
+</section>

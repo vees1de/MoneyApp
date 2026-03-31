@@ -1,9 +1,10 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 
 import { API_BASE_URL } from '@core/config/api.config';
-import type { BudgetLimit } from '@entities/budget-limit';
+import type { ListResponse } from './api.types';
+import type { BudgetLimitRecord } from './contracts';
 
 @Injectable({ providedIn: 'root' })
 export class BudgetLimitsApiService {
@@ -11,11 +12,13 @@ export class BudgetLimitsApiService {
 
   constructor(private readonly http: HttpClient) {}
 
-  list(): Observable<BudgetLimit[]> {
-    return this.http.get<BudgetLimit[]>(this.base);
+  list(): Observable<BudgetLimitRecord[]> {
+    return this.http
+      .get<ListResponse<BudgetLimitRecord>>(this.base)
+      .pipe(map((response) => response.items ?? []));
   }
 
-  create(payload: Record<string, unknown>): Observable<BudgetLimit> {
-    return this.http.post<BudgetLimit>(this.base, payload);
+  create(payload: Record<string, unknown>): Observable<BudgetLimitRecord> {
+    return this.http.post<BudgetLimitRecord>(this.base, payload);
   }
 }

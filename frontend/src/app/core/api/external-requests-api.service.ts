@@ -1,10 +1,10 @@
-﻿import { Injectable } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable, map } from 'rxjs';
 
 import { API_BASE_URL } from '@core/config/api.config';
-import type { ListQuery } from './api.types';
 import type { ExternalRequest, PendingApprovalItem } from './contracts';
+import type { ListQuery, ListResponse } from './api.types';
 import { toHttpParams } from './http-params.util';
 
 @Injectable({ providedIn: 'root' })
@@ -14,7 +14,9 @@ export class ExternalRequestsApiService {
   constructor(private readonly http: HttpClient) {}
 
   list(query?: ListQuery): Observable<ExternalRequest[]> {
-    return this.http.get<ExternalRequest[]>(this.base, { params: toHttpParams(query) });
+    return this.http
+      .get<ListResponse<ExternalRequest>>(this.base, { params: toHttpParams(query) })
+      .pipe(map((response) => response.items ?? []));
   }
 
   listFiltered(options: {
@@ -38,15 +40,28 @@ export class ExternalRequestsApiService {
   }
 
   listMy(): Observable<ExternalRequest[]> {
-    return this.http.get<ExternalRequest[]>(`${this.base}/my`);
+    return this.http
+      .get<ListResponse<ExternalRequest>>(`${this.base}/my`)
+      .pipe(map((response) => response.items ?? []));
   }
 
-  listByScopeAndStatuses(scope: 'my' | 'team' | 'all', statuses: string[]): Observable<ExternalRequest[]> {
-    return this.listFiltered({ scope, statuses });
+  listByScopeAndStatuses(
+    scope: 'my' | 'team' | 'all',
+    statuses: string[],
+  ): Observable<ExternalRequest[]> {
+    let params = new HttpParams().set('scope', scope);
+    statuses.forEach((status) => {
+      params = params.append('status', status);
+    });
+    return this.http.get<ExternalRequest[]>(this.base, { params });
   }
 
-  listPendingApprovals(): Observable<PendingApprovalItem[]> {
-    return this.http.get<PendingApprovalItem[]>(`${this.base}/pending-approvals`);
+  listPendingApprovals(query?: ListQuery): Observable<PendingApprovalItem[]> {
+    return this.http
+      .get<ListResponse<PendingApprovalItem>>(`${this.base}/pending-approvals`, {
+        params: toHttpParams(query),
+      })
+      .pipe(map((response) => response.items ?? []));
   }
 
   getById(id: string): Observable<ExternalRequest> {

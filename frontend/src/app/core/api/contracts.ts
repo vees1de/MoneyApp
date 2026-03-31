@@ -1,4 +1,4 @@
-﻿export interface CalendarUpcomingEvent {
+export interface CalendarUpcomingEvent {
   id: string;
   title: string;
   start_at: string;
@@ -8,11 +8,30 @@
   location?: string | null;
 }
 
+export interface AdminRole {
+  id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  is_system: boolean;
+}
+
+export interface AdminPermission {
+  id: string;
+  code: string;
+  module: string;
+  action: string;
+  description?: string | null;
+}
+
 export interface ExternalRequest {
   id: string;
   request_no: string;
   employee_user_id: string;
+  employee_full_name?: string;
+  employee_email?: string;
   department_id?: string | null;
+  department_name?: string;
   title: string;
   provider_id?: string | null;
   provider_name?: string | null;
@@ -21,8 +40,8 @@ export interface ExternalRequest {
   planned_start_date?: string | null;
   planned_end_date?: string | null;
   duration_hours?: string | null;
-  cost_amount: string;
-  currency: string;
+  cost_amount?: string;
+  currency?: string;
   business_goal?: string | null;
   employee_comment?: string | null;
   manager_comment?: string | null;
@@ -30,8 +49,18 @@ export interface ExternalRequest {
   status: string;
   calendar_conflict_status?: string | null;
   budget_check_status?: string | null;
+  current_approval_step_id?: string | null;
+  current_approval_status?: string;
+  current_approval_role_code?: string;
+  current_approval_due_at?: string | null;
+  current_approver_user_id?: string | null;
+  current_approver_full_name?: string;
   approved_at?: string | null;
   rejected_at?: string | null;
+  sent_to_revision_at?: string | null;
+  training_started_at?: string | null;
+  training_completed_at?: string | null;
+  certificate_uploaded_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -101,7 +130,86 @@ export interface ManagerDashboard {
   }>;
 }
 
+export interface CourseAssignment {
+  id: string;
+  course_id: string;
+  assignment_type: string;
+  target_type: string;
+  target_id: string;
+  assigned_by: string;
+  priority: string;
+  reason?: string | null;
+  start_at?: string | null;
+  deadline_at?: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ApprovalWorkflowStep {
+  id: string;
+  workflow_id: string;
+  step_order: number;
+  role_code: string;
+  approver_source: string;
+  approver_user_id?: string | null;
+  sla_hours?: number | null;
+  is_required: boolean;
+}
+
+export interface ApprovalWorkflow {
+  id: string;
+  entity_type: string;
+  name: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  steps?: ApprovalWorkflowStep[];
+}
+
+export interface BudgetLimitRecord {
+  id: string;
+  scope_type: string;
+  scope_id?: string | null;
+  period_year: number;
+  period_month?: number | null;
+  limit_amount: string;
+  currency: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HrDashboardStats {
+  users: number;
+  courses: number;
+  enrollments: number;
+  external_requests: number;
+  pending_approvals: number;
+}
+
+export interface BoardSummaryBoardItem {
+  board_id: string;
+  title: string;
+  tasks_total: number;
+  active_total: number;
+  completed_total: number;
+  overdue_total: number;
+}
+
+export interface BoardSummaryOverdueTask {
+  task_id: string;
+  board_id?: string | null;
+  board_title?: string | null;
+  title: string;
+  deadline_at?: string | null;
+  completed: boolean;
+  archived: boolean;
+}
+
 export interface BoardSummary {
+  source: string;
+  status: string;
   summary: {
     boards_total: number;
     tasks_total: number;
@@ -109,6 +217,8 @@ export interface BoardSummary {
     completed_total: number;
     overdue_total: number;
   };
+  boards: BoardSummaryBoardItem[];
+  overdue_tasks: BoardSummaryOverdueTask[];
 }
 
 export interface AppNotification {

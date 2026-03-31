@@ -27,7 +27,10 @@ type ExternalRequest struct {
 	ID                     uuid.UUID  `json:"id"`
 	RequestNo              string     `json:"request_no"`
 	EmployeeUserID         uuid.UUID  `json:"employee_user_id"`
+	EmployeeFullName       string     `json:"employee_full_name,omitempty"`
+	EmployeeEmail          string     `json:"employee_email,omitempty"`
 	DepartmentID           *uuid.UUID `json:"department_id,omitempty"`
+	DepartmentName         string     `json:"department_name,omitempty"`
 	Title                  string     `json:"title"`
 	ProviderID             *uuid.UUID `json:"provider_id,omitempty"`
 	ProviderName           *string    `json:"provider_name,omitempty"`
@@ -46,6 +49,11 @@ type ExternalRequest struct {
 	CalendarConflictStatus *string    `json:"calendar_conflict_status,omitempty"`
 	BudgetCheckStatus      *string    `json:"budget_check_status,omitempty"`
 	CurrentApprovalStepID  *uuid.UUID `json:"current_approval_step_id,omitempty"`
+	CurrentApprovalStatus  string     `json:"current_approval_status,omitempty"`
+	CurrentApprovalRole    string     `json:"current_approval_role_code,omitempty"`
+	CurrentApprovalDueAt   *time.Time `json:"current_approval_due_at,omitempty"`
+	CurrentApproverUserID  *uuid.UUID `json:"current_approver_user_id,omitempty"`
+	CurrentApproverName    string     `json:"current_approver_full_name,omitempty"`
 	ApprovedAt             *time.Time `json:"approved_at,omitempty"`
 	RejectedAt             *time.Time `json:"rejected_at,omitempty"`
 	SentToRevisionAt       *time.Time `json:"sent_to_revision_at,omitempty"`
@@ -249,36 +257,16 @@ func (r *Repository) UpdateRequest(ctx context.Context, item ExternalRequest, ex
 }
 
 func (r *Repository) GetRequest(ctx context.Context, id uuid.UUID, exec ...db.DBTX) (ExternalRequest, error) {
-	var item ExternalRequest
-	err := r.base(exec...).QueryRowContext(ctx, `
-		select id, request_no, employee_user_id, department_id, title, provider_id, provider_name, course_url,
-		       program_description, planned_start_date::timestamptz, planned_end_date::timestamptz,
-		       duration_hours::text, cost_amount::text, currency, business_goal, employee_comment, manager_comment,
-		       hr_comment, status, calendar_conflict_status, budget_check_status, current_approval_step_id,
-		       approved_at, rejected_at, sent_to_revision_at, training_started_at, training_completed_at,
-		       certificate_uploaded_at, created_at, updated_at
-		from external_course_requests
-		where id = $1
-	`, id).Scan(&item.ID, &item.RequestNo, &item.EmployeeUserID, &item.DepartmentID, &item.Title, &item.ProviderID, &item.ProviderName,
-		&item.CourseURL, &item.ProgramDescription, &item.PlannedStartDate, &item.PlannedEndDate, &item.DurationHours,
-		&item.CostAmount, &item.Currency, &item.BusinessGoal, &item.EmployeeComment, &item.ManagerComment, &item.HRComment,
-		&item.Status, &item.CalendarConflictStatus, &item.BudgetCheckStatus, &item.CurrentApprovalStepID, &item.ApprovedAt,
-		&item.RejectedAt, &item.SentToRevisionAt, &item.TrainingStartedAt, &item.TrainingCompletedAt, &item.CertificateUploadedAt,
-		&item.CreatedAt, &item.UpdatedAt)
-	return item, err
+	row := r.base(exec...).QueryRowContext(ctx, externalRequestReadColumns+externalRequestReadJoins+`
+		where r.id = $1
+	`, id)
+	return scanExternalRequest(row)
 }
 
 func (r *Repository) ListRequestsByUser(ctx context.Context, userID uuid.UUID, exec ...db.DBTX) ([]ExternalRequest, error) {
-	rows, err := r.base(exec...).QueryContext(ctx, `
-		select id, request_no, employee_user_id, department_id, title, provider_id, provider_name, course_url,
-		       program_description, planned_start_date::timestamptz, planned_end_date::timestamptz,
-		       duration_hours::text, cost_amount::text, currency, business_goal, employee_comment, manager_comment,
-		       hr_comment, status, calendar_conflict_status, budget_check_status, current_approval_step_id,
-		       approved_at, rejected_at, sent_to_revision_at, training_started_at, training_completed_at,
-		       certificate_uploaded_at, created_at, updated_at
-		from external_course_requests
-		where employee_user_id = $1
-		order by created_at desc
+	rows, err := r.base(exec...).QueryContext(ctx, externalRequestReadColumns+externalRequestReadJoins+`
+		where r.employee_user_id = $1
+		order by r.created_at desc
 	`, userID)
 	if err != nil {
 		return nil, err
@@ -286,13 +274,8 @@ func (r *Repository) ListRequestsByUser(ctx context.Context, userID uuid.UUID, e
 	defer rows.Close()
 	var items []ExternalRequest
 	for rows.Next() {
-		var item ExternalRequest
-		if err := rows.Scan(&item.ID, &item.RequestNo, &item.EmployeeUserID, &item.DepartmentID, &item.Title, &item.ProviderID, &item.ProviderName,
-			&item.CourseURL, &item.ProgramDescription, &item.PlannedStartDate, &item.PlannedEndDate, &item.DurationHours,
-			&item.CostAmount, &item.Currency, &item.BusinessGoal, &item.EmployeeComment, &item.ManagerComment, &item.HRComment,
-			&item.Status, &item.CalendarConflictStatus, &item.BudgetCheckStatus, &item.CurrentApprovalStepID, &item.ApprovedAt,
-			&item.RejectedAt, &item.SentToRevisionAt, &item.TrainingStartedAt, &item.TrainingCompletedAt, &item.CertificateUploadedAt,
-			&item.CreatedAt, &item.UpdatedAt); err != nil {
+		item, err := scanExternalRequest(rows)
+		if err != nil {
 			return nil, err
 		}
 		items = append(items, item)
@@ -499,6 +482,16 @@ func (r *Repository) CreateApprovalHistory(ctx context.Context, entityID uuid.UU
 	return err
 }
 
+func (r *Repository) CreateNotification(ctx context.Context, userID uuid.UUID, typ, title, body string, relatedEntityID uuid.UUID, createdAt time.Time, exec ...db.DBTX) error {
+	_, err := r.base(exec...).ExecContext(ctx, `
+		insert into notifications (
+			id, user_id, channel, type, title, body, status, related_entity_type, related_entity_id, created_at
+		)
+		values ($1, $2, 'in_app', $3, $4, $5, 'pending', 'external_course_request', $6, $7)
+	`, uuid.New(), userID, typ, title, body, relatedEntityID, createdAt)
+	return err
+}
+
 func (r *Repository) ResolveDepartmentHead(ctx context.Context, departmentID uuid.UUID, exec ...db.DBTX) (*uuid.UUID, error) {
 	var userID uuid.UUID
 	err := r.base(exec...).QueryRowContext(ctx, `select head_user_id from departments where id = $1`, departmentID).Scan(&userID)
@@ -509,6 +502,20 @@ func (r *Repository) ResolveDepartmentHead(ctx context.Context, departmentID uui
 		return nil, err
 	}
 	return &userID, nil
+}
+
+func (r *Repository) IsPrimaryManagerOf(ctx context.Context, managerUserID, employeeUserID uuid.UUID, exec ...db.DBTX) (bool, error) {
+	var exists bool
+	err := r.base(exec...).QueryRowContext(ctx, `
+		select exists (
+			select 1
+			from manager_relations
+			where manager_user_id = $1
+			  and employee_user_id = $2
+			  and is_primary = true
+		)
+	`, managerUserID, employeeUserID).Scan(&exists)
+	return exists, err
 }
 
 func (r *Repository) CreateCalendarEvent(ctx context.Context, userID, sourceID uuid.UUID, title string, startAt, endAt time.Time, exec ...db.DBTX) error {
@@ -570,7 +577,73 @@ func NewService(database *sql.DB, repo *Repository, identityRepo *identity.Repos
 	}
 }
 
+func hasRole(principal platformauth.Principal, roleCode string) bool {
+	for _, role := range principal.RoleCodes {
+		if role == roleCode {
+			return true
+		}
+	}
+	return false
+}
+
+func canCreateOwnExternalRequest(principal platformauth.Principal) bool {
+	return principal.HasPermission("external_requests.create") ||
+		hasRole(principal, "manager") ||
+		hasRole(principal, "hr") ||
+		hasRole(principal, "trainer") ||
+		hasRole(principal, "admin")
+}
+
+func canReadOwnExternalRequests(principal platformauth.Principal) bool {
+	return principal.HasPermission("external_requests.read_own") ||
+		canCreateOwnExternalRequest(principal) ||
+		canViewTeamExternalRequests(principal) ||
+		canViewAllExternalRequests(principal)
+}
+
+func canViewTeamExternalRequests(principal platformauth.Principal) bool {
+	return hasRole(principal, "manager") || hasRole(principal, "admin")
+}
+
+func canViewAllExternalRequests(principal platformauth.Principal) bool {
+	return hasRole(principal, "hr") || hasRole(principal, "admin")
+}
+
+func validateExternalRequestSchedule(item ExternalRequest) error {
+	if item.PlannedStartDate != nil && item.PlannedEndDate != nil && item.PlannedEndDate.Before(*item.PlannedStartDate) {
+		return httpx.BadRequest("invalid_schedule", "planned_end_date must be on or after planned_start_date")
+	}
+	return nil
+}
+
+func submissionHistoryAction(status string) string {
+	if status == "needs_revision" {
+		return "resubmitted"
+	}
+	return "submitted"
+}
+
+func (s *Service) canViewRequest(ctx context.Context, principal platformauth.Principal, item ExternalRequest) (bool, error) {
+	if item.EmployeeUserID == principal.UserID {
+		return true, nil
+	}
+	if canViewAllExternalRequests(principal) {
+		return true, nil
+	}
+	if item.CurrentApproverUserID != nil && *item.CurrentApproverUserID == principal.UserID {
+		return true, nil
+	}
+	if canViewTeamExternalRequests(principal) {
+		return s.repo.IsPrimaryManagerOf(ctx, principal.UserID, item.EmployeeUserID)
+	}
+	return false, nil
+}
+
 func (s *Service) CreateRequest(ctx context.Context, principal platformauth.Principal, req CreateExternalRequestRequest) (ExternalRequest, error) {
+	if !canCreateOwnExternalRequest(principal) {
+		return ExternalRequest{}, httpx.Forbidden("forbidden", "permission denied")
+	}
+
 	now := s.clock.Now()
 	item := ExternalRequest{
 		ID:                 uuid.New(),
@@ -593,10 +666,19 @@ func (s *Service) CreateRequest(ctx context.Context, principal platformauth.Prin
 		CreatedAt:          now,
 		UpdatedAt:          now,
 	}
-	return item, s.repo.CreateRequest(ctx, item)
+	if err := validateExternalRequestSchedule(item); err != nil {
+		return ExternalRequest{}, err
+	}
+	if err := s.repo.CreateRequest(ctx, item); err != nil {
+		return ExternalRequest{}, err
+	}
+	return s.GetRequest(ctx, principal, item.ID)
 }
 
 func (s *Service) ListMine(ctx context.Context, principal platformauth.Principal) ([]ExternalRequest, error) {
+	if !canReadOwnExternalRequests(principal) {
+		return nil, httpx.Forbidden("forbidden", "permission denied")
+	}
 	return s.repo.ListRequestsByUser(ctx, principal.UserID)
 }
 
@@ -608,7 +690,11 @@ func (s *Service) GetRequest(ctx context.Context, principal platformauth.Princip
 		}
 		return ExternalRequest{}, err
 	}
-	if item.EmployeeUserID != principal.UserID && !principal.HasPermission("external_requests.read_all") && !principal.HasPermission("external_requests.approve_manager") && !principal.HasPermission("external_requests.approve_hr") {
+	allowed, err := s.canViewRequest(ctx, principal, item)
+	if err != nil {
+		return ExternalRequest{}, err
+	}
+	if !allowed {
 		return ExternalRequest{}, httpx.Forbidden("forbidden", "permission denied")
 	}
 	return item, nil
@@ -619,11 +705,14 @@ func (s *Service) UpdateRequest(ctx context.Context, principal platformauth.Prin
 	if err != nil {
 		return ExternalRequest{}, err
 	}
-	if item.EmployeeUserID != principal.UserID && !principal.HasPermission("external_requests.read_all") {
-		return ExternalRequest{}, httpx.Forbidden("forbidden", "permission denied")
+	if item.EmployeeUserID != principal.UserID && !hasRole(principal, "admin") {
+		return ExternalRequest{}, httpx.Forbidden("forbidden", "only owner can edit request")
 	}
 	if item.Status != "draft" && item.Status != "needs_revision" {
 		return ExternalRequest{}, httpx.Conflict("request_locked", "request cannot be edited in current state")
+	}
+	if req.ManagerComment != nil || req.HRComment != nil {
+		return ExternalRequest{}, httpx.BadRequest("readonly_fields", "manager_comment and hr_comment can only be changed in approval actions")
 	}
 	if req.Title != nil {
 		item.Title = *req.Title
@@ -661,14 +750,14 @@ func (s *Service) UpdateRequest(ctx context.Context, principal platformauth.Prin
 	if req.EmployeeComment != nil {
 		item.EmployeeComment = req.EmployeeComment
 	}
-	if req.ManagerComment != nil {
-		item.ManagerComment = req.ManagerComment
-	}
-	if req.HRComment != nil {
-		item.HRComment = req.HRComment
+	if err := validateExternalRequestSchedule(item); err != nil {
+		return ExternalRequest{}, err
 	}
 	item.UpdatedAt = s.clock.Now()
-	return item, s.repo.UpdateRequest(ctx, item)
+	if err := s.repo.UpdateRequest(ctx, item); err != nil {
+		return ExternalRequest{}, err
+	}
+	return s.GetRequest(ctx, principal, item.ID)
 }
 
 func (s *Service) Submit(ctx context.Context, principal platformauth.Principal, id uuid.UUID) (ExternalRequest, error) {
@@ -682,8 +771,12 @@ func (s *Service) Submit(ctx context.Context, principal platformauth.Principal, 
 	if item.Status != "draft" && item.Status != "needs_revision" {
 		return ExternalRequest{}, httpx.Conflict("invalid_status", "request cannot be submitted from current state")
 	}
+	if err := validateExternalRequestSchedule(item); err != nil {
+		return ExternalRequest{}, err
+	}
 
-	return item, db.WithTx(ctx, s.db, func(tx *sql.Tx) error {
+	fromStatus := item.Status
+	if err := db.WithTx(ctx, s.db, func(tx *sql.Tx) error {
 		steps, err := s.buildApprovalSteps(ctx, item, tx)
 		if err != nil {
 			return err
@@ -708,13 +801,10 @@ func (s *Service) Submit(ctx context.Context, principal platformauth.Principal, 
 			return err
 		}
 		toStatus := item.Status
-		if err := s.repo.CreateApprovalHistory(ctx, item.ID, nil, "submitted", stringPtr("draft"), &toStatus, principal.UserID, nil, now, tx); err != nil {
+		if err := s.repo.CreateApprovalHistory(ctx, item.ID, nil, submissionHistoryAction(fromStatus), &fromStatus, &toStatus, principal.UserID, nil, now, tx); err != nil {
 			return err
 		}
-		if _, err := tx.ExecContext(ctx, `
-			insert into notifications (id, user_id, channel, type, title, body, status, related_entity_type, related_entity_id, created_at)
-			values ($1, $2, 'in_app', 'approval_required', $3, $4, 'pending', 'external_course_request', $5, $6)
-		`, uuid.New(), steps[0].ApproverUserID, "Approval required", "External training request requires your approval", item.ID, now); err != nil {
+		if err := s.repo.CreateNotification(ctx, steps[0].ApproverUserID, "approval_required", "Approval required", "External training request requires your approval", item.ID, now, tx); err != nil {
 			return err
 		}
 		return s.outbox.Publish(ctx, tx, events.Message{
@@ -728,7 +818,10 @@ func (s *Service) Submit(ctx context.Context, principal platformauth.Principal, 
 			},
 			OccurredAt: now,
 		})
-	})
+	}); err != nil {
+		return ExternalRequest{}, err
+	}
+	return s.GetRequest(ctx, principal, item.ID)
 }
 
 func (s *Service) Approve(ctx context.Context, principal platformauth.Principal, id uuid.UUID, comment *string) (ExternalRequest, error) {
@@ -740,7 +833,7 @@ func (s *Service) Approve(ctx context.Context, principal platformauth.Principal,
 		return ExternalRequest{}, httpx.Conflict("approval_missing", "request has no current approval step")
 	}
 
-	return item, db.WithTx(ctx, s.db, func(tx *sql.Tx) error {
+	if err := db.WithTx(ctx, s.db, func(tx *sql.Tx) error {
 		step, err := s.repo.GetApprovalStep(ctx, *item.CurrentApprovalStepID, tx)
 		if err != nil {
 			return err
@@ -773,7 +866,7 @@ func (s *Service) Approve(ctx context.Context, principal platformauth.Principal,
 			if err := s.repo.CreateApprovalHistory(ctx, item.ID, &step.ID, "approved", &fromStatus, &item.Status, principal.UserID, comment, now, tx); err != nil {
 				return err
 			}
-			return nil
+			return s.repo.CreateNotification(ctx, nextStep.ApproverUserID, "approval_required", "Approval required", "External training request requires your approval", item.ID, now, tx)
 		}
 
 		item.Status = "approved"
@@ -808,10 +901,7 @@ func (s *Service) Approve(ctx context.Context, principal platformauth.Principal,
 		}, nil, now); err != nil {
 			return err
 		}
-		if _, err := tx.ExecContext(ctx, `
-			insert into notifications (id, user_id, channel, type, title, body, status, related_entity_type, related_entity_id, created_at)
-			values ($1, $2, 'in_app', 'approval_required', $3, $4, 'pending', 'external_course_request', $5, $6)
-		`, uuid.New(), item.EmployeeUserID, "Request approved", "Your external training request has been approved", item.ID, now); err != nil {
+		if err := s.repo.CreateNotification(ctx, item.EmployeeUserID, "external_request_approved", "Request approved", "Your external training request has been approved", item.ID, now, tx); err != nil {
 			return err
 		}
 		if err := s.repo.CreateApprovalHistory(ctx, item.ID, &step.ID, "approved", &fromStatus, &item.Status, principal.UserID, comment, now, tx); err != nil {
@@ -827,7 +917,10 @@ func (s *Service) Approve(ctx context.Context, principal platformauth.Principal,
 			},
 			OccurredAt: now,
 		})
-	})
+	}); err != nil {
+		return ExternalRequest{}, err
+	}
+	return s.GetRequest(ctx, principal, item.ID)
 }
 
 func (s *Service) Reject(ctx context.Context, principal platformauth.Principal, id uuid.UUID, comment *string) (ExternalRequest, error) {
@@ -838,7 +931,10 @@ func (s *Service) Reject(ctx context.Context, principal platformauth.Principal, 
 	if item.CurrentApprovalStepID == nil {
 		return ExternalRequest{}, httpx.Conflict("approval_missing", "request has no current approval step")
 	}
-	return item, s.transitionApproval(ctx, principal, item, "rejected", "rejected", comment)
+	if err := s.transitionApproval(ctx, principal, item, "rejected", "rejected", comment); err != nil {
+		return ExternalRequest{}, err
+	}
+	return s.GetRequest(ctx, principal, item.ID)
 }
 
 func (s *Service) RequestRevision(ctx context.Context, principal platformauth.Principal, id uuid.UUID, comment *string) (ExternalRequest, error) {
@@ -849,7 +945,10 @@ func (s *Service) RequestRevision(ctx context.Context, principal platformauth.Pr
 	if item.CurrentApprovalStepID == nil {
 		return ExternalRequest{}, httpx.Conflict("approval_missing", "request has no current approval step")
 	}
-	return item, s.transitionApproval(ctx, principal, item, "revision_requested", "needs_revision", comment)
+	if err := s.transitionApproval(ctx, principal, item, "revision_requested", "needs_revision", comment); err != nil {
+		return ExternalRequest{}, err
+	}
+	return s.GetRequest(ctx, principal, item.ID)
 }
 
 func (s *Service) UploadCertificate(ctx context.Context, principal platformauth.Principal, id uuid.UUID, req UploadRequestCertificateRequest) (ExternalRequest, error) {
@@ -857,8 +956,13 @@ func (s *Service) UploadCertificate(ctx context.Context, principal platformauth.
 	if err != nil {
 		return ExternalRequest{}, err
 	}
-	if item.EmployeeUserID != principal.UserID && !principal.HasPermission("external_requests.read_all") {
-		return ExternalRequest{}, httpx.Forbidden("forbidden", "permission denied")
+	if item.EmployeeUserID != principal.UserID && !hasRole(principal, "admin") {
+		return ExternalRequest{}, httpx.Forbidden("forbidden", "only owner can upload certificate")
+	}
+	switch item.Status {
+	case "approved", "in_training", "completed":
+	default:
+		return ExternalRequest{}, httpx.Conflict("invalid_status", "certificate can only be uploaded after approval")
 	}
 
 	now := s.clock.Now()
@@ -888,8 +992,10 @@ func (s *Service) UploadCertificate(ctx context.Context, principal platformauth.
 			OccurredAt: now,
 		})
 	})
-
-	return item, err
+	if err != nil {
+		return ExternalRequest{}, err
+	}
+	return s.GetRequest(ctx, principal, item.ID)
 }
 
 func (s *Service) CreateBudgetLimit(ctx context.Context, req CreateBudgetLimitRequest) (BudgetLimit, error) {
@@ -995,7 +1101,19 @@ func (s *Service) transitionApproval(ctx context.Context, principal platformauth
 		if err := s.repo.UpdateRequest(ctx, item, tx); err != nil {
 			return err
 		}
-		return s.repo.CreateApprovalHistory(ctx, item.ID, &step.ID, stepStatus, &fromStatus, &targetStatus, principal.UserID, comment, now, tx)
+		if err := s.repo.CreateApprovalHistory(ctx, item.ID, &step.ID, stepStatus, &fromStatus, &targetStatus, principal.UserID, comment, now, tx); err != nil {
+			return err
+		}
+
+		notificationType := "external_request_rejected"
+		title := "Request rejected"
+		body := "Your external training request was rejected"
+		if targetStatus == "needs_revision" {
+			notificationType = "external_request_revision_requested"
+			title = "Revision requested"
+			body = "Your external training request was sent back for revision"
+		}
+		return s.repo.CreateNotification(ctx, item.EmployeeUserID, notificationType, title, body, item.ID, now, tx)
 	})
 }
 

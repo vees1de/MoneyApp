@@ -1,9 +1,10 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 
 import { API_BASE_URL } from '@core/config/api.config';
-import type { ApprovalStep } from '@entities/approval-step';
+import type { ListResponse } from './api.types';
+import type { ApprovalWorkflow } from './contracts';
 
 @Injectable({ providedIn: 'root' })
 export class ApprovalWorkflowsApiService {
@@ -11,11 +12,13 @@ export class ApprovalWorkflowsApiService {
 
   constructor(private readonly http: HttpClient) {}
 
-  list(): Observable<ApprovalStep[]> {
-    return this.http.get<ApprovalStep[]>(this.base);
+  list(): Observable<ApprovalWorkflow[]> {
+    return this.http
+      .get<ListResponse<ApprovalWorkflow>>(this.base)
+      .pipe(map((response) => response.items ?? []));
   }
 
-  create(payload: Record<string, unknown>): Observable<ApprovalStep> {
-    return this.http.post<ApprovalStep>(this.base, payload);
+  create(payload: Record<string, unknown>): Observable<ApprovalWorkflow> {
+    return this.http.post<ApprovalWorkflow>(this.base, payload);
   }
 }

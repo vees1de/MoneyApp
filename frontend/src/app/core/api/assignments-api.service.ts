@@ -1,9 +1,10 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 
 import { API_BASE_URL } from '@core/config/api.config';
-import type { Enrollment } from '@entities/enrollment';
+import type { ListResponse } from './api.types';
+import type { CourseAssignment } from './contracts';
 
 @Injectable({ providedIn: 'root' })
 export class AssignmentsApiService {
@@ -11,11 +12,13 @@ export class AssignmentsApiService {
 
   constructor(private readonly http: HttpClient) {}
 
-  list(): Observable<Enrollment[]> {
-    return this.http.get<Enrollment[]>(this.base);
+  list(): Observable<CourseAssignment[]> {
+    return this.http
+      .get<ListResponse<CourseAssignment>>(this.base)
+      .pipe(map((response) => response.items ?? []));
   }
 
-  create(payload: Record<string, unknown>): Observable<Enrollment> {
-    return this.http.post<Enrollment>(this.base, payload);
+  create(payload: Record<string, unknown>): Observable<CourseAssignment> {
+    return this.http.post<CourseAssignment>(this.base, payload);
   }
 }

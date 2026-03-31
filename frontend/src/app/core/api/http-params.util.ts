@@ -12,7 +12,11 @@ export function toHttpParams(query?: ListQuery): HttpParams {
     if (value === undefined || value === null) {
       return;
     }
-    params = params.set(key, String(value));
+
+    const values = Array.isArray(value) ? value : [value];
+    values.forEach((item) => {
+      params = params.append(key, String(item));
+    });
   });
   return params;
 }

@@ -6,7 +6,7 @@
 
 ## Purpose
 Single playground route with all available widgets for layout checks.
-Includes a YouGile integration panel for manual connection/import/sync testing.
+Includes a YouGile agile widget based on board summary data.
 
 ## Widgets on page
 - Team overview
@@ -18,7 +18,7 @@ Includes a YouGile integration panel for manual connection/import/sync testing.
 - Quick actions
 - My requests
 - Work activity
-- YouGile playground
+- YouGile agile
 
 ## Notes
 - No role switcher logic here.

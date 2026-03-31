@@ -33,25 +33,27 @@ interface HeaderNotification {
 export class AppShellComponent {
   private readonly location = inject(Location);
   private readonly router = inject(Router);
+
   protected readonly authState = inject(AuthStateService);
   protected readonly notificationsOpen = signal(false);
   protected readonly notifications = signal<HeaderNotification[]>([
     {
       id: 'n-1',
-      text: 'Íîâàÿ çàÿâêà íà ñîãëàñîâàíèå',
+      text: 'ÐÐ¾Ð²Ð°Ñ Ð·Ð°ÑÐ²ÐºÐ° Ð¶Ð´Ñ‘Ñ‚ ÑÐ¾Ð³Ð»Ð°ÑÐ¾Ð²Ð°Ð½Ð¸Ñ',
       route: '/approvals/inbox',
       read: false,
     },
     {
       id: 'n-2',
-      text: 'Äåäëàéí êóðñà ÷åðåç 3 äíÿ',
-      route: '/my-learning',
+      text: 'ÐÐ¾Ð²Ñ‹Ð¹ ÐºÑƒÑ€Ñ Ð´Ð¾ÑÑ‚ÑƒÐ¿ÐµÐ½ Ð² ÐºÐ°Ñ‚Ð°Ð»Ð¾Ð³Ðµ',
+      route: '/catalog',
       read: false,
     },
   ]);
   protected readonly unreadCount = computed(
     () => this.notifications().filter((item) => !item.read).length,
   );
+  protected readonly showTestAdminLink = computed(() => this.authState.hasAnyRole(['admin', 'hr']));
 
   protected get showBackButton(): boolean {
     return !this.router.url.startsWith('/dashboard');

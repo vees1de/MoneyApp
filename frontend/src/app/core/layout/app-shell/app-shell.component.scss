@@ -1,4 +1,4 @@
-﻿:host {
+:host {
   display: block;
 }
 
@@ -76,6 +76,7 @@ mat-toolbar {
   font-size: 0.85rem;
 }
 
+.shell__admin-link,
 .shell__profile-link {
   color: #f4f8fc !important;
 }
