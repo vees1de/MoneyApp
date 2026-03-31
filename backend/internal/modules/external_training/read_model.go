@@ -2,6 +2,7 @@ package external_training
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"net/http"
 	"strings"
@@ -91,19 +92,135 @@ func parseRepeatedStrings(r *http.Request, key string) []string {
 	return result
 }
 
+const externalRequestReadColumns = `
+	select
+		r.id,
+		r.request_no,
+		r.employee_user_id,
+		r.department_id,
+		r.title,
+		r.provider_id,
+		r.provider_name,
+		r.course_url,
+		r.program_description,
+		r.planned_start_date::timestamptz,
+		r.planned_end_date::timestamptz,
+		r.duration_hours::text,
+		r.cost_amount::text,
+		r.currency,
+		r.business_goal,
+		r.employee_comment,
+		r.manager_comment,
+		r.hr_comment,
+		r.status,
+		r.calendar_conflict_status,
+		r.budget_check_status,
+		r.current_approval_step_id,
+		r.approved_at,
+		r.rejected_at,
+		r.sent_to_revision_at,
+		r.training_started_at,
+		r.training_completed_at,
+		r.certificate_uploaded_at,
+		r.created_at,
+		r.updated_at,
+		coalesce(nullif(trim(concat_ws(' ', ep.last_name, ep.first_name, ep.middle_name)), ''), '') as employee_full_name,
+		u.email as employee_email,
+		coalesce(d.name, '') as department_name,
+		coalesce(s.status, '') as current_approval_status,
+		coalesce(s.role_code, '') as current_approval_role_code,
+		s.due_at,
+		s.approver_user_id::text,
+		coalesce(nullif(trim(concat_ws(' ', ap.last_name, ap.first_name, ap.middle_name)), ''), '') as current_approver_full_name
+`
+
+const externalRequestReadJoins = `
+	from external_course_requests r
+	join users u on u.id = r.employee_user_id
+	left join employee_profiles ep on ep.user_id = r.employee_user_id
+	left join departments d on d.id = r.department_id
+	left join approval_steps s on s.id = r.current_approval_step_id
+	left join employee_profiles ap on ap.user_id = s.approver_user_id
+`
+
 func canListExternalScope(principal platformauth.Principal, scope string) bool {
 	switch scope {
 	case "my":
-		return true
+		return canReadOwnExternalRequests(principal)
 	case "team":
-		return principal.HasPermission("external_requests.read_all") ||
-			principal.HasPermission("external_requests.approve_manager") ||
-			principal.HasPermission("external_requests.approve_hr")
+		return canViewTeamExternalRequests(principal)
 	case "all":
-		return principal.HasPermission("external_requests.read_all")
+		return canViewAllExternalRequests(principal)
 	default:
 		return false
 	}
+}
+
+type externalRequestRowScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanExternalRequest(scanner externalRequestRowScanner) (ExternalRequest, error) {
+	var item ExternalRequest
+	var (
+		currentApprovalDueAt sql.NullTime
+		currentApproverID    sql.NullString
+	)
+	err := scanner.Scan(
+		&item.ID,
+		&item.RequestNo,
+		&item.EmployeeUserID,
+		&item.DepartmentID,
+		&item.Title,
+		&item.ProviderID,
+		&item.ProviderName,
+		&item.CourseURL,
+		&item.ProgramDescription,
+		&item.PlannedStartDate,
+		&item.PlannedEndDate,
+		&item.DurationHours,
+		&item.CostAmount,
+		&item.Currency,
+		&item.BusinessGoal,
+		&item.EmployeeComment,
+		&item.ManagerComment,
+		&item.HRComment,
+		&item.Status,
+		&item.CalendarConflictStatus,
+		&item.BudgetCheckStatus,
+		&item.CurrentApprovalStepID,
+		&item.ApprovedAt,
+		&item.RejectedAt,
+		&item.SentToRevisionAt,
+		&item.TrainingStartedAt,
+		&item.TrainingCompletedAt,
+		&item.CertificateUploadedAt,
+		&item.CreatedAt,
+		&item.UpdatedAt,
+		&item.EmployeeFullName,
+		&item.EmployeeEmail,
+		&item.DepartmentName,
+		&item.CurrentApprovalStatus,
+		&item.CurrentApprovalRole,
+		&currentApprovalDueAt,
+		&currentApproverID,
+		&item.CurrentApproverName,
+	)
+	if err != nil {
+		return ExternalRequest{}, err
+	}
+	if currentApprovalDueAt.Valid {
+		value := currentApprovalDueAt.Time
+		item.CurrentApprovalDueAt = &value
+	}
+	if currentApproverID.Valid {
+		value, err := uuid.Parse(currentApproverID.String)
+		if err != nil {
+			return ExternalRequest{}, err
+		}
+		item.CurrentApproverUserID = &value
+	}
+	return item, nil
 }
 
 func (r *Repository) ListRequests(ctx context.Context, principal platformauth.Principal, filters RequestListFilters, exec ...db.DBTX) ([]ExternalRequest, error) {
@@ -111,15 +228,9 @@ func (r *Repository) ListRequests(ctx context.Context, principal platformauth.Pr
 	where := make([]string, 0, 6)
 
 	query := strings.Builder{}
+	query.WriteString(externalRequestReadColumns)
+	query.WriteString(externalRequestReadJoins)
 	query.WriteString(`
-		select r.id, r.request_no, r.employee_user_id, r.department_id, r.title, r.provider_id, r.provider_name, r.course_url,
-		       r.program_description, r.planned_start_date::timestamptz, r.planned_end_date::timestamptz,
-		       r.duration_hours::text, r.cost_amount::text, r.currency, r.business_goal, r.employee_comment, r.manager_comment,
-		       r.hr_comment, r.status, r.calendar_conflict_status, r.budget_check_status, r.current_approval_step_id,
-		       r.approved_at, r.rejected_at, r.sent_to_revision_at, r.training_started_at, r.training_completed_at,
-		       r.certificate_uploaded_at, r.created_at, r.updated_at
-		from external_course_requests r
-		left join approval_steps s on s.id = r.current_approval_step_id
 		left join manager_relations mr on mr.employee_user_id = r.employee_user_id and mr.is_primary = true
 	`)
 
@@ -162,13 +273,8 @@ func (r *Repository) ListRequests(ctx context.Context, principal platformauth.Pr
 
 	var items []ExternalRequest
 	for rows.Next() {
-		var item ExternalRequest
-		if err := rows.Scan(&item.ID, &item.RequestNo, &item.EmployeeUserID, &item.DepartmentID, &item.Title, &item.ProviderID, &item.ProviderName,
-			&item.CourseURL, &item.ProgramDescription, &item.PlannedStartDate, &item.PlannedEndDate, &item.DurationHours,
-			&item.CostAmount, &item.Currency, &item.BusinessGoal, &item.EmployeeComment, &item.ManagerComment, &item.HRComment,
-			&item.Status, &item.CalendarConflictStatus, &item.BudgetCheckStatus, &item.CurrentApprovalStepID, &item.ApprovedAt,
-			&item.RejectedAt, &item.SentToRevisionAt, &item.TrainingStartedAt, &item.TrainingCompletedAt, &item.CertificateUploadedAt,
-			&item.CreatedAt, &item.UpdatedAt); err != nil {
+		item, err := scanExternalRequest(rows)
+		if err != nil {
 			return nil, err
 		}
 		items = append(items, item)
@@ -177,16 +283,7 @@ func (r *Repository) ListRequests(ctx context.Context, principal platformauth.Pr
 }
 
 func (r *Repository) ListPendingApprovals(ctx context.Context, approverID uuid.UUID, pagination common.Pagination, exec ...db.DBTX) ([]PendingApprovalItem, error) {
-	rows, err := r.base(exec...).QueryContext(ctx, `
-		select r.id, r.request_no, r.employee_user_id, r.department_id, r.title, r.provider_id, r.provider_name, r.course_url,
-		       r.program_description, r.planned_start_date::timestamptz, r.planned_end_date::timestamptz,
-		       r.duration_hours::text, r.cost_amount::text, r.currency, r.business_goal, r.employee_comment, r.manager_comment,
-		       r.hr_comment, r.status, r.calendar_conflict_status, r.budget_check_status, r.current_approval_step_id,
-		       r.approved_at, r.rejected_at, r.sent_to_revision_at, r.training_started_at, r.training_completed_at,
-		       r.certificate_uploaded_at, r.created_at, r.updated_at,
-		       s.id, s.role_code, s.due_at, s.approver_user_id
-		from approval_steps s
-		join external_course_requests r on r.current_approval_step_id = s.id
+	rows, err := r.base(exec...).QueryContext(ctx, externalRequestReadColumns+externalRequestReadJoins+`
 		where s.approver_user_id = $1 and s.status = 'pending'
 		order by s.due_at asc nulls last, r.created_at desc
 		limit $2 offset $3
@@ -198,15 +295,21 @@ func (r *Repository) ListPendingApprovals(ctx context.Context, approverID uuid.U
 
 	var items []PendingApprovalItem
 	for rows.Next() {
-		var item PendingApprovalItem
-		if err := rows.Scan(&item.Request.ID, &item.Request.RequestNo, &item.Request.EmployeeUserID, &item.Request.DepartmentID, &item.Request.Title, &item.Request.ProviderID, &item.Request.ProviderName,
-			&item.Request.CourseURL, &item.Request.ProgramDescription, &item.Request.PlannedStartDate, &item.Request.PlannedEndDate, &item.Request.DurationHours,
-			&item.Request.CostAmount, &item.Request.Currency, &item.Request.BusinessGoal, &item.Request.EmployeeComment, &item.Request.ManagerComment, &item.Request.HRComment,
-			&item.Request.Status, &item.Request.CalendarConflictStatus, &item.Request.BudgetCheckStatus, &item.Request.CurrentApprovalStepID, &item.Request.ApprovedAt,
-			&item.Request.RejectedAt, &item.Request.SentToRevisionAt, &item.Request.TrainingStartedAt, &item.Request.TrainingCompletedAt, &item.Request.CertificateUploadedAt,
-			&item.Request.CreatedAt, &item.Request.UpdatedAt,
-			&item.CurrentStep.ID, &item.CurrentStep.RoleCode, &item.CurrentStep.DueAt, &item.CurrentStep.ApproverUserID); err != nil {
+		request, err := scanExternalRequest(rows)
+		if err != nil {
 			return nil, err
+		}
+		if request.CurrentApprovalStepID == nil || request.CurrentApproverUserID == nil {
+			return nil, fmt.Errorf("pending approval request %s is missing current step", request.ID)
+		}
+		item := PendingApprovalItem{
+			Request: request,
+			CurrentStep: PendingApprovalStepDTO{
+				ID:             *request.CurrentApprovalStepID,
+				RoleCode:       request.CurrentApprovalRole,
+				DueAt:          request.CurrentApprovalDueAt,
+				ApproverUserID: *request.CurrentApproverUserID,
+			},
 		}
 		items = append(items, item)
 	}
@@ -221,9 +324,7 @@ func (s *Service) List(ctx context.Context, principal platformauth.Principal, fi
 }
 
 func (s *Service) ListPendingApprovals(ctx context.Context, principal platformauth.Principal, pagination common.Pagination) ([]PendingApprovalItem, error) {
-	if !principal.HasPermission("external_requests.approve_manager") &&
-		!principal.HasPermission("external_requests.approve_hr") &&
-		!principal.HasPermission("external_requests.read_all") {
+	if !canViewTeamExternalRequests(principal) && !canViewAllExternalRequests(principal) {
 		return nil, httpx.Forbidden("forbidden", "permission denied")
 	}
 	return s.repo.ListPendingApprovals(ctx, principal.UserID, pagination)

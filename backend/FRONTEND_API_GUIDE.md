@@ -266,6 +266,16 @@ UI рекомендации:
 - `POST /api/v1/external-requests/{id}/reject`
 - `POST /api/v1/external-requests/{id}/request-revision`
 
+Для списка и карточки заявки backend теперь дополнительно отдает:
+- `employee_full_name`
+- `employee_email`
+- `department_name`
+- `current_approval_status`
+- `current_approval_role_code`
+- `current_approval_due_at`
+- `current_approver_user_id`
+- `current_approver_full_name`
+
 ### Шаг 5. Сертификат по внешнему курсу
 
 - `POST /api/v1/external-requests/{id}/upload-certificate`
@@ -289,6 +299,12 @@ UI рекомендации:
 - color
 - allowed actions
 - next step hint
+
+Видимость:
+- сотрудник видит только свои заявки
+- руководитель видит заявки своей команды и свои собственные
+- HR/L&D видит все заявки и свои собственные
+- очередь согласования: `GET /api/v1/external-requests/pending-approvals`
 
 ## 10. Approval workflows и бюджеты
 
