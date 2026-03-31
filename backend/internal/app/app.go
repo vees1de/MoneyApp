@@ -16,7 +16,6 @@ import (
 	catalogmodule "moneyapp/backend/internal/modules/catalog"
 	certificatesmodule "moneyapp/backend/internal/modules/certificates"
 	courseintakesmodule "moneyapp/backend/internal/modules/course_intakes"
-	smartexportmodule "moneyapp/backend/internal/modules/smart_export"
 	courserequestsmodule "moneyapp/backend/internal/modules/course_requests"
 	dashboardapimodule "moneyapp/backend/internal/modules/dashboard_api"
 	externaltrainingmodule "moneyapp/backend/internal/modules/external_training"
@@ -27,6 +26,7 @@ import (
 	notificationsmodule "moneyapp/backend/internal/modules/notifications"
 	orgmodule "moneyapp/backend/internal/modules/org"
 	outlookmodule "moneyapp/backend/internal/modules/outlook"
+	smartexportmodule "moneyapp/backend/internal/modules/smart_export"
 	testingmodule "moneyapp/backend/internal/modules/testing"
 	universitymodule "moneyapp/backend/internal/modules/university"
 	yougilemodule "moneyapp/backend/internal/modules/yougile"
@@ -103,7 +103,7 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 	learningService := learningmodule.NewService(database, learningRepo, orgService, catalogService, outboxService, appClock)
 	testingService := testingmodule.NewService(database, testingRepo, appClock)
 	certificatesService := certificatesmodule.NewService(database, certificatesRepo, outboxService, appClock)
-	courseIntakesService := courseintakesmodule.NewService(database, courseIntakesRepo, appClock)
+	courseIntakesService := courseintakesmodule.NewService(database, courseIntakesRepo, orgService, appClock)
 	courseRequestsService := courserequestsmodule.NewService(database, courseRequestsRepo, identityRepo, orgService, catalogService, learningRepo, certificatesRepo, appClock)
 	externalTrainingService := externaltrainingmodule.NewService(database, externalTrainingRepo, identityRepo, orgService, outboxService, queue, appClock)
 	calendarService := calendarmodule.NewService(calendarRepo)

@@ -2,7 +2,10 @@
   <header class="suggestion-detail-page__header">
     <div>
       <h1>{{ suggestion()?.title || 'Предложение курса' }}</h1>
-      <p>HR может одобрить предложение, отклонить его или сразу открыть отдельный набор.</p>
+      <p>
+        HR может одобрить предложение, отклонить его или сразу открыть набор с той же моделью цены и
+        дат, что и в `intakes/new`.
+      </p>
     </div>
 
     <div class="suggestion-detail-page__header-actions">
@@ -34,15 +37,44 @@
             <p class="suggestion-summary-card__description">{{ item.description }}</p>
           }
 
-          <p><span class="kv__key">Провайдер:</span> <span class="kv__value">{{ item.provider_name || '—' }}</span></p>
-          <p><span class="kv__key">Ссылка:</span> <span class="kv__value">{{ item.external_url || '—' }}</span></p>
-          <p><span class="kv__key">Цена:</span> <span class="kv__value">{{ item.price || '—' }} {{ item.price_currency || 'RUB' }}</span></p>
-          <p><span class="kv__key">Длительность:</span> <span class="kv__value">{{ item.duration_hours || '—' }}</span></p>
-          <p><span class="kv__key">Автор:</span> <span class="kv__value">{{ userLabel(item.suggested_by) }}</span></p>
-          <p><span class="kv__key">Руководитель-апрувер:</span> <span class="kv__value">{{ userLabel(item.approver_id) }}</span></p>
-          <p><span class="kv__key">Ревьюер HR:</span> <span class="kv__value">{{ userLabel(item.reviewed_by) }}</span></p>
-          <p><span class="kv__key">Комментарий HR:</span> <span class="kv__value">{{ item.review_comment || '—' }}</span></p>
-          <p><span class="kv__key">Создано:</span> <span class="kv__value">{{ item.created_at | date: 'dd.MM.yyyy HH:mm' }}</span></p>
+          <p>
+            <span class="kv__key">Провайдер:</span>
+            <span class="kv__value">{{ item.provider_name || '—' }}</span>
+          </p>
+          <p>
+            <span class="kv__key">Ссылка:</span>
+            <span class="kv__value">{{ item.external_url || '—' }}</span>
+          </p>
+          <p>
+            <span class="kv__key">Цена:</span>
+            <span class="kv__value"
+              >{{ item.price || '—' }} {{ item.price_currency || 'RUB' }}</span
+            >
+          </p>
+          <p>
+            <span class="kv__key">Длительность:</span>
+            <span class="kv__value">{{ item.duration_hours || '—' }}</span>
+          </p>
+          <p>
+            <span class="kv__key">Автор:</span>
+            <span class="kv__value">{{ userLabel(item.suggested_by) }}</span>
+          </p>
+          <p>
+            <span class="kv__key">Руководитель-апрувер:</span>
+            <span class="kv__value">{{ userLabel(item.approver_id) }}</span>
+          </p>
+          <p>
+            <span class="kv__key">Ревьюер HR:</span>
+            <span class="kv__value">{{ userLabel(item.reviewed_by) }}</span>
+          </p>
+          <p>
+            <span class="kv__key">Комментарий HR:</span>
+            <span class="kv__value">{{ item.review_comment || '—' }}</span>
+          </p>
+          <p>
+            <span class="kv__key">Создано:</span>
+            <span class="kv__value">{{ item.created_at | date: 'dd.MM.yyyy HH:mm' }}</span>
+          </p>
 
           @if (item.intake_id) {
             <a mat-stroked-button [routerLink]="'/intakes/' + item.intake_id">
@@ -57,7 +89,7 @@
         <mat-card class="suggestion-review-card">
           <mat-card-header>
             <mat-card-title>Решение HR</mat-card-title>
-            <mat-card-subtitle>Можно оставить комментарий и перевести предложение дальше по флоу.</mat-card-subtitle>
+            <mat-card-subtitle>Можно оставить комментарий и сразу открыть набор.</mat-card-subtitle>
           </mat-card-header>
 
           <mat-card-content>
@@ -68,7 +100,13 @@
 
             <div class="suggestion-review-card__actions">
               @if (item.status === 'pending') {
-                <button mat-flat-button color="primary" type="button" (click)="approve()" [disabled]="acting()">
+                <button
+                  mat-flat-button
+                  color="primary"
+                  type="button"
+                  (click)="approve()"
+                  [disabled]="acting()"
+                >
                   <mat-icon>check_circle</mat-icon>
                   Одобрить
                 </button>
@@ -83,39 +121,76 @@
               <section class="open-intake-form">
                 <h3>Открыть набор по предложению</h3>
 
-                <mat-form-field appearance="outline">
-                  <mat-label>Курс из каталога</mat-label>
-                  <mat-select [formControl]="intakeForm.controls.course_id" (selectionChange)="syncSelectedCourse($event.value)">
-                    <mat-option value="">Без привязки к каталогу</mat-option>
-                    @for (course of courses(); track course.id) {
-                      <mat-option [value]="course.id">{{ course.title }}</mat-option>
+                <div class="open-intake-form__wide open-intake-form__catalog">
+                  <div class="open-intake-form__catalog-actions">
+                    <button
+                      mat-flat-button
+                      color="primary"
+                      type="button"
+                      (click)="openCatalogDialog()"
+                    >
+                      <mat-icon>search</mat-icon>
+                      Выбрать курс из каталога
+                    </button>
+
+                    @if (selectedCourse()) {
+                      <button mat-stroked-button type="button" (click)="clearCatalogSelection()">
+                        Очистить
+                      </button>
                     }
-                  </mat-select>
-                </mat-form-field>
+                  </div>
+
+                  @if (selectedCourse(); as course) {
+                    <div class="open-intake-form__catalog-card">
+                      <p class="open-intake-form__catalog-title">{{ course.title }}</p>
+                      <p class="open-intake-form__catalog-meta">
+                        {{ course.source_type || '—' }} · {{ course.level || 'без уровня' }}
+                      </p>
+                      <p class="open-intake-form__catalog-description">
+                        {{
+                          course.short_description || course.description || 'Описание не заполнено.'
+                        }}
+                      </p>
+                    </div>
+                  }
+                </div>
 
                 <mat-form-field appearance="outline">
                   <mat-label>Название набора</mat-label>
                   <input matInput [formControl]="intakeForm.controls.title" />
                 </mat-form-field>
 
+                <mat-form-field appearance="outline">
+                  <mat-label>Количество участников</mat-label>
+                  <input
+                    matInput
+                    type="number"
+                    min="1"
+                    [formControl]="intakeForm.controls.max_participants"
+                  />
+                </mat-form-field>
+
                 <mat-form-field appearance="outline" class="open-intake-form__wide">
                   <mat-label>Описание</mat-label>
-                  <textarea matInput rows="4" [formControl]="intakeForm.controls.description"></textarea>
+                  <textarea
+                    matInput
+                    rows="4"
+                    [formControl]="intakeForm.controls.description"
+                  ></textarea>
                 </mat-form-field>
 
                 <mat-form-field appearance="outline">
-                  <mat-label>Руководитель-апрувер</mat-label>
-                  <mat-select [formControl]="intakeForm.controls.approver_id">
-                    <mat-option value="">Без руководителя</mat-option>
-                    @for (user of users(); track user.id) {
-                      <mat-option [value]="user.id">{{ userLabel(user.id) }}</mat-option>
-                    }
-                  </mat-select>
+                  <mat-label>Цена курса</mat-label>
+                  <input matInput [formControl]="intakeForm.controls.price" />
                 </mat-form-field>
 
                 <mat-form-field appearance="outline">
-                  <mat-label>Лимит участников</mat-label>
-                  <input matInput type="number" min="1" [formControl]="intakeForm.controls.max_participants" />
+                  <mat-label>Валюта</mat-label>
+                  <input
+                    matInput
+                    maxlength="3"
+                    [formControl]="intakeForm.controls.price_currency"
+                  />
                 </mat-form-field>
 
                 <mat-form-field appearance="outline">
@@ -123,21 +198,65 @@
                   <input matInput type="date" [formControl]="intakeForm.controls.start_date" />
                 </mat-form-field>
 
-                <mat-form-field appearance="outline">
-                  <mat-label>Финиш</mat-label>
-                  <input matInput type="date" [formControl]="intakeForm.controls.end_date" />
-                </mat-form-field>
+                <div class="open-intake-form__schedule">
+                  <span class="open-intake-form__section-label">Длительность</span>
+                  <mat-button-toggle-group [formControl]="intakeForm.controls.schedule_mode">
+                    <mat-button-toggle value="weeks">Количество недель</mat-button-toggle>
+                    <mat-button-toggle value="end">Дата окончания</mat-button-toggle>
+                  </mat-button-toggle-group>
+                </div>
+
+                @if (isWeeksMode()) {
+                  <mat-form-field appearance="outline">
+                    <mat-label>Количество недель</mat-label>
+                    <input
+                      matInput
+                      type="number"
+                      min="1"
+                      [formControl]="intakeForm.controls.duration_weeks"
+                    />
+                  </mat-form-field>
+
+                  <div class="open-intake-form__derived">
+                    <span class="open-intake-form__section-label">Расчёт окончания</span>
+                    <p>
+                      {{
+                        calculatedEndDate()
+                          ? calculatedEndDate()
+                          : 'Укажите старт и количество недель.'
+                      }}
+                    </p>
+                  </div>
+                } @else {
+                  <mat-form-field appearance="outline">
+                    <mat-label>Дата окончания</mat-label>
+                    <input matInput type="date" [formControl]="intakeForm.controls.end_date" />
+                  </mat-form-field>
+                }
 
                 <mat-form-field appearance="outline">
                   <mat-label>Дедлайн подачи</mat-label>
-                  <input matInput type="datetime-local" [formControl]="intakeForm.controls.application_deadline" />
+                  <input
+                    matInput
+                    type="datetime-local"
+                    [formControl]="intakeForm.controls.application_deadline"
+                  />
                 </mat-form-field>
 
                 @if (directoryUnavailable()) {
-                  <p class="open-intake-form__hint">Список сотрудников недоступен. Можно использовать руководителя из самого предложения или открыть набор без него.</p>
+                  <p class="open-intake-form__hint">
+                    Справочник сотрудников временно недоступен, поэтому имена в блоке предложения
+                    могут отображаться без расшифровки.
+                  </p>
                 }
 
-                <button mat-flat-button color="primary" type="button" (click)="openIntake()" [disabled]="acting()">
+                <button
+                  mat-flat-button
+                  color="primary"
+                  type="button"
+                  (click)="openIntake()"
+                  [disabled]="acting()"
+                >
                   <mat-icon>playlist_add_check</mat-icon>
                   Открыть набор
                 </button>

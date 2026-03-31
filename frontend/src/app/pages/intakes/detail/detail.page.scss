@@ -17,7 +17,7 @@
 .intake-detail-page__header p {
   margin: 0;
   color: var(--text-secondary);
-  max-width: 720px;
+  max-width: 760px;
 }
 
 .intake-detail-page__header-actions {
@@ -29,7 +29,7 @@
 
 .intake-detail-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(360px, 0.9fr);
+  grid-template-columns: minmax(0, 1.1fr) minmax(380px, 0.9fr);
   gap: 16px;
   align-items: start;
 }
@@ -58,13 +58,13 @@
   margin: 0;
 }
 
-.application-state__motivation {
+.application-state__motivation,
+.application-card__comment {
   width: 100%;
 }
 
 .application-state__hint,
 .applications-section__empty,
-.manage-form__hint,
 .intake-detail-page__error {
   margin: 0;
   color: var(--text-secondary);
@@ -80,10 +80,41 @@
   grid-column: 1 / -1;
 }
 
-.manage-form__actions {
+.manage-form__section-label {
+  display: inline-block;
+  margin-bottom: 8px;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.manage-form__schedule-toggle,
+.manage-form__derived {
+  display: grid;
+  gap: 10px;
+}
+
+.manage-form__derived {
+  border: 1px solid rgba(8, 15, 29, 0.08);
+  border-radius: 18px;
+  background: rgba(8, 15, 29, 0.02);
+  padding: 16px;
+  color: var(--text-secondary);
+}
+
+.manage-form__derived p {
+  margin: 0;
+  font-weight: 600;
+}
+
+.manage-form__actions,
+.application-card__actions,
+.applications-section__bulk-actions {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.manage-form__actions {
   margin-top: 16px;
 }
 
@@ -95,12 +126,12 @@
 .applications-section__header {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
-  align-items: baseline;
+  gap: 16px;
+  align-items: flex-start;
 }
 
 .applications-section__header p {
-  margin: 0;
+  margin: 6px 0 0;
   color: var(--text-secondary);
 }
 
@@ -108,16 +139,6 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
-}
-
-.application-card__comment {
-  width: 100%;
-}
-
-.application-card__actions {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
 }
 
 .kv__key {
@@ -131,7 +152,12 @@
 .intake-detail-skeleton {
   min-height: 320px;
   border-radius: 28px;
-  background: linear-gradient(90deg, rgba(8, 15, 29, 0.05), rgba(8, 15, 29, 0.11), rgba(8, 15, 29, 0.05));
+  background: linear-gradient(
+    90deg,
+    rgba(8, 15, 29, 0.05),
+    rgba(8, 15, 29, 0.11),
+    rgba(8, 15, 29, 0.05)
+  );
   background-size: 200% 100%;
   animation: intake-detail-shimmer 1.3s ease-in-out infinite;
 }
@@ -145,7 +171,7 @@
   }
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1180px) {
   .intake-detail-grid,
   .applications-grid {
     grid-template-columns: 1fr;
@@ -153,7 +179,8 @@
 }
 
 @media (max-width: 820px) {
-  .intake-detail-page__header {
+  .intake-detail-page__header,
+  .applications-section__header {
     flex-direction: column;
   }
 

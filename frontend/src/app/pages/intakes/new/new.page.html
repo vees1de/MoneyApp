@@ -2,7 +2,10 @@
   <header class="intake-new-page__header">
     <div>
       <h1>Открыть набор</h1>
-      <p>Можно открыть набор на курс из общего пула или создать кастомный поток для внешнего провайдера.</p>
+      <p>
+        Источник набора выбирается переключателем, а график теперь можно задать как старт + недели
+        или старт + конечную дату.
+      </p>
     </div>
 
     <a mat-stroked-button routerLink="/intakes">
@@ -13,88 +16,124 @@
 
   <mat-card>
     <mat-card-content>
-      @if (loadingOptions()) {
-        <p>Загрузка справочников...</p>
-      } @else {
-        <form class="intake-form" [formGroup]="form" (ngSubmit)="submit()">
-          <mat-form-field appearance="outline">
-            <mat-label>Источник</mat-label>
-            <mat-select formControlName="source_mode">
-              <mat-option value="catalog">Выбрать из каталога</mat-option>
-              <mat-option value="custom">Кастомный набор</mat-option>
-            </mat-select>
-          </mat-form-field>
+      <form class="intake-form" [formGroup]="form" (ngSubmit)="submit()">
+        <div class="intake-form__wide">
+          <span class="intake-form__section-label">Источник</span>
+          <mat-button-toggle-group formControlName="source_mode">
+            <mat-button-toggle value="catalog">Курс из каталога</mat-button-toggle>
+            <mat-button-toggle value="custom">Внешний курс</mat-button-toggle>
+          </mat-button-toggle-group>
+        </div>
 
-          @if (isCatalogMode()) {
-            <mat-form-field appearance="outline">
-              <mat-label>Курс из каталога</mat-label>
-              <mat-select formControlName="course_id" (selectionChange)="syncSelectedCourse($event.value)">
-                @for (course of courses(); track course.id) {
-                  <mat-option [value]="course.id">{{ course.title }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
-          }
+        @if (isCatalogMode()) {
+          <div class="intake-form__wide intake-form__catalog">
+            <div class="intake-form__catalog-actions">
+              <button mat-flat-button color="primary" type="button" (click)="openCatalogDialog()">
+                <mat-icon>search</mat-icon>
+                Выбрать курс
+              </button>
 
-          <mat-form-field appearance="outline">
-            <mat-label>Название набора</mat-label>
-            <input matInput formControlName="title" />
-          </mat-form-field>
-
-          <mat-form-field appearance="outline" class="intake-form__wide">
-            <mat-label>Описание</mat-label>
-            <textarea matInput rows="4" formControlName="description"></textarea>
-          </mat-form-field>
-
-          <mat-form-field appearance="outline">
-            <mat-label>Руководитель-апрувер</mat-label>
-            <mat-select formControlName="approver_id">
-              <mat-option value="">Без руководителя</mat-option>
-              @for (user of approvers(); track user.id) {
-                <mat-option [value]="user.id">{{ approverLabel(user) }}</mat-option>
+              @if (selectedCourse()) {
+                <button mat-stroked-button type="button" (click)="clearCatalogSelection()">
+                  Очистить
+                </button>
               }
-            </mat-select>
+            </div>
+
+            @if (selectedCourse(); as course) {
+              <div class="intake-form__catalog-card">
+                <p class="intake-form__catalog-title">{{ course.title }}</p>
+                <p class="intake-form__catalog-meta">
+                  {{ course.source_type || '—' }} · {{ course.level || 'без уровня' }}
+                </p>
+                <p class="intake-form__catalog-description">
+                  {{ course.short_description || course.description || 'Описание не заполнено.' }}
+                </p>
+              </div>
+            } @else {
+              <p class="intake-form__hint">Курс выбирается в модалке с поиском и фильтрами.</p>
+            }
+          </div>
+        }
+
+        <mat-form-field appearance="outline">
+          <mat-label>Название набора</mat-label>
+          <input matInput formControlName="title" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Количество участников</mat-label>
+          <input matInput type="number" min="1" formControlName="max_participants" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="intake-form__wide">
+          <mat-label>Описание</mat-label>
+          <textarea matInput rows="4" formControlName="description"></textarea>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Цена курса</mat-label>
+          <input matInput inputmode="decimal" formControlName="price" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Валюта</mat-label>
+          <input matInput maxlength="3" formControlName="price_currency" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Дата старта</mat-label>
+          <input matInput type="date" formControlName="start_date" />
+        </mat-form-field>
+
+        <div class="intake-form__schedule-toggle">
+          <span class="intake-form__section-label">Длительность</span>
+          <mat-button-toggle-group formControlName="schedule_mode">
+            <mat-button-toggle value="weeks">Количество недель</mat-button-toggle>
+            <mat-button-toggle value="end">Дата окончания</mat-button-toggle>
+          </mat-button-toggle-group>
+        </div>
+
+        @if (isWeeksMode()) {
+          <mat-form-field appearance="outline">
+            <mat-label>Количество недель</mat-label>
+            <input matInput type="number" min="1" formControlName="duration_weeks" />
           </mat-form-field>
 
+          <div class="intake-form__derived">
+            <span class="intake-form__section-label">Расчёт окончания</span>
+            <p>
+              {{ calculatedEndDate() ? calculatedEndDate() : 'Укажите старт и количество недель.' }}
+            </p>
+          </div>
+        } @else {
           <mat-form-field appearance="outline">
-            <mat-label>Максимум участников</mat-label>
-            <input matInput type="number" min="1" formControlName="max_participants" />
-          </mat-form-field>
-
-          <mat-form-field appearance="outline">
-            <mat-label>Дата старта</mat-label>
-            <input matInput type="date" formControlName="start_date" />
-          </mat-form-field>
-
-          <mat-form-field appearance="outline">
-            <mat-label>Дата завершения</mat-label>
+            <mat-label>Дата окончания</mat-label>
             <input matInput type="date" formControlName="end_date" />
           </mat-form-field>
+        }
 
-          <mat-form-field appearance="outline">
-            <mat-label>Дедлайн подачи</mat-label>
-            <input matInput type="datetime-local" formControlName="application_deadline" />
-          </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Дедлайн подачи</mat-label>
+          <input matInput type="datetime-local" formControlName="application_deadline" />
+        </mat-form-field>
 
-          @if (directoryUnavailable()) {
-            <p class="intake-form__hint">
-              Список сотрудников для выбора апрувера сейчас недоступен. Набор всё равно можно открыть без руководителя.
-            </p>
-          }
+        <p class="intake-form__hint">
+          Если дедлайн не заполнить, он автоматически станет за 3 дня до старта курса.
+        </p>
 
-          @if (error()) {
-            <p class="intake-form__error">{{ error() }}</p>
-          }
+        @if (error()) {
+          <p class="intake-form__error">{{ error() }}</p>
+        }
 
-          <div class="intake-form__actions">
-            <button mat-flat-button color="primary" type="submit" [disabled]="submitting()">
-              <mat-icon>playlist_add_check</mat-icon>
-              Открыть набор
-            </button>
-            <a mat-stroked-button routerLink="/intakes">Отмена</a>
-          </div>
-        </form>
-      }
+        <div class="intake-form__actions">
+          <button mat-flat-button color="primary" type="submit" [disabled]="submitting()">
+            <mat-icon>playlist_add_check</mat-icon>
+            Открыть набор
+          </button>
+          <a mat-stroked-button routerLink="/intakes">Отмена</a>
+        </div>
+      </form>
     </mat-card-content>
   </mat-card>
 </section>

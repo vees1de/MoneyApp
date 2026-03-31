@@ -241,7 +241,10 @@ export interface CourseIntake {
   max_participants?: number | null;
   start_date?: string | null;
   end_date?: string | null;
+  duration_weeks?: number | null;
   application_deadline?: string | null;
+  price?: string | null;
+  price_currency?: string | null;
   status: string;
   created_at: string;
   updated_at: string;
@@ -259,6 +262,7 @@ export interface CourseApplication {
   hr_approver_id?: string | null;
   hr_comment?: string | null;
   hr_decided_at?: string | null;
+  payment_status: string;
   created_at: string;
   updated_at: string;
 }

@@ -141,7 +141,8 @@ func (r *Repository) ListCoursesFiltered(ctx context.Context, filters CourseList
 	query.WriteString(`
 		select id, type, source_type, title, slug, short_description, description,
 		       provider_id, category_id, direction_id, level, duration_hours::text, language,
-		       is_mandatory_default, status, thumbnail_file_id, created_by, updated_by,
+		       is_mandatory_default, status, external_url, price::text, price_currency, next_start_date,
+		       thumbnail_file_id, created_by, updated_by,
 		       published_at, archived_at, created_at, updated_at
 		from courses
 	`)
@@ -188,7 +189,8 @@ func (r *Repository) ListCoursesFiltered(ctx context.Context, filters CourseList
 		if err := rows.Scan(
 			&item.ID, &item.Type, &item.SourceType, &item.Title, &item.Slug, &item.ShortDescription, &item.Description,
 			&item.ProviderID, &item.CategoryID, &item.DirectionID, &item.Level, &item.DurationHours, &item.Language,
-			&item.IsMandatoryDefault, &item.Status, &item.ThumbnailFileID, &item.CreatedBy, &item.UpdatedBy,
+			&item.IsMandatoryDefault, &item.Status, &item.ExternalURL, &item.Price, &item.PriceCurrency, &item.NextStartDate,
+			&item.ThumbnailFileID, &item.CreatedBy, &item.UpdatedBy,
 			&item.PublishedAt, &item.ArchivedAt, &item.CreatedAt, &item.UpdatedAt,
 		); err != nil {
 			return nil, err

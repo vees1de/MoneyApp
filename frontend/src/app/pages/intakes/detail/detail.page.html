@@ -2,7 +2,10 @@
   <header class="intake-detail-page__header">
     <div>
       <h1>{{ intake()?.title || 'Набор на курс' }}</h1>
-      <p>Сотрудники подаются в открытый набор, а согласование и зачисление идут по статусам.</p>
+      <p>
+        Сотрудник сам решает, нужно ли согласование с руководителем, а HR ведёт отбор, закрытие
+        набора и оплату.
+      </p>
     </div>
 
     <div class="intake-detail-page__header-actions">
@@ -36,30 +39,88 @@
 
           @if (course(); as selectedCourse) {
             <p>
-              <span class="kv__key">Курс из пула:</span>
-              <a class="kv__value" [routerLink]="'/catalog/' + selectedCourse.id">{{ selectedCourse.title }}</a>
+              <span class="kv__key">Курс из каталога:</span>
+              <a class="kv__value" [routerLink]="'/catalog/' + selectedCourse.id">{{
+                selectedCourse.title
+              }}</a>
             </p>
           }
-          <p><span class="kv__key">Старт:</span> <span class="kv__value">{{ item.start_date ? (item.start_date | date: 'dd.MM.yyyy') : '—' }}</span></p>
-          <p><span class="kv__key">Финиш:</span> <span class="kv__value">{{ item.end_date ? (item.end_date | date: 'dd.MM.yyyy') : '—' }}</span></p>
+          <p>
+            <span class="kv__key">Старт:</span>
+            <span class="kv__value">{{
+              item.start_date ? (item.start_date | date: 'dd.MM.yyyy') : '—'
+            }}</span>
+          </p>
+          <p>
+            <span class="kv__key">Окончание:</span>
+            <span class="kv__value">{{
+              item.end_date ? (item.end_date | date: 'dd.MM.yyyy') : '—'
+            }}</span>
+          </p>
+          <p>
+            <span class="kv__key">Длительность:</span>
+            <span class="kv__value">{{
+              item.duration_weeks ? item.duration_weeks + ' нед.' : 'по дате окончания'
+            }}</span>
+          </p>
+          <p>
+            <span class="kv__key">Цена:</span>
+            <span class="kv__value"
+              >{{ item.price || '—' }} {{ item.price_currency || 'RUB' }}</span
+            >
+          </p>
           <p>
             <span class="kv__key">Дедлайн подачи:</span>
-            <span class="kv__value">{{ item.application_deadline ? (item.application_deadline | date: 'dd.MM.yyyy HH:mm') : '—' }}</span>
+            <span class="kv__value">{{
+              item.application_deadline
+                ? (item.application_deadline | date: 'dd.MM.yyyy HH:mm')
+                : '—'
+            }}</span>
           </p>
-          <p><span class="kv__key">Руководитель-апрувер:</span> <span class="kv__value">{{ userLabel(item.approver_id) }}</span></p>
-          <p><span class="kv__key">Лимит участников:</span> <span class="kv__value">{{ item.max_participants ?? '—' }}</span></p>
-          <p><span class="kv__key">Открыт:</span> <span class="kv__value">{{ item.created_at | date: 'dd.MM.yyyy HH:mm' }}</span></p>
+          <p>
+            <span class="kv__key">Количество участников:</span>
+            <span class="kv__value">{{ item.max_participants ?? 'не ограничено' }}</span>
+          </p>
+          <p>
+            <span class="kv__key">Открыт:</span>
+            <span class="kv__value">{{ item.created_at | date: 'dd.MM.yyyy HH:mm' }}</span>
+          </p>
 
           @if (myApplication(); as application) {
             <section class="application-state">
               <h3>Моя заявка</h3>
-              <p><span class="kv__key">Статус:</span> <span class="kv__value">{{ applicationStatusLabel(application.status) }}</span></p>
-              <p><span class="kv__key">Мотивация:</span> <span class="kv__value">{{ application.motivation || '—' }}</span></p>
-              <p><span class="kv__key">Комментарий руководителя:</span> <span class="kv__value">{{ application.manager_comment || '—' }}</span></p>
-              <p><span class="kv__key">Комментарий HR:</span> <span class="kv__value">{{ application.hr_comment || '—' }}</span></p>
+              <p>
+                <span class="kv__key">Статус:</span>
+                <span class="kv__value">{{ applicationStatusLabel(application.status) }}</span>
+              </p>
+              <p>
+                <span class="kv__key">Оплата:</span>
+                <span class="kv__value">{{ paymentStatusLabel(application.payment_status) }}</span>
+              </p>
+              <p>
+                <span class="kv__key">Мотивация:</span>
+                <span class="kv__value">{{ application.motivation || '—' }}</span>
+              </p>
+              <p>
+                <span class="kv__key">Руководитель:</span>
+                <span class="kv__value">{{ userLabel(application.manager_approver_id) }}</span>
+              </p>
+              <p>
+                <span class="kv__key">Комментарий руководителя:</span>
+                <span class="kv__value">{{ application.manager_comment || '—' }}</span>
+              </p>
+              <p>
+                <span class="kv__key">Комментарий HR:</span>
+                <span class="kv__value">{{ application.hr_comment || '—' }}</span>
+              </p>
 
               @if (canWithdrawMyApplication()) {
-                <button mat-stroked-button type="button" (click)="withdrawMyApplication()" [disabled]="acting()">
+                <button
+                  mat-stroked-button
+                  type="button"
+                  (click)="withdrawMyApplication()"
+                  [disabled]="acting()"
+                >
                   <mat-icon>undo</mat-icon>
                   Отозвать заявку
                 </button>
@@ -70,10 +131,24 @@
               <h3>Податься в набор</h3>
               <mat-form-field appearance="outline" class="application-state__motivation">
                 <mat-label>Мотивация</mat-label>
-                <textarea matInput rows="4" [formControl]="applyForm.controls.motivation"></textarea>
+                <textarea
+                  matInput
+                  rows="4"
+                  [formControl]="applyForm.controls.motivation"
+                ></textarea>
               </mat-form-field>
 
-              <button mat-flat-button color="primary" type="button" (click)="applyToIntake()" [disabled]="acting()">
+              <mat-checkbox [formControl]="applyForm.controls.use_manager_approval">
+                Согласовать с моим руководителем
+              </mat-checkbox>
+
+              <button
+                mat-flat-button
+                color="primary"
+                type="button"
+                (click)="applyToIntake()"
+                [disabled]="acting()"
+              >
                 <mat-icon>send</mat-icon>
                 Подать заявку
               </button>
@@ -94,7 +169,10 @@
         <mat-card class="intake-manage-card">
           <mat-card-header>
             <mat-card-title>Управление набором</mat-card-title>
-            <mat-card-subtitle>HR может скорректировать параметры и закрыть поток.</mat-card-subtitle>
+            <mat-card-subtitle
+              >HR меняет параметры, закрывает набор и массово обновляет оплату по
+              сотрудникам.</mat-card-subtitle
+            >
           </mat-card-header>
 
           <mat-card-content>
@@ -115,22 +193,31 @@
 
               <mat-form-field appearance="outline" class="manage-form__wide">
                 <mat-label>Описание</mat-label>
-                <textarea matInput rows="4" [formControl]="editForm.controls.description"></textarea>
+                <textarea
+                  matInput
+                  rows="4"
+                  [formControl]="editForm.controls.description"
+                ></textarea>
               </mat-form-field>
 
               <mat-form-field appearance="outline">
-                <mat-label>Руководитель-апрувер</mat-label>
-                <mat-select [formControl]="editForm.controls.approver_id">
-                  <mat-option value="">Без руководителя</mat-option>
-                  @for (user of approvers(); track user.id) {
-                    <mat-option [value]="user.id">{{ approverLabel(user) }}</mat-option>
-                  }
-                </mat-select>
+                <mat-label>Количество участников</mat-label>
+                <input
+                  matInput
+                  type="number"
+                  min="1"
+                  [formControl]="editForm.controls.max_participants"
+                />
               </mat-form-field>
 
               <mat-form-field appearance="outline">
-                <mat-label>Лимит участников</mat-label>
-                <input matInput type="number" min="1" [formControl]="editForm.controls.max_participants" />
+                <mat-label>Цена курса</mat-label>
+                <input matInput [formControl]="editForm.controls.price" />
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Валюта</mat-label>
+                <input matInput maxlength="3" [formControl]="editForm.controls.price_currency" />
               </mat-form-field>
 
               <mat-form-field appearance="outline">
@@ -138,28 +225,70 @@
                 <input matInput type="date" [formControl]="editForm.controls.start_date" />
               </mat-form-field>
 
-              <mat-form-field appearance="outline">
-                <mat-label>Финиш</mat-label>
-                <input matInput type="date" [formControl]="editForm.controls.end_date" />
-              </mat-form-field>
+              <div class="manage-form__schedule-toggle">
+                <span class="manage-form__section-label">Длительность</span>
+                <mat-button-toggle-group [formControl]="editForm.controls.schedule_mode">
+                  <mat-button-toggle value="weeks">Количество недель</mat-button-toggle>
+                  <mat-button-toggle value="end">Дата окончания</mat-button-toggle>
+                </mat-button-toggle-group>
+              </div>
+
+              @if (isWeeksMode()) {
+                <mat-form-field appearance="outline">
+                  <mat-label>Количество недель</mat-label>
+                  <input
+                    matInput
+                    type="number"
+                    min="1"
+                    [formControl]="editForm.controls.duration_weeks"
+                  />
+                </mat-form-field>
+
+                <div class="manage-form__derived">
+                  <span class="manage-form__section-label">Расчёт окончания</span>
+                  <p>
+                    {{
+                      calculatedEndDate()
+                        ? calculatedEndDate()
+                        : 'Укажите старт и количество недель.'
+                    }}
+                  </p>
+                </div>
+              } @else {
+                <mat-form-field appearance="outline">
+                  <mat-label>Дата окончания</mat-label>
+                  <input matInput type="date" [formControl]="editForm.controls.end_date" />
+                </mat-form-field>
+              }
 
               <mat-form-field appearance="outline">
                 <mat-label>Дедлайн подачи</mat-label>
-                <input matInput type="datetime-local" [formControl]="editForm.controls.application_deadline" />
+                <input
+                  matInput
+                  type="datetime-local"
+                  [formControl]="editForm.controls.application_deadline"
+                />
               </mat-form-field>
             </form>
 
-            @if (directoryUnavailable()) {
-              <p class="manage-form__hint">Список сотрудников недоступен. Можно сохранить набор без руководителя.</p>
-            }
-
             <div class="manage-form__actions">
-              <button mat-flat-button color="primary" type="button" (click)="saveIntake()" [disabled]="acting()">
+              <button
+                mat-flat-button
+                color="primary"
+                type="button"
+                (click)="saveIntake()"
+                [disabled]="acting()"
+              >
                 <mat-icon>save</mat-icon>
                 Сохранить
               </button>
               @if (item.status === 'open') {
-                <button mat-stroked-button type="button" (click)="closeIntake()" [disabled]="acting()">
+                <button
+                  mat-stroked-button
+                  type="button"
+                  (click)="closeIntake()"
+                  [disabled]="acting()"
+                >
                   <mat-icon>event_busy</mat-icon>
                   Закрыть набор
                 </button>
@@ -173,8 +302,32 @@
     @if (canManage()) {
       <section class="applications-section">
         <div class="applications-section__header">
-          <h2>Заявки в наборе</h2>
-          <p>{{ applications().length }} шт.</p>
+          <div>
+            <h2>Заявки в наборе</h2>
+            <p>{{ applications().length }} сотрудников и их текущие статусы</p>
+          </div>
+
+          <div class="applications-section__bulk-actions">
+            <button
+              mat-flat-button
+              color="primary"
+              type="button"
+              (click)="updateAllPayments('paid')"
+              [disabled]="acting() || !hasEnrolledApplications()"
+            >
+              <mat-icon>payments</mat-icon>
+              Отметить взятых как оплаченных
+            </button>
+            <button
+              mat-stroked-button
+              type="button"
+              (click)="updateAllPayments('unpaid')"
+              [disabled]="acting() || !hasEnrolledApplications()"
+            >
+              <mat-icon>money_off</mat-icon>
+              Отметить взятых как неоплаченных
+            </button>
+          </div>
         </div>
 
         @if (applications().length === 0) {
@@ -185,14 +338,40 @@
               <mat-card class="application-card">
                 <mat-card-header>
                   <mat-card-title>{{ userLabel(application.applicant_id) }}</mat-card-title>
-                  <mat-card-subtitle>{{ applicationStatusLabel(application.status) }}</mat-card-subtitle>
+                  <mat-card-subtitle>{{
+                    applicationStatusLabel(application.status)
+                  }}</mat-card-subtitle>
                 </mat-card-header>
 
                 <mat-card-content class="application-card__content">
-                  <p><span class="kv__key">Мотивация:</span> <span class="kv__value">{{ application.motivation || '—' }}</span></p>
-                  <p><span class="kv__key">Комментарий руководителя:</span> <span class="kv__value">{{ application.manager_comment || '—' }}</span></p>
-                  <p><span class="kv__key">Комментарий HR:</span> <span class="kv__value">{{ application.hr_comment || '—' }}</span></p>
-                  <p><span class="kv__key">Создано:</span> <span class="kv__value">{{ application.created_at | date: 'dd.MM.yyyy HH:mm' }}</span></p>
+                  <p>
+                    <span class="kv__key">Оплата:</span>
+                    <span class="kv__value">{{
+                      paymentStatusLabel(application.payment_status)
+                    }}</span>
+                  </p>
+                  <p>
+                    <span class="kv__key">Руководитель:</span>
+                    <span class="kv__value">{{ userLabel(application.manager_approver_id) }}</span>
+                  </p>
+                  <p>
+                    <span class="kv__key">Мотивация:</span>
+                    <span class="kv__value">{{ application.motivation || '—' }}</span>
+                  </p>
+                  <p>
+                    <span class="kv__key">Комментарий руководителя:</span>
+                    <span class="kv__value">{{ application.manager_comment || '—' }}</span>
+                  </p>
+                  <p>
+                    <span class="kv__key">Комментарий HR:</span>
+                    <span class="kv__value">{{ application.hr_comment || '—' }}</span>
+                  </p>
+                  <p>
+                    <span class="kv__key">Создано:</span>
+                    <span class="kv__value">{{
+                      application.created_at | date: 'dd.MM.yyyy HH:mm'
+                    }}</span>
+                  </p>
 
                   @if (canHrApprove(application)) {
                     <mat-form-field appearance="outline" class="application-card__comment">
@@ -208,19 +387,36 @@
 
                   <div class="application-card__actions">
                     @if (canHrApprove(application)) {
-                      <button mat-flat-button color="primary" type="button" (click)="approveByHr(application)" [disabled]="acting()">
+                      <button
+                        mat-flat-button
+                        color="primary"
+                        type="button"
+                        (click)="approveByHr(application)"
+                        [disabled]="acting()"
+                      >
                         <mat-icon>check_circle</mat-icon>
                         Одобрить HR
                       </button>
-                      <button mat-stroked-button type="button" (click)="rejectByHr(application)" [disabled]="acting()">
+                      <button
+                        mat-stroked-button
+                        type="button"
+                        (click)="rejectByHr(application)"
+                        [disabled]="acting()"
+                      >
                         <mat-icon>cancel</mat-icon>
                         Отклонить
                       </button>
                     }
                     @if (canHrEnroll(application)) {
-                      <button mat-flat-button color="primary" type="button" (click)="enroll(application)" [disabled]="acting()">
-                        <mat-icon>school</mat-icon>
-                        Зачислить
+                      <button
+                        mat-flat-button
+                        color="primary"
+                        type="button"
+                        (click)="enroll(application)"
+                        [disabled]="acting()"
+                      >
+                        <mat-icon>groups</mat-icon>
+                        Взять сотрудника
                       </button>
                     }
                   </div>

@@ -17,7 +17,7 @@
 .intake-new-page__header p {
   margin: 0;
   color: var(--text-secondary);
-  max-width: 720px;
+  max-width: 760px;
 }
 
 .intake-form {
@@ -30,21 +30,53 @@
   grid-column: 1 / -1;
 }
 
+.intake-form__section-label {
+  display: inline-block;
+  margin-bottom: 8px;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.intake-form__catalog,
+.intake-form__schedule-toggle,
+.intake-form__derived {
+  display: grid;
+  gap: 10px;
+}
+
+.intake-form__catalog-actions,
 .intake-form__actions {
-  grid-column: 1 / -1;
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
 }
 
-.intake-form__hint,
-.intake-form__error {
-  grid-column: 1 / -1;
-  margin: 0;
+.intake-form__catalog-card,
+.intake-form__derived {
+  border: 1px solid rgba(8, 15, 29, 0.08);
+  border-radius: 18px;
+  background: rgba(8, 15, 29, 0.02);
+  padding: 16px;
 }
 
-.intake-form__hint {
+.intake-form__catalog-title,
+.intake-form__derived p {
+  margin: 0;
+  font-weight: 600;
+}
+
+.intake-form__catalog-meta,
+.intake-form__catalog-description,
+.intake-form__hint,
+.intake-form__derived {
   color: var(--text-secondary);
+}
+
+.intake-form__catalog-meta,
+.intake-form__catalog-description,
+.intake-form__hint,
+.intake-form__error {
+  margin: 0;
 }
 
 .intake-form__error {

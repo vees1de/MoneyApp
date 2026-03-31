@@ -3,7 +3,9 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCardModule } from '@angular/material/card';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -18,12 +20,19 @@ import type { CourseApplication, CourseIntake } from '@core/api/contracts';
 import { AuthStateService } from '@core/auth/auth-state.service';
 import type { IdentityUserView, RoleCode } from '@core/auth/auth.types';
 import { PERMISSIONS } from '@core/auth/permissions';
-import { toDatetimeLocalValue, toIsoFromDatetimeLocal } from '@core/domain/date-input.util';
+import { toDatetimeLocalValue } from '@core/domain/date-input.util';
+import {
+  buildIntakeSchedulePayload,
+  normalizeText,
+  resolveEndDateFromWeeks,
+  toPositiveNumber,
+} from '@core/domain/course-intake-form.util';
 import {
   canApplyToIntake,
   canEnrollApplication,
   canHrReviewApplication,
   canWithdrawApplication,
+  courseApplicationPaymentStatusLabel,
   courseApplicationStatusLabel,
   courseIntakeStatusLabel,
   isIntakeManageRole,
@@ -39,7 +48,9 @@ import type { Course } from '@entities/course';
     ReactiveFormsModule,
     RouterLink,
     MatButtonModule,
+    MatButtonToggleModule,
     MatCardModule,
+    MatCheckboxModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
@@ -65,8 +76,27 @@ export class IntakeDetailPageComponent implements OnInit {
   protected readonly course = signal<Course | null>(null);
   protected readonly applications = signal<CourseApplication[]>([]);
   protected readonly myApplication = signal<CourseApplication | null>(null);
-  protected readonly approvers = signal<IdentityUserView[]>([]);
+  protected readonly users = signal<IdentityUserView[]>([]);
   protected readonly applicationComments = signal<Record<string, string>>({});
+
+  protected readonly editForm = this.fb.group({
+    title: ['', [Validators.required]],
+    description: [''],
+    max_participants: [''],
+    price: [''],
+    price_currency: ['RUB'],
+    start_date: ['', [Validators.required]],
+    schedule_mode: ['weeks', [Validators.required]],
+    duration_weeks: [''],
+    end_date: [''],
+    application_deadline: [''],
+    status: ['open', [Validators.required]],
+  });
+
+  protected readonly applyForm = this.fb.group({
+    motivation: [''],
+    use_manager_approval: [true],
+  });
 
   protected readonly role = computed<RoleCode>(
     () => this.authState.currentUser()?.roles[0] ?? 'employee',
@@ -77,7 +107,8 @@ export class IntakeDetailPageComponent implements OnInit {
   );
   protected readonly hasDirectoryAccess = computed(
     () =>
-      this.authState.hasPermission(PERMISSIONS.usersRead) || this.authState.hasAnyRole(['hr', 'admin']),
+      this.authState.hasPermission(PERMISSIONS.usersRead) ||
+      this.authState.hasAnyRole(['hr', 'admin']),
   );
   protected readonly canApply = computed(() => {
     const item = this.intake();
@@ -87,28 +118,22 @@ export class IntakeDetailPageComponent implements OnInit {
     const application = this.myApplication();
     return !!application && canWithdrawApplication(application.status);
   });
+  protected readonly isWeeksMode = computed(
+    () => this.editForm.controls.schedule_mode.value === 'weeks',
+  );
+  protected readonly calculatedEndDate = computed(() =>
+    resolveEndDateFromWeeks(
+      this.editForm.controls.start_date.value,
+      toPositiveNumber(this.editForm.controls.duration_weeks.value) ?? null,
+    ),
+  );
 
   protected readonly statusOptions = [
     { value: 'open', label: 'Открыт' },
-    { value: 'closed', label: 'Закрыт' },
+    { value: 'closed', label: 'Набор закрыт' },
     { value: 'canceled', label: 'Отменён' },
     { value: 'completed', label: 'Завершён' },
   ];
-
-  protected readonly editForm = this.fb.group({
-    title: ['', [Validators.required]],
-    description: [''],
-    approver_id: [''],
-    max_participants: [''],
-    start_date: [''],
-    end_date: [''],
-    application_deadline: [''],
-    status: ['open', [Validators.required]],
-  });
-
-  protected readonly applyForm = this.fb.group({
-    motivation: [''],
-  });
 
   ngOnInit(): void {
     this.load();
@@ -122,8 +147,8 @@ export class IntakeDetailPageComponent implements OnInit {
     return courseApplicationStatusLabel(status);
   }
 
-  protected approverLabel(user: IdentityUserView): string {
-    return identityUserDisplayName(user);
+  protected paymentStatusLabel(status: string): string {
+    return courseApplicationPaymentStatusLabel(status);
   }
 
   protected userLabel(userId: string | null | undefined): string {
@@ -136,7 +161,7 @@ export class IntakeDetailPageComponent implements OnInit {
       return identityUserDisplayName(currentUser);
     }
 
-    const match = this.approvers().find((item) => item.id === userId);
+    const match = this.users().find((item) => item.id === userId);
     return match ? identityUserDisplayName(match) : `Сотрудник ${userId.slice(0, 8)}`;
   }
 
@@ -159,6 +184,10 @@ export class IntakeDetailPageComponent implements OnInit {
     return canEnrollApplication(application.status);
   }
 
+  protected hasEnrolledApplications(): boolean {
+    return this.applications().some((application) => application.status === 'enrolled');
+  }
+
   protected saveIntake(): void {
     const item = this.intake();
     if (!item || this.editForm.invalid || this.acting()) {
@@ -172,6 +201,14 @@ export class IntakeDetailPageComponent implements OnInit {
       this.error.set('Название набора обязательно.');
       return;
     }
+    if (this.isWeeksMode() && !toPositiveNumber(values.duration_weeks)) {
+      this.error.set('Укажите количество недель.');
+      return;
+    }
+    if (!this.isWeeksMode() && !normalizeText(values.end_date)) {
+      this.error.set('Укажите дату окончания.');
+      return;
+    }
 
     this.acting.set(true);
     this.error.set(null);
@@ -180,12 +217,16 @@ export class IntakeDetailPageComponent implements OnInit {
       .update(item.id, {
         title,
         description: normalizeText(values.description),
-        approver_id: normalizeText(values.approver_id),
         max_participants: toPositiveNumber(values.max_participants),
-        start_date: normalizeText(values.start_date),
-        end_date: normalizeText(values.end_date),
-        application_deadline: toIsoFromDatetimeLocal(values.application_deadline),
+        price: values.price ?? '',
+        price_currency: normalizeText(values.price_currency) ?? 'RUB',
         status: normalizeText(values.status),
+        ...buildIntakeSchedulePayload({
+          startDate: values.start_date,
+          endDate: this.isWeeksMode() ? this.calculatedEndDate() : values.end_date,
+          durationWeeks: this.isWeeksMode() ? toPositiveNumber(values.duration_weeks) : undefined,
+          applicationDeadline: values.application_deadline,
+        }),
       })
       .subscribe({
         next: (updated) => {
@@ -233,10 +274,12 @@ export class IntakeDetailPageComponent implements OnInit {
       .apply({
         intake_id: item.id,
         motivation: normalizeText(this.applyForm.controls.motivation.value),
+        use_manager_approval: !!this.applyForm.controls.use_manager_approval.value,
       })
       .subscribe({
         next: (application) => {
           this.myApplication.set(application);
+          this.applications.update((items) => [application, ...items]);
           this.acting.set(false);
         },
         error: () => {
@@ -289,7 +332,37 @@ export class IntakeDetailPageComponent implements OnInit {
         this.acting.set(false);
       },
       error: () => {
-        this.error.set('Не удалось зачислить сотрудника.');
+        this.error.set('Не удалось отметить сотрудника как взятого.');
+        this.acting.set(false);
+      },
+    });
+  }
+
+  protected updateAllPayments(status: 'paid' | 'unpaid'): void {
+    const item = this.intake();
+    if (!item || this.acting()) {
+      return;
+    }
+
+    this.acting.set(true);
+    this.error.set(null);
+
+    this.intakesApi.updatePaymentStatus(item.id, status).subscribe({
+      next: (updatedApplications) => {
+        const map = new Map(
+          updatedApplications.map((application) => [application.id, application]),
+        );
+        this.applications.update((items) => items.map((item) => map.get(item.id) ?? item));
+
+        const current = this.myApplication();
+        if (current && map.has(current.id)) {
+          this.myApplication.set(map.get(current.id) ?? current);
+        }
+
+        this.acting.set(false);
+      },
+      error: () => {
+        this.error.set('Не удалось обновить статус оплаты.');
         this.acting.set(false);
       },
     });
@@ -318,7 +391,7 @@ export class IntakeDetailPageComponent implements OnInit {
             ? this.intakesApi.listApplications(intake.id).pipe(catchError(() => of([])))
             : of([]),
           myApplications: this.applicationsApi.listMy().pipe(catchError(() => of([]))),
-          approvers: this.hasDirectoryAccess()
+          users: this.hasDirectoryAccess()
             ? this.usersApi.listAdminUsers().pipe(
                 catchError(() => {
                   this.directoryUnavailable.set(true);
@@ -327,13 +400,14 @@ export class IntakeDetailPageComponent implements OnInit {
               )
             : of([]),
         }).subscribe({
-          next: ({ course, applications, myApplications, approvers }) => {
+          next: ({ course, applications, myApplications, users }) => {
             this.course.set(course);
             this.applications.set(applications ?? []);
             this.myApplication.set(
-              (myApplications ?? []).find((item) => item.intake_id === intake.id) ?? null,
+              (myApplications ?? []).find((application) => application.intake_id === intake.id) ??
+                null,
             );
-            this.approvers.set(approvers ?? []);
+            this.users.set(users ?? []);
             this.loading.set(false);
           },
           error: () => {
@@ -354,9 +428,12 @@ export class IntakeDetailPageComponent implements OnInit {
     this.editForm.patchValue({
       title: intake.title,
       description: intake.description ?? '',
-      approver_id: intake.approver_id ?? '',
       max_participants: intake.max_participants?.toString() ?? '',
+      price: intake.price ?? '',
+      price_currency: intake.price_currency ?? 'RUB',
       start_date: intake.start_date ?? '',
+      schedule_mode: intake.duration_weeks ? 'weeks' : 'end',
+      duration_weeks: intake.duration_weeks?.toString() ?? '',
       end_date: intake.end_date ?? '',
       application_deadline: toDatetimeLocalValue(intake.application_deadline),
       status: intake.status,
@@ -406,18 +483,4 @@ export class IntakeDetailPageComponent implements OnInit {
       this.myApplication.set(updated);
     }
   }
-}
-
-function normalizeText(value: string | null | undefined): string | undefined {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : undefined;
-}
-
-function toPositiveNumber(value: string | null | undefined): number | undefined {
-  if (!value) {
-    return undefined;
-  }
-
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
 }

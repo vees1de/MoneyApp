@@ -49,7 +49,7 @@ export class IntakesListPageComponent implements OnInit {
   protected readonly statusOptions = [
     { value: '', label: 'Все статусы' },
     { value: 'open', label: 'Открыт' },
-    { value: 'closed', label: 'Закрыт' },
+    { value: 'closed', label: 'Набор закрыт' },
     { value: 'canceled', label: 'Отменён' },
     { value: 'completed', label: 'Завершён' },
   ];
@@ -88,7 +88,10 @@ export class IntakesListPageComponent implements OnInit {
         const filtered = !query
           ? items
           : items.filter((item) =>
-              [item.title, item.description ?? '', item.status].join(' ').toLowerCase().includes(query),
+              [item.title, item.description ?? '', item.status]
+                .join(' ')
+                .toLowerCase()
+                .includes(query),
             );
 
         this.intakes.set(filtered);

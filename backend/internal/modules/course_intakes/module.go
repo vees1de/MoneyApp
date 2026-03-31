@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	orgmodule "moneyapp/backend/internal/modules/org"
 	platformauth "moneyapp/backend/internal/platform/auth"
 	"moneyapp/backend/internal/platform/clock"
 	"moneyapp/backend/internal/platform/db"
@@ -31,7 +32,10 @@ type Intake struct {
 	MaxParticipants     *int       `json:"max_participants,omitempty"`
 	StartDate           *string    `json:"start_date,omitempty"`
 	EndDate             *string    `json:"end_date,omitempty"`
+	DurationWeeks       *int       `json:"duration_weeks,omitempty"`
 	ApplicationDeadline *time.Time `json:"application_deadline,omitempty"`
+	Price               *string    `json:"price,omitempty"`
+	PriceCurrency       *string    `json:"price_currency,omitempty"`
 	Status              string     `json:"status"`
 	CreatedAt           time.Time  `json:"created_at"`
 	UpdatedAt           time.Time  `json:"updated_at"`
@@ -49,6 +53,7 @@ type Application struct {
 	HRApproverID      *uuid.UUID `json:"hr_approver_id,omitempty"`
 	HRComment         *string    `json:"hr_comment,omitempty"`
 	HRDecidedAt       *time.Time `json:"hr_decided_at,omitempty"`
+	PaymentStatus     string     `json:"payment_status"`
 	CreatedAt         time.Time  `json:"created_at"`
 	UpdatedAt         time.Time  `json:"updated_at"`
 }
@@ -81,31 +86,40 @@ type CreateIntakeRequest struct {
 	CourseID            *uuid.UUID `json:"course_id"`
 	Title               string     `json:"title" validate:"required,max=500"`
 	Description         *string    `json:"description"`
-	ApproverID          *uuid.UUID `json:"approver_id"`
 	MaxParticipants     *int       `json:"max_participants"`
 	StartDate           *string    `json:"start_date"`
 	EndDate             *string    `json:"end_date"`
+	DurationWeeks       *int       `json:"duration_weeks" validate:"omitempty,gte=1,lte=520"`
 	ApplicationDeadline *time.Time `json:"application_deadline"`
+	Price               *string    `json:"price"`
+	PriceCurrency       *string    `json:"price_currency" validate:"omitempty,len=3"`
 }
 
 type UpdateIntakeRequest struct {
 	Title               *string    `json:"title" validate:"omitempty,max=500"`
 	Description         *string    `json:"description"`
-	ApproverID          *uuid.UUID `json:"approver_id"`
 	MaxParticipants     *int       `json:"max_participants"`
 	StartDate           *string    `json:"start_date"`
 	EndDate             *string    `json:"end_date"`
+	DurationWeeks       *int       `json:"duration_weeks" validate:"omitempty,gte=1,lte=520"`
 	ApplicationDeadline *time.Time `json:"application_deadline"`
+	Price               *string    `json:"price"`
+	PriceCurrency       *string    `json:"price_currency" validate:"omitempty,len=3"`
 	Status              *string    `json:"status" validate:"omitempty,oneof=open closed canceled completed"`
 }
 
 type ApplyRequest struct {
-	IntakeID   uuid.UUID `json:"intake_id" validate:"required"`
-	Motivation *string   `json:"motivation"`
+	IntakeID           uuid.UUID `json:"intake_id" validate:"required"`
+	Motivation         *string   `json:"motivation"`
+	UseManagerApproval bool      `json:"use_manager_approval"`
 }
 
 type ApproveRejectRequest struct {
 	Comment *string `json:"comment"`
+}
+
+type UpdatePaymentStatusRequest struct {
+	Status string `json:"status" validate:"required,oneof=paid unpaid"`
 }
 
 type CreateSuggestionRequest struct {
@@ -147,10 +161,12 @@ func (r *Repository) base(exec ...db.DBTX) db.DBTX {
 func (r *Repository) CreateIntake(ctx context.Context, item Intake, exec ...db.DBTX) error {
 	_, err := r.base(exec...).ExecContext(ctx, `
 		INSERT INTO course_intakes (id, course_id, title, description, opened_by, approver_id,
-			max_participants, start_date, end_date, application_deadline, status, created_at, updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+			max_participants, start_date, end_date, duration_weeks, application_deadline,
+			price, price_currency, status, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,nullif($12, '')::numeric,$13,$14,$15,$16)
 	`, item.ID, item.CourseID, item.Title, item.Description, item.OpenedBy, item.ApproverID,
-		item.MaxParticipants, item.StartDate, item.EndDate, item.ApplicationDeadline,
+		item.MaxParticipants, item.StartDate, item.EndDate, item.DurationWeeks, item.ApplicationDeadline,
+		item.Price, item.PriceCurrency,
 		item.Status, item.CreatedAt, item.UpdatedAt)
 	return err
 }
@@ -158,7 +174,8 @@ func (r *Repository) CreateIntake(ctx context.Context, item Intake, exec ...db.D
 func (r *Repository) GetIntake(ctx context.Context, id uuid.UUID) (*Intake, error) {
 	row := r.db.QueryRowContext(ctx, `
 		SELECT id, course_id, title, description, opened_by, approver_id,
-			max_participants, start_date, end_date, application_deadline, status, created_at, updated_at
+			max_participants, start_date, end_date, duration_weeks, application_deadline,
+			price::text, price_currency, status, created_at, updated_at
 		FROM course_intakes WHERE id = $1
 	`, id)
 	return scanIntake(row)
@@ -166,7 +183,8 @@ func (r *Repository) GetIntake(ctx context.Context, id uuid.UUID) (*Intake, erro
 
 func (r *Repository) ListIntakes(ctx context.Context, status string) ([]Intake, error) {
 	q := `SELECT id, course_id, title, description, opened_by, approver_id,
-		max_participants, start_date, end_date, application_deadline, status, created_at, updated_at
+		max_participants, start_date, end_date, duration_weeks, application_deadline,
+		price::text, price_currency, status, created_at, updated_at
 		FROM course_intakes`
 	var args []any
 	if status != "" {
@@ -185,8 +203,8 @@ func (r *Repository) ListIntakes(ctx context.Context, status string) ([]Intake, 
 	for rows.Next() {
 		var it Intake
 		if err := rows.Scan(&it.ID, &it.CourseID, &it.Title, &it.Description, &it.OpenedBy, &it.ApproverID,
-			&it.MaxParticipants, &it.StartDate, &it.EndDate, &it.ApplicationDeadline,
-			&it.Status, &it.CreatedAt, &it.UpdatedAt); err != nil {
+			&it.MaxParticipants, &it.StartDate, &it.EndDate, &it.DurationWeeks, &it.ApplicationDeadline,
+			&it.Price, &it.PriceCurrency, &it.Status, &it.CreatedAt, &it.UpdatedAt); err != nil {
 			return nil, err
 		}
 		list = append(list, it)
@@ -198,10 +216,12 @@ func (r *Repository) UpdateIntake(ctx context.Context, item Intake, exec ...db.D
 	_, err := r.base(exec...).ExecContext(ctx, `
 		UPDATE course_intakes
 		SET title=$2, description=$3, approver_id=$4, max_participants=$5,
-			start_date=$6, end_date=$7, application_deadline=$8, status=$9, updated_at=$10
+			start_date=$6, end_date=$7, duration_weeks=$8, application_deadline=$9,
+			price=nullif($10, '')::numeric, price_currency=$11, status=$12, updated_at=$13
 		WHERE id=$1
 	`, item.ID, item.Title, item.Description, item.ApproverID, item.MaxParticipants,
-		item.StartDate, item.EndDate, item.ApplicationDeadline, item.Status, item.UpdatedAt)
+		item.StartDate, item.EndDate, item.DurationWeeks, item.ApplicationDeadline,
+		item.Price, item.PriceCurrency, item.Status, item.UpdatedAt)
 	return err
 }
 
@@ -211,11 +231,11 @@ func (r *Repository) CreateApplication(ctx context.Context, item Application, ex
 	_, err := r.base(exec...).ExecContext(ctx, `
 		INSERT INTO course_applications (id, intake_id, applicant_id, motivation, status,
 			manager_approver_id, manager_comment, manager_decided_at,
-			hr_approver_id, hr_comment, hr_decided_at, created_at, updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+			hr_approver_id, hr_comment, hr_decided_at, payment_status, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
 	`, item.ID, item.IntakeID, item.ApplicantID, item.Motivation, item.Status,
 		item.ManagerApproverID, item.ManagerComment, item.ManagerDecidedAt,
-		item.HRApproverID, item.HRComment, item.HRDecidedAt,
+		item.HRApproverID, item.HRComment, item.HRDecidedAt, item.PaymentStatus,
 		item.CreatedAt, item.UpdatedAt)
 	return err
 }
@@ -224,7 +244,7 @@ func (r *Repository) GetApplication(ctx context.Context, id uuid.UUID) (*Applica
 	row := r.db.QueryRowContext(ctx, `
 		SELECT id, intake_id, applicant_id, motivation, status,
 			manager_approver_id, manager_comment, manager_decided_at,
-			hr_approver_id, hr_comment, hr_decided_at, created_at, updated_at
+			hr_approver_id, hr_comment, hr_decided_at, payment_status, created_at, updated_at
 		FROM course_applications WHERE id = $1
 	`, id)
 	return scanApplication(row)
@@ -234,7 +254,7 @@ func (r *Repository) ListApplicationsByIntake(ctx context.Context, intakeID uuid
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT id, intake_id, applicant_id, motivation, status,
 			manager_approver_id, manager_comment, manager_decided_at,
-			hr_approver_id, hr_comment, hr_decided_at, created_at, updated_at
+			hr_approver_id, hr_comment, hr_decided_at, payment_status, created_at, updated_at
 		FROM course_applications WHERE intake_id = $1 ORDER BY created_at DESC
 	`, intakeID)
 	if err != nil {
@@ -248,7 +268,7 @@ func (r *Repository) ListMyApplications(ctx context.Context, userID uuid.UUID) (
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT id, intake_id, applicant_id, motivation, status,
 			manager_approver_id, manager_comment, manager_decided_at,
-			hr_approver_id, hr_comment, hr_decided_at, created_at, updated_at
+			hr_approver_id, hr_comment, hr_decided_at, payment_status, created_at, updated_at
 		FROM course_applications WHERE applicant_id = $1 ORDER BY created_at DESC
 	`, userID)
 	if err != nil {
@@ -262,7 +282,7 @@ func (r *Repository) ListPendingManagerApprovals(ctx context.Context, managerID 
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT id, intake_id, applicant_id, motivation, status,
 			manager_approver_id, manager_comment, manager_decided_at,
-			hr_approver_id, hr_comment, hr_decided_at, created_at, updated_at
+			hr_approver_id, hr_comment, hr_decided_at, payment_status, created_at, updated_at
 		FROM course_applications
 		WHERE manager_approver_id = $1 AND status = 'pending_manager'
 		ORDER BY created_at DESC
@@ -278,11 +298,27 @@ func (r *Repository) UpdateApplication(ctx context.Context, item Application, ex
 	_, err := r.base(exec...).ExecContext(ctx, `
 		UPDATE course_applications
 		SET status=$2, manager_approver_id=$3, manager_comment=$4, manager_decided_at=$5,
-			hr_approver_id=$6, hr_comment=$7, hr_decided_at=$8, updated_at=$9
+			hr_approver_id=$6, hr_comment=$7, hr_decided_at=$8, payment_status=$9, updated_at=$10
 		WHERE id=$1
 	`, item.ID, item.Status, item.ManagerApproverID, item.ManagerComment, item.ManagerDecidedAt,
-		item.HRApproverID, item.HRComment, item.HRDecidedAt, item.UpdatedAt)
+		item.HRApproverID, item.HRComment, item.HRDecidedAt, item.PaymentStatus, item.UpdatedAt)
 	return err
+}
+
+func (r *Repository) UpdateApplicationsPaymentStatusByIntake(ctx context.Context, intakeID uuid.UUID, paymentStatus string, updatedAt time.Time, exec ...db.DBTX) ([]Application, error) {
+	rows, err := r.base(exec...).QueryContext(ctx, `
+		UPDATE course_applications
+		SET payment_status = $2, updated_at = $3
+		WHERE intake_id = $1 AND status = 'enrolled'
+		RETURNING id, intake_id, applicant_id, motivation, status,
+			manager_approver_id, manager_comment, manager_decided_at,
+			hr_approver_id, hr_comment, hr_decided_at, payment_status, created_at, updated_at
+	`, intakeID, paymentStatus, updatedAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanApplications(rows)
 }
 
 // --- Suggestions ---
@@ -364,8 +400,8 @@ type rowScanner interface {
 func scanIntake(row rowScanner) (*Intake, error) {
 	var it Intake
 	err := row.Scan(&it.ID, &it.CourseID, &it.Title, &it.Description, &it.OpenedBy, &it.ApproverID,
-		&it.MaxParticipants, &it.StartDate, &it.EndDate, &it.ApplicationDeadline,
-		&it.Status, &it.CreatedAt, &it.UpdatedAt)
+		&it.MaxParticipants, &it.StartDate, &it.EndDate, &it.DurationWeeks, &it.ApplicationDeadline,
+		&it.Price, &it.PriceCurrency, &it.Status, &it.CreatedAt, &it.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -376,7 +412,7 @@ func scanApplication(row rowScanner) (*Application, error) {
 	var a Application
 	err := row.Scan(&a.ID, &a.IntakeID, &a.ApplicantID, &a.Motivation, &a.Status,
 		&a.ManagerApproverID, &a.ManagerComment, &a.ManagerDecidedAt,
-		&a.HRApproverID, &a.HRComment, &a.HRDecidedAt,
+		&a.HRApproverID, &a.HRComment, &a.HRDecidedAt, &a.PaymentStatus,
 		&a.CreatedAt, &a.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -390,7 +426,7 @@ func scanApplications(rows *sql.Rows) ([]Application, error) {
 		var a Application
 		if err := rows.Scan(&a.ID, &a.IntakeID, &a.ApplicantID, &a.Motivation, &a.Status,
 			&a.ManagerApproverID, &a.ManagerComment, &a.ManagerDecidedAt,
-			&a.HRApproverID, &a.HRComment, &a.HRDecidedAt,
+			&a.HRApproverID, &a.HRComment, &a.HRDecidedAt, &a.PaymentStatus,
 			&a.CreatedAt, &a.UpdatedAt); err != nil {
 			return nil, err
 		}
@@ -426,35 +462,134 @@ func scanSuggestions(rows *sql.Rows) ([]Suggestion, error) {
 	return list, rows.Err()
 }
 
+func normalizeOptionalStringPtr(value *string) *string {
+	if value == nil {
+		return nil
+	}
+
+	trimmed := strings.TrimSpace(*value)
+	if trimmed == "" {
+		return nil
+	}
+
+	return &trimmed
+}
+
+func normalizePositiveIntPtr(value *int) *int {
+	if value == nil || *value <= 0 {
+		return nil
+	}
+	return value
+}
+
+func normalizeCurrencyPtr(value *string, hasPrice bool) *string {
+	if !hasPrice {
+		return nil
+	}
+
+	if value != nil {
+		normalized := strings.ToUpper(strings.TrimSpace(*value))
+		if normalized != "" {
+			return &normalized
+		}
+	}
+
+	defaultCurrency := "RUB"
+	return &defaultCurrency
+}
+
+func resolveIntakeSchedule(startDate, endDate *string, durationWeeks *int, applicationDeadline *time.Time) (*string, *string, *int, *time.Time, error) {
+	normalizedStart := normalizeOptionalStringPtr(startDate)
+	normalizedEnd := normalizeOptionalStringPtr(endDate)
+	normalizedWeeks := normalizePositiveIntPtr(durationWeeks)
+	resolvedDeadline := applicationDeadline
+
+	if normalizedWeeks != nil {
+		if normalizedStart == nil {
+			return nil, nil, nil, nil, httpx.BadRequest("start_date_required", "start_date is required when duration_weeks is set")
+		}
+
+		computedEnd, err := calculateEndDate(*normalizedStart, *normalizedWeeks)
+		if err != nil {
+			return nil, nil, nil, nil, httpx.BadRequest("invalid_start_date", "start_date must be in YYYY-MM-DD format")
+		}
+		normalizedEnd = &computedEnd
+	}
+
+	if resolvedDeadline == nil && normalizedStart != nil {
+		deadline, err := defaultApplicationDeadline(*normalizedStart)
+		if err != nil {
+			return nil, nil, nil, nil, httpx.BadRequest("invalid_start_date", "start_date must be in YYYY-MM-DD format")
+		}
+		resolvedDeadline = &deadline
+	}
+
+	return normalizedStart, normalizedEnd, normalizedWeeks, resolvedDeadline, nil
+}
+
+func calculateEndDate(startDate string, durationWeeks int) (string, error) {
+	start, err := time.Parse("2006-01-02", startDate)
+	if err != nil {
+		return "", err
+	}
+
+	end := start.AddDate(0, 0, durationWeeks*7)
+	return end.Format("2006-01-02"), nil
+}
+
+func defaultApplicationDeadline(startDate string) (time.Time, error) {
+	start, err := time.Parse("2006-01-02", startDate)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	deadlineDate := start.AddDate(0, 0, -3)
+	return time.Date(deadlineDate.Year(), deadlineDate.Month(), deadlineDate.Day(), 23, 59, 0, 0, time.UTC), nil
+}
+
 // ---------------------------------------------------------------------------
 // Service
 // ---------------------------------------------------------------------------
 
 type Service struct {
-	db    *sql.DB
-	repo  *Repository
-	clock clock.Clock
+	db         *sql.DB
+	repo       *Repository
+	orgService *orgmodule.Service
+	clock      clock.Clock
 }
 
-func NewService(database *sql.DB, repo *Repository, clk clock.Clock) *Service {
-	return &Service{db: database, repo: repo, clock: clk}
+func NewService(database *sql.DB, repo *Repository, orgService *orgmodule.Service, clk clock.Clock) *Service {
+	return &Service{db: database, repo: repo, orgService: orgService, clock: clk}
 }
 
 // --- Intakes ---
 
 func (s *Service) CreateIntake(ctx context.Context, principal platformauth.Principal, req CreateIntakeRequest) (*Intake, error) {
 	now := s.clock.Now()
+	price := normalizeOptionalStringPtr(req.Price)
+	startDate, endDate, durationWeeks, applicationDeadline, err := resolveIntakeSchedule(
+		req.StartDate,
+		req.EndDate,
+		req.DurationWeeks,
+		req.ApplicationDeadline,
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	intake := Intake{
 		ID:                  uuid.New(),
 		CourseID:            req.CourseID,
 		Title:               req.Title,
 		Description:         req.Description,
 		OpenedBy:            principal.UserID,
-		ApproverID:          req.ApproverID,
 		MaxParticipants:     req.MaxParticipants,
-		StartDate:           req.StartDate,
-		EndDate:             req.EndDate,
-		ApplicationDeadline: req.ApplicationDeadline,
+		StartDate:           startDate,
+		EndDate:             endDate,
+		DurationWeeks:       durationWeeks,
+		ApplicationDeadline: applicationDeadline,
+		Price:               price,
+		PriceCurrency:       normalizeCurrencyPtr(req.PriceCurrency, price != nil),
 		Status:              "open",
 		CreatedAt:           now,
 		UpdatedAt:           now,
@@ -487,22 +622,52 @@ func (s *Service) UpdateIntake(ctx context.Context, principal platformauth.Princ
 		intake.Title = *req.Title
 	}
 	if req.Description != nil {
-		intake.Description = req.Description
-	}
-	if req.ApproverID != nil {
-		intake.ApproverID = req.ApproverID
+		intake.Description = normalizeOptionalStringPtr(req.Description)
 	}
 	if req.MaxParticipants != nil {
-		intake.MaxParticipants = req.MaxParticipants
+		intake.MaxParticipants = normalizePositiveIntPtr(req.MaxParticipants)
 	}
+
+	startDate := intake.StartDate
 	if req.StartDate != nil {
-		intake.StartDate = req.StartDate
+		startDate = normalizeOptionalStringPtr(req.StartDate)
 	}
+
+	endDate := intake.EndDate
 	if req.EndDate != nil {
-		intake.EndDate = req.EndDate
+		endDate = normalizeOptionalStringPtr(req.EndDate)
 	}
+
+	durationWeeks := intake.DurationWeeks
+	if req.DurationWeeks != nil {
+		durationWeeks = normalizePositiveIntPtr(req.DurationWeeks)
+	}
+
+	applicationDeadline := intake.ApplicationDeadline
 	if req.ApplicationDeadline != nil {
-		intake.ApplicationDeadline = req.ApplicationDeadline
+		applicationDeadline = req.ApplicationDeadline
+	}
+
+	resolvedStartDate, resolvedEndDate, resolvedDurationWeeks, resolvedDeadline, err := resolveIntakeSchedule(
+		startDate,
+		endDate,
+		durationWeeks,
+		applicationDeadline,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	intake.StartDate = resolvedStartDate
+	intake.EndDate = resolvedEndDate
+	intake.DurationWeeks = resolvedDurationWeeks
+	intake.ApplicationDeadline = resolvedDeadline
+
+	if req.Price != nil {
+		intake.Price = normalizeOptionalStringPtr(req.Price)
+	}
+	if req.PriceCurrency != nil || req.Price != nil || intake.Price != nil {
+		intake.PriceCurrency = normalizeCurrencyPtr(req.PriceCurrency, intake.Price != nil)
 	}
 	if req.Status != nil {
 		intake.Status = *req.Status
@@ -553,18 +718,25 @@ func (s *Service) Apply(ctx context.Context, principal platformauth.Principal, r
 
 	now := s.clock.Now()
 	app := Application{
-		ID:          uuid.New(),
-		IntakeID:    req.IntakeID,
-		ApplicantID: principal.UserID,
-		Motivation:  req.Motivation,
-		CreatedAt:   now,
-		UpdatedAt:   now,
+		ID:            uuid.New(),
+		IntakeID:      req.IntakeID,
+		ApplicantID:   principal.UserID,
+		Motivation:    req.Motivation,
+		PaymentStatus: "unpaid",
+		CreatedAt:     now,
+		UpdatedAt:     now,
 	}
 
-	// Determine initial status based on whether intake has a manager approver
-	if intake.ApproverID != nil {
+	if req.UseManagerApproval {
+		managerID, err := s.orgService.GetPrimaryManager(ctx, principal.UserID)
+		if err != nil {
+			return nil, err
+		}
+		if managerID == nil {
+			return nil, httpx.Conflict("manager_missing", "employee has no primary manager")
+		}
 		app.Status = "pending_manager"
-		app.ManagerApproverID = intake.ApproverID
+		app.ManagerApproverID = managerID
 	} else {
 		app.Status = "pending"
 	}
@@ -737,12 +909,25 @@ func (s *Service) EnrollApplication(ctx context.Context, principal platformauth.
 	}
 
 	app.Status = "enrolled"
+	app.PaymentStatus = "unpaid"
 	app.UpdatedAt = s.clock.Now()
 
 	if err := s.repo.UpdateApplication(ctx, *app); err != nil {
 		return nil, err
 	}
 	return app, nil
+}
+
+func (s *Service) UpdateApplicationsPaymentStatusByIntake(ctx context.Context, intakeID uuid.UUID, paymentStatus string) ([]Application, error) {
+	intake, err := s.repo.GetIntake(ctx, intakeID)
+	if err != nil {
+		return nil, err
+	}
+	if intake == nil {
+		return nil, httpx.NotFound("not_found", "intake not found")
+	}
+
+	return s.repo.UpdateApplicationsPaymentStatusByIntake(ctx, intakeID, paymentStatus, s.clock.Now())
 }
 
 // --- Suggestions ---
@@ -862,20 +1047,34 @@ func (s *Service) OpenIntakeFromSuggestion(ctx context.Context, principal platfo
 		}
 
 		i := Intake{
-			ID:                  uuid.New(),
-			CourseID:            intakeReq.CourseID,
-			Title:               title,
-			Description:         intakeReq.Description,
-			OpenedBy:            principal.UserID,
-			ApproverID:          intakeReq.ApproverID,
-			MaxParticipants:     intakeReq.MaxParticipants,
-			StartDate:           intakeReq.StartDate,
-			EndDate:             intakeReq.EndDate,
-			ApplicationDeadline: intakeReq.ApplicationDeadline,
-			Status:              "open",
-			CreatedAt:           now,
-			UpdatedAt:           now,
+			ID:              uuid.New(),
+			CourseID:        intakeReq.CourseID,
+			Title:           title,
+			Description:     intakeReq.Description,
+			OpenedBy:        principal.UserID,
+			MaxParticipants: intakeReq.MaxParticipants,
+			Status:          "open",
+			CreatedAt:       now,
+			UpdatedAt:       now,
 		}
+
+		price := normalizeOptionalStringPtr(intakeReq.Price)
+		startDate, endDate, durationWeeks, applicationDeadline, err := resolveIntakeSchedule(
+			intakeReq.StartDate,
+			intakeReq.EndDate,
+			intakeReq.DurationWeeks,
+			intakeReq.ApplicationDeadline,
+		)
+		if err != nil {
+			return err
+		}
+
+		i.StartDate = startDate
+		i.EndDate = endDate
+		i.DurationWeeks = durationWeeks
+		i.ApplicationDeadline = applicationDeadline
+		i.Price = price
+		i.PriceCurrency = normalizeCurrencyPtr(intakeReq.PriceCurrency, price != nil)
 
 		if err := s.repo.CreateIntake(ctx, i, tx); err != nil {
 			return err
@@ -1232,6 +1431,33 @@ func (h *Handler) EnrollApplication(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, app)
+}
+
+func (h *Handler) UpdatePaymentStatusByIntake(w http.ResponseWriter, r *http.Request) {
+	id, ok := h.uuidParam(w, r, "id")
+	if !ok {
+		return
+	}
+
+	var req UpdatePaymentStatusRequest
+	if err := httpx.DecodeJSON(r, &req); err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	if err := h.validate.Struct(req); err != nil {
+		httpx.WriteError(w, httpx.BadRequest("validation_error", err.Error()))
+		return
+	}
+
+	applications, err := h.service.UpdateApplicationsPaymentStatusByIntake(r.Context(), id, req.Status)
+	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{
+		"items": applications,
+	})
 }
 
 // --- Suggestion handlers ---

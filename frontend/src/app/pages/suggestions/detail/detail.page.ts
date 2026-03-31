@@ -3,20 +3,25 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCardModule } from '@angular/material/card';
+import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
 import { catchError, forkJoin, of } from 'rxjs';
 
 import { CourseSuggestionsApiService } from '@core/api/course-suggestions-api.service';
-import { CoursesApiService } from '@core/api/courses-api.service';
 import { UsersApiService } from '@core/api/users-api.service';
 import type { CourseSuggestion } from '@core/api/contracts';
 import { AuthStateService } from '@core/auth/auth-state.service';
 import { PERMISSIONS } from '@core/auth/permissions';
-import { toDatetimeLocalValue, toIsoFromDatetimeLocal } from '@core/domain/date-input.util';
+import {
+  buildIntakeSchedulePayload,
+  normalizeText,
+  resolveEndDateFromWeeks,
+  toPositiveNumber,
+} from '@core/domain/course-intake-form.util';
 import {
   canOpenIntakeFromSuggestion,
   canReviewSuggestion,
@@ -26,6 +31,8 @@ import { identityUserDisplayName } from '@core/domain/identity.util';
 import type { IdentityUserView } from '@core/auth/auth.types';
 import type { Course } from '@entities/course';
 
+import { CoursePickerDialogComponent } from '../../intakes/course-picker-dialog/course-picker-dialog.component';
+
 @Component({
   selector: 'app-page-suggestion-detail',
   standalone: true,
@@ -34,22 +41,22 @@ import type { Course } from '@entities/course';
     ReactiveFormsModule,
     RouterLink,
     MatButtonModule,
+    MatButtonToggleModule,
     MatCardModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
-    MatSelectModule,
   ],
   templateUrl: './detail.page.html',
   styleUrl: './detail.page.scss',
 })
 export class SuggestionDetailPageComponent implements OnInit {
   private readonly suggestionsApi = inject(CourseSuggestionsApiService);
-  private readonly coursesApi = inject(CoursesApiService);
   private readonly usersApi = inject(UsersApiService);
   private readonly authState = inject(AuthStateService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly dialog = inject(MatDialog);
   private readonly fb = inject(FormBuilder);
 
   protected readonly loading = signal(true);
@@ -57,14 +64,9 @@ export class SuggestionDetailPageComponent implements OnInit {
   protected readonly error = signal<string | null>(null);
   protected readonly directoryUnavailable = signal(false);
   protected readonly suggestion = signal<CourseSuggestion | null>(null);
-  protected readonly courses = signal<Course[]>([]);
+  protected readonly selectedCourse = signal<Course | null>(null);
   protected readonly users = signal<IdentityUserView[]>([]);
   protected readonly usersById = signal<Record<string, IdentityUserView>>({});
-
-  protected readonly canReview = computed(() => {
-    const role = this.authState.currentUser()?.roles[0] ?? 'employee';
-    return canReviewSuggestion(role) || this.authState.hasPermission(PERMISSIONS.intakesManage);
-  });
 
   protected readonly reviewForm = this.fb.group({
     comment: [''],
@@ -74,12 +76,29 @@ export class SuggestionDetailPageComponent implements OnInit {
     course_id: [''],
     title: [''],
     description: [''],
-    approver_id: [''],
     max_participants: [''],
+    price: [''],
+    price_currency: ['RUB'],
     start_date: [''],
+    schedule_mode: ['weeks'],
+    duration_weeks: [''],
     end_date: [''],
     application_deadline: [''],
   });
+
+  protected readonly canReview = computed(() => {
+    const role = this.authState.currentUser()?.roles[0] ?? 'employee';
+    return canReviewSuggestion(role) || this.authState.hasPermission(PERMISSIONS.intakesManage);
+  });
+  protected readonly isWeeksMode = computed(
+    () => this.intakeForm.controls.schedule_mode.value === 'weeks',
+  );
+  protected readonly calculatedEndDate = computed(() =>
+    resolveEndDateFromWeeks(
+      this.intakeForm.controls.start_date.value,
+      toPositiveNumber(this.intakeForm.controls.duration_weeks.value) ?? null,
+    ),
+  );
 
   ngOnInit(): void {
     this.load();
@@ -108,19 +127,40 @@ export class SuggestionDetailPageComponent implements OnInit {
     return !!suggestion && this.canReview() && canOpenIntakeFromSuggestion(suggestion.status);
   }
 
-  protected syncSelectedCourse(courseId: string | null): void {
-    if (!courseId) {
-      return;
-    }
+  protected openCatalogDialog(): void {
+    const dialogRef = this.dialog.open(CoursePickerDialogComponent, {
+      width: '960px',
+      maxWidth: '96vw',
+      data: {
+        selectedCourseId: this.selectedCourse()?.id ?? this.intakeForm.controls.course_id.value,
+      },
+    });
 
-    const course = this.courses().find((item) => item.id === courseId);
-    if (!course) {
-      return;
-    }
+    dialogRef.afterClosed().subscribe((course) => {
+      if (!course) {
+        return;
+      }
 
+      this.selectedCourse.set(course);
+      this.intakeForm.patchValue({
+        course_id: course.id,
+        title: course.title,
+        description: course.description ?? course.short_description ?? '',
+        price: course.price ?? '',
+        price_currency: course.price_currency ?? 'RUB',
+      });
+    });
+  }
+
+  protected clearCatalogSelection(): void {
+    this.selectedCourse.set(null);
+    const suggestion = this.suggestion();
     this.intakeForm.patchValue({
-      title: course.title,
-      description: course.description ?? course.short_description ?? '',
+      course_id: '',
+      title: suggestion?.title ?? '',
+      description: suggestion?.description ?? '',
+      price: suggestion?.price ?? '',
+      price_currency: suggestion?.price_currency ?? 'RUB',
     });
   }
 
@@ -177,7 +217,15 @@ export class SuggestionDetailPageComponent implements OnInit {
     }
 
     const values = this.intakeForm.getRawValue();
-    const selectedCourse = this.courses().find((item) => item.id === values.course_id);
+    const selectedCourse = this.selectedCourse();
+    if (this.isWeeksMode() && !toPositiveNumber(values.duration_weeks)) {
+      this.error.set('Укажите количество недель.');
+      return;
+    }
+    if (!this.isWeeksMode() && !normalizeText(values.end_date)) {
+      this.error.set('Укажите дату окончания.');
+      return;
+    }
 
     this.acting.set(true);
     this.error.set(null);
@@ -186,13 +234,16 @@ export class SuggestionDetailPageComponent implements OnInit {
       .openIntake(suggestion.id, {
         course_id: normalizeText(values.course_id),
         title: normalizeText(values.title) ?? selectedCourse?.title ?? suggestion.title,
-        description:
-          normalizeText(values.description) ?? suggestion.description ?? selectedCourse?.description ?? undefined,
-        approver_id: normalizeText(values.approver_id) ?? suggestion.approver_id ?? undefined,
+        description: normalizeText(values.description),
         max_participants: toPositiveNumber(values.max_participants),
-        start_date: normalizeText(values.start_date),
-        end_date: normalizeText(values.end_date),
-        application_deadline: toIsoFromDatetimeLocal(values.application_deadline),
+        price: values.price ?? '',
+        price_currency: normalizeText(values.price_currency) ?? suggestion.price_currency ?? 'RUB',
+        ...buildIntakeSchedulePayload({
+          startDate: values.start_date,
+          endDate: this.isWeeksMode() ? this.calculatedEndDate() : values.end_date,
+          durationWeeks: this.isWeeksMode() ? toPositiveNumber(values.duration_weeks) : undefined,
+          applicationDeadline: values.application_deadline,
+        }),
       })
       .subscribe({
         next: async (response) => {
@@ -224,7 +275,8 @@ export class SuggestionDetailPageComponent implements OnInit {
         this.intakeForm.patchValue({
           title: suggestion.title,
           description: suggestion.description ?? '',
-          approver_id: suggestion.approver_id ?? '',
+          price: suggestion.price ?? '',
+          price_currency: suggestion.price_currency ?? 'RUB',
         });
 
         if (!this.canReview()) {
@@ -233,7 +285,6 @@ export class SuggestionDetailPageComponent implements OnInit {
         }
 
         forkJoin({
-          courses: this.coursesApi.list({ limit: 100 }).pipe(catchError(() => of([]))),
           users: this.usersApi.listAdminUsers().pipe(
             catchError(() => {
               this.directoryUnavailable.set(true);
@@ -241,7 +292,7 @@ export class SuggestionDetailPageComponent implements OnInit {
             }),
           ),
         }).subscribe({
-          next: ({ courses, users }) => {
+          next: ({ users }) => {
             const usersById = (users ?? []).reduce<Record<string, IdentityUserView>>(
               (accumulator, user) => {
                 accumulator[user.id] = user;
@@ -250,7 +301,6 @@ export class SuggestionDetailPageComponent implements OnInit {
               {},
             );
 
-            this.courses.set(courses ?? []);
             this.users.set(users ?? []);
             this.usersById.set(usersById);
             this.loading.set(false);
@@ -267,18 +317,4 @@ export class SuggestionDetailPageComponent implements OnInit {
       },
     });
   }
-}
-
-function normalizeText(value: string | null | undefined): string | undefined {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : undefined;
-}
-
-function toPositiveNumber(value: string | null | undefined): number | undefined {
-  if (!value) {
-    return undefined;
-  }
-
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
 }

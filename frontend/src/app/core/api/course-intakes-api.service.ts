@@ -41,7 +41,20 @@ export class CourseIntakesApiService {
 
   listApplications(intakeId: string): Observable<CourseApplication[]> {
     return this.http
-      .get<CourseApplication[] | { items: CourseApplication[] }>(`${this.base}/${intakeId}/applications`)
+      .get<
+        CourseApplication[] | { items: CourseApplication[] }
+      >(`${this.base}/${intakeId}/applications`)
+      .pipe(map((response) => unwrapListResponse(response)));
+  }
+
+  updatePaymentStatus(id: string, status: 'paid' | 'unpaid'): Observable<CourseApplication[]> {
+    return this.http
+      .post<CourseApplication[] | { items: CourseApplication[] }>(
+        `${this.base}/${id}/payment-status`,
+        {
+          status,
+        },
+      )
       .pipe(map((response) => unwrapListResponse(response)));
   }
 }

@@ -17,7 +17,7 @@
 .suggestion-detail-page__header p {
   margin: 0;
   color: var(--text-secondary);
-  max-width: 720px;
+  max-width: 760px;
 }
 
 .suggestion-detail-page__header-actions {
@@ -28,7 +28,7 @@
 
 .suggestion-detail-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(360px, 0.95fr);
+  grid-template-columns: minmax(0, 1fr) minmax(380px, 0.95fr);
   gap: 16px;
   align-items: start;
 }
@@ -68,10 +68,52 @@
   grid-column: 1 / -1;
 }
 
-.open-intake-form__hint,
-.suggestion-detail-page__error {
+.open-intake-form__section-label {
+  display: inline-block;
+  margin-bottom: 8px;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.open-intake-form__catalog,
+.open-intake-form__schedule,
+.open-intake-form__derived {
+  display: grid;
+  gap: 10px;
+}
+
+.open-intake-form__catalog-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.open-intake-form__catalog-card,
+.open-intake-form__derived {
+  border: 1px solid rgba(8, 15, 29, 0.08);
+  border-radius: 18px;
+  background: rgba(8, 15, 29, 0.02);
+  padding: 16px;
+}
+
+.open-intake-form__catalog-title,
+.open-intake-form__derived p {
   margin: 0;
+  font-weight: 600;
+}
+
+.open-intake-form__catalog-meta,
+.open-intake-form__catalog-description,
+.open-intake-form__hint,
+.suggestion-detail-page__error,
+.open-intake-form__derived {
   color: var(--text-secondary);
+}
+
+.open-intake-form__hint,
+.open-intake-form__catalog-meta,
+.open-intake-form__catalog-description {
+  margin: 0;
 }
 
 .kv__key {
@@ -81,7 +123,12 @@
 .suggestion-detail-skeleton {
   min-height: 320px;
   border-radius: 28px;
-  background: linear-gradient(90deg, rgba(8, 15, 29, 0.05), rgba(8, 15, 29, 0.11), rgba(8, 15, 29, 0.05));
+  background: linear-gradient(
+    90deg,
+    rgba(8, 15, 29, 0.05),
+    rgba(8, 15, 29, 0.11),
+    rgba(8, 15, 29, 0.05)
+  );
   background-size: 200% 100%;
   animation: suggestion-detail-shimmer 1.3s ease-in-out infinite;
 }
@@ -95,7 +142,7 @@
   }
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1120px) {
   .suggestion-detail-grid {
     grid-template-columns: 1fr;
   }

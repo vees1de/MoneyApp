@@ -11,17 +11,13 @@ export type CourseApplicationStatus =
   | 'withdrawn'
   | 'enrolled'
   | string;
-export type CourseSuggestionStatus =
-  | 'pending'
-  | 'approved'
-  | 'rejected'
-  | 'intake_opened'
-  | string;
+export type CourseApplicationPaymentStatus = 'paid' | 'unpaid' | string;
+export type CourseSuggestionStatus = 'pending' | 'approved' | 'rejected' | 'intake_opened' | string;
 
 export function courseIntakeStatusLabel(status: CourseIntakeStatus): string {
   const labels: Record<string, string> = {
     open: 'Открыт',
-    closed: 'Закрыт',
+    closed: 'Набор закрыт',
     canceled: 'Отменён',
     completed: 'Завершён',
   };
@@ -38,7 +34,18 @@ export function courseApplicationStatusLabel(status: CourseApplicationStatus): s
     rejected_by_manager: 'Отклонено руководителем',
     rejected_by_hr: 'Отклонено HR',
     withdrawn: 'Отозвано сотрудником',
-    enrolled: 'Зачислен',
+    enrolled: 'Сотрудник взят',
+  };
+
+  return labels[status] ?? status;
+}
+
+export function courseApplicationPaymentStatusLabel(
+  status: CourseApplicationPaymentStatus,
+): string {
+  const labels: Record<string, string> = {
+    paid: 'Оплачен',
+    unpaid: 'Не оплачен',
   };
 
   return labels[status] ?? status;
@@ -59,7 +66,10 @@ export function isIntakeManageRole(role: RoleCode): boolean {
   return role === 'hr' || role === 'admin';
 }
 
-export function canApplyToIntake(status: CourseIntakeStatus, hasExistingApplication: boolean): boolean {
+export function canApplyToIntake(
+  status: CourseIntakeStatus,
+  hasExistingApplication: boolean,
+): boolean {
   return status === 'open' && !hasExistingApplication;
 }
 

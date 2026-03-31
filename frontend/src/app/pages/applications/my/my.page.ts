@@ -11,6 +11,7 @@ import { CourseIntakesApiService } from '@core/api/course-intakes-api.service';
 import type { CourseApplication, CourseIntake } from '@core/api/contracts';
 import {
   canWithdrawApplication,
+  courseApplicationPaymentStatusLabel,
   courseApplicationStatusLabel,
   courseIntakeStatusLabel,
 } from '@core/domain/course-intakes.workflow';
@@ -38,6 +39,10 @@ export class ApplicationsMyPageComponent implements OnInit {
 
   protected applicationStatusLabel(status: string): string {
     return courseApplicationStatusLabel(status);
+  }
+
+  protected paymentStatusLabel(status: string): string {
+    return courseApplicationPaymentStatusLabel(status);
   }
 
   protected intakeStatusLabel(status: string | null | undefined): string {

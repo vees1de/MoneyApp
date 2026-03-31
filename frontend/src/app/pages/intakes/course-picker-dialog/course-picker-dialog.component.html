@@ -1,0 +1,80 @@
+<h2 mat-dialog-title>Выбрать курс из каталога</h2>
+
+<mat-dialog-content class="course-picker">
+  <form class="course-picker__filters" [formGroup]="form" (ngSubmit)="applyFilters()">
+    <mat-form-field appearance="outline" class="course-picker__search">
+      <mat-label>Поиск</mat-label>
+      <input matInput formControlName="q" placeholder="Название, описание, ключевые слова" />
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Источник</mat-label>
+      <mat-select formControlName="source_type">
+        @for (option of sourceTypeOptions; track option.value) {
+          <mat-option [value]="option.value">{{ option.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Уровень</mat-label>
+      <mat-select formControlName="level">
+        @for (option of levelOptions; track option.value) {
+          <mat-option [value]="option.value">{{ option.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <div class="course-picker__filter-actions">
+      <button mat-flat-button color="primary" type="submit">
+        <mat-icon>search</mat-icon>
+        Найти
+      </button>
+      <button mat-stroked-button type="button" (click)="resetFilters()">Сбросить</button>
+    </div>
+  </form>
+
+  @if (loading()) {
+    <p class="course-picker__state">Загрузка каталога...</p>
+  } @else if (error()) {
+    <p class="course-picker__state course-picker__state--error">{{ error() }}</p>
+  } @else if (courses().length === 0) {
+    <p class="course-picker__state">Ничего не найдено. Попробуйте изменить фильтры.</p>
+  } @else {
+    <div class="course-picker__results">
+      @for (course of courses(); track course.id) {
+        <button
+          class="course-picker__card"
+          type="button"
+          [class.course-picker__card--selected]="isSelected(course)"
+          (click)="selectCourse(course)"
+        >
+          <span class="course-picker__card-main">
+            <span class="course-picker__title">{{ course.title }}</span>
+            <span class="course-picker__meta">
+              {{ course.source_type || '—' }} · {{ course.level || 'без уровня' }}
+            </span>
+            <span class="course-picker__description">
+              {{ course.short_description || course.description || 'Описание не заполнено.' }}
+            </span>
+          </span>
+
+          <span class="course-picker__card-side">
+            <span class="course-picker__price">
+              {{ course.price || '—' }} {{ course.price_currency || 'RUB' }}
+            </span>
+            <span class="course-picker__next-start">
+              Старт:
+              {{ course.next_start_date ? (course.next_start_date | date: 'dd.MM.yyyy') : '—' }}
+            </span>
+            <span class="course-picker__pick-action">Выбрать</span>
+          </span>
+        </button>
+      }
+    </div>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-stroked-button type="button" (click)="close()">Закрыть</button>
+</mat-dialog-actions>

@@ -2,7 +2,9 @@
   <header class="applications-page__header">
     <div>
       <h1>Мои заявки в наборы</h1>
-      <p>Здесь видны статусы, комментарии согласующих и возможность отозвать заявку до зачисления.</p>
+      <p>
+        Здесь видны статусы, комментарии согласующих и возможность отозвать заявку до зачисления.
+      </p>
     </div>
 
     <a mat-stroked-button routerLink="/intakes">
@@ -27,22 +29,53 @@
         <mat-card class="application-card">
           <mat-card-header>
             <mat-card-title>
-              <a [routerLink]="'/intakes/' + application.intake_id">{{ intakeTitle(application.intake_id) }}</a>
+              <a [routerLink]="'/intakes/' + application.intake_id">{{
+                intakeTitle(application.intake_id)
+              }}</a>
             </mat-card-title>
             <mat-card-subtitle>{{ applicationStatusLabel(application.status) }}</mat-card-subtitle>
           </mat-card-header>
 
           <mat-card-content class="application-card__content">
-            <p><span class="kv__key">Статус набора:</span> <span class="kv__value">{{ intakeStatusLabel(intakeStatus(application.intake_id)) }}</span></p>
-            <p><span class="kv__key">Мотивация:</span> <span class="kv__value">{{ application.motivation || '—' }}</span></p>
-            <p><span class="kv__key">Комментарий руководителя:</span> <span class="kv__value">{{ application.manager_comment || '—' }}</span></p>
-            <p><span class="kv__key">Комментарий HR:</span> <span class="kv__value">{{ application.hr_comment || '—' }}</span></p>
-            <p><span class="kv__key">Создано:</span> <span class="kv__value">{{ application.created_at | date: 'dd.MM.yyyy HH:mm' }}</span></p>
-            <p><span class="kv__key">Обновлено:</span> <span class="kv__value">{{ application.updated_at | date: 'dd.MM.yyyy HH:mm' }}</span></p>
+            <p>
+              <span class="kv__key">Статус набора:</span>
+              <span class="kv__value">{{
+                intakeStatusLabel(intakeStatus(application.intake_id))
+              }}</span>
+            </p>
+            <p>
+              <span class="kv__key">Оплата:</span>
+              <span class="kv__value">{{ paymentStatusLabel(application.payment_status) }}</span>
+            </p>
+            <p>
+              <span class="kv__key">Мотивация:</span>
+              <span class="kv__value">{{ application.motivation || '—' }}</span>
+            </p>
+            <p>
+              <span class="kv__key">Комментарий руководителя:</span>
+              <span class="kv__value">{{ application.manager_comment || '—' }}</span>
+            </p>
+            <p>
+              <span class="kv__key">Комментарий HR:</span>
+              <span class="kv__value">{{ application.hr_comment || '—' }}</span>
+            </p>
+            <p>
+              <span class="kv__key">Создано:</span>
+              <span class="kv__value">{{ application.created_at | date: 'dd.MM.yyyy HH:mm' }}</span>
+            </p>
+            <p>
+              <span class="kv__key">Обновлено:</span>
+              <span class="kv__value">{{ application.updated_at | date: 'dd.MM.yyyy HH:mm' }}</span>
+            </p>
 
             <div class="application-card__actions">
               @if (canWithdraw(application)) {
-                <button mat-stroked-button type="button" (click)="withdraw(application)" [disabled]="acting()">
+                <button
+                  mat-stroked-button
+                  type="button"
+                  (click)="withdraw(application)"
+                  [disabled]="acting()"
+                >
                   <mat-icon>undo</mat-icon>
                   Отозвать
                 </button>
