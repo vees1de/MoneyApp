@@ -22,6 +22,18 @@ export interface YougileCreateConnectionRequest {
   apiKey: string;
 }
 
+export interface YougileCreateKeyRequest {
+  login: string;
+  password: string;
+  companyId: string;
+}
+
+export interface YougileCreateKeyResponse {
+  companyId: string;
+  apiKey: string;
+  warning: string;
+}
+
 export interface YougileTestKeyRequest {
   apiBaseUrl: string;
   apiKey: string;

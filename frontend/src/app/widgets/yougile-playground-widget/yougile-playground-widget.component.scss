@@ -7,16 +7,104 @@
   gap: var(--space-4);
 }
 
-.agile__toolbar {
+.agile__manage-grid,
+.agile__form-grid,
+.agile__stats,
+.agile__body,
+.agile__boards,
+.agile__board-metrics,
+.agile__tasks {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.agile__manage-grid,
+.agile__body {
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+}
+
+.agile__form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.agile__stats {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.agile__boards {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.agile__board-metrics {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.agile__panel,
+.agile__stat-card,
+.agile__board-card,
+.agile__connection-card,
+.agile__task {
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 78%), rgb(238 244 251 / 92%)),
+    var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-md);
+}
+
+.agile__panel,
+.agile__stat-card,
+.agile__task {
+  padding: var(--space-4);
+}
+
+.agile__panel {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.agile__panel--nested {
+  background: rgb(255 255 255 / 56%);
+}
+
+.agile__panel-head {
+  display: grid;
+  gap: 4px;
+}
+
+.agile__panel-head h3,
+.agile__panel-head p,
+.agile__hint,
+.agile__message {
+  margin: 0;
+}
+
+.agile__panel-head p,
+.agile__hint,
+.agile__connection-card span,
+.agile__connection-meta,
+.agile__stat-card span,
+.agile__board-top span,
+.agile__board-metrics span,
+.agile__task-copy span,
+.agile__task time {
+  color: var(--app-muted);
+}
+
+.agile__actions,
+.agile__toolbar,
+.agile__chips,
+.agile__connection-meta {
   align-items: center;
   display: flex;
-  gap: var(--space-4);
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.agile__toolbar {
   justify-content: space-between;
 }
 
 .agile__chips {
-  display: flex;
-  flex-wrap: wrap;
   gap: var(--space-2);
 }
 
@@ -35,42 +123,28 @@
   border-color: var(--app-primary);
 }
 
-.agile__stats {
+.agile__connections {
   display: grid;
   gap: var(--space-3);
-  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-.agile__stat-card,
-.agile__panel,
-.agile__board-card,
-.agile__task {
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 78%), rgb(238 244 251 / 92%)),
-    var(--app-surface);
-  border: 1px solid var(--app-border);
-  border-radius: var(--radius-md);
+.agile__connection-card {
+  color: var(--app-text);
+  cursor: pointer;
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  text-align: left;
 }
 
-.agile__stat-card,
-.agile__panel,
-.agile__task {
-  padding: var(--space-4);
+.agile__connection-card--active {
+  background: var(--app-primary-soft);
+  border-color: var(--app-primary);
 }
 
 .agile__stat-card {
   display: grid;
   gap: 6px;
-}
-
-.agile__stat-card span,
-.agile__panel-head p,
-.agile__board-top span,
-.agile__board-metrics span,
-.agile__task-copy span,
-.agile__task time,
-.agile__empty-copy {
-  color: var(--app-muted);
 }
 
 .agile__stat-card span {
@@ -80,39 +154,6 @@
 
 .agile__stat-card strong {
   font-size: 1.5rem;
-}
-
-.agile__body,
-.agile__boards,
-.agile__board-metrics,
-.agile__tasks {
-  display: grid;
-  gap: var(--space-3);
-}
-
-.agile__body {
-  grid-template-columns: minmax(0, 1.3fr) minmax(300px, 0.9fr);
-}
-
-.agile__panel {
-  display: grid;
-  gap: var(--space-4);
-}
-
-.agile__panel-head {
-  display: grid;
-  gap: 4px;
-}
-
-.agile__panel-head h3,
-.agile__panel-head p,
-.agile__tasks,
-.agile__task {
-  margin: 0;
-}
-
-.agile__boards {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .agile__board-card {
@@ -127,15 +168,6 @@
   display: flex;
   gap: var(--space-3);
   justify-content: space-between;
-}
-
-.agile__board-top strong,
-.agile__task-copy strong {
-  font-size: 1rem;
-}
-
-.agile__board-metrics {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .agile__tasks {
@@ -153,9 +185,25 @@
   font-size: 0.9rem;
 }
 
+.agile__message {
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+
+.agile__message--error {
+  background: rgb(198 40 40 / 10%);
+  color: var(--status-error);
+}
+
+.agile__message--success {
+  background: rgb(46 125 50 / 10%);
+  color: var(--status-success);
+}
+
 @media (max-width: 1180px) {
-  .agile__stats,
+  .agile__manage-grid,
   .agile__body,
+  .agile__stats,
   .agile__boards,
   .agile__board-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -163,8 +211,10 @@
 }
 
 @media (max-width: 760px) {
-  .agile__stats,
+  .agile__manage-grid,
+  .agile__form-grid,
   .agile__body,
+  .agile__stats,
   .agile__boards,
   .agile__board-metrics {
     grid-template-columns: 1fr;

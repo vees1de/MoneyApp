@@ -11,6 +11,8 @@ import type {
   YougileColumn,
   YougileConnection,
   YougileCreateConnectionRequest,
+  YougileCreateKeyRequest,
+  YougileCreateKeyResponse,
   YougileImportedUser,
   YougileImportStructureResponse,
   YougileImportUsersResponse,
@@ -77,6 +79,17 @@ export class IntegrationsApiService {
 
   createYougileConnection(payload: YougileCreateConnectionRequest): Observable<YougileConnection> {
     return this.http.post<YougileConnection>(`${this.yougileBase}/connections`, payload);
+  }
+
+  createYougileKey(payload: YougileCreateKeyRequest): Observable<YougileCreateKeyResponse> {
+    return this.http.post<YougileCreateKeyResponse>(
+      `${this.yougileBase}/connections/create-key`,
+      payload,
+    );
+  }
+
+  deleteYougileConnection(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.yougileBase}/connections/${id}`);
   }
 
   importYougileUsers(id: string): Observable<YougileImportUsersResponse> {
