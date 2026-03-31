@@ -1,25 +1,32 @@
-﻿<section class="request-detail-page">
-  <header>
+<section class="request-detail-page">
+  <header class="request-detail-page__header">
     <h1>Заявка на внешний курс</h1>
+    <a mat-stroked-button routerLink="/external-requests">
+      <mat-icon>arrow_back</mat-icon>
+      К списку
+    </a>
   </header>
 
   @if (loading()) {
-    <p>Загрузка...</p>
+    <div class="request-detail-skeleton"></div>
   } @else if (error()) {
     <p class="request-detail-page__error">{{ error() }}</p>
   } @else if (request(); as item) {
-    <mat-card>
+    <mat-card class="request-detail-card">
       <mat-card-header>
         <mat-card-title>{{ item.title }}</mat-card-title>
         <mat-card-subtitle>{{ statusLabel(item.status) }}</mat-card-subtitle>
       </mat-card-header>
 
-      <mat-card-content>
-        <p>Провайдер: {{ item.provider_name ?? '—' }}</p>
-        <p>Стоимость: {{ item.cost_amount }} {{ item.currency }}</p>
-        <p>Ссылка: {{ item.course_url ?? '—' }}</p>
-        <p>Комментарий сотрудника: {{ item.employee_comment ?? '—' }}</p>
-        <p>Бюджет: ручная проверка HR (MVP)</p>
+      <mat-card-content class="request-detail-card__content">
+        <p><span class="kv__key">Сотрудник:</span> <span class="kv__value">{{ item.employee_full_name || item.employee_email || '—' }}</span></p>
+        <p><span class="kv__key">Провайдер:</span> <span class="kv__value">{{ item.provider_name || '—' }}</span></p>
+        <p><span class="kv__key">Стоимость:</span> <span class="kv__value">{{ item.cost_amount || '0' }} {{ item.currency || 'RUB' }}</span></p>
+        <p><span class="kv__key">Ссылка:</span> <span class="kv__value">{{ item.course_url || '—' }}</span></p>
+        <p><span class="kv__key">Старт:</span> <span class="kv__value">{{ item.planned_start_date ? (item.planned_start_date | date: 'dd.MM.yyyy') : '—' }}</span></p>
+        <p><span class="kv__key">Завершение:</span> <span class="kv__value">{{ item.planned_end_date ? (item.planned_end_date | date: 'dd.MM.yyyy') : '—' }}</span></p>
+        <p><span class="kv__key">Обновлено:</span> <span class="kv__value">{{ item.updated_at | date: 'dd.MM.yyyy HH:mm' }}</span></p>
+        <p><span class="kv__key">Комментарий сотрудника:</span> <span class="kv__value">{{ item.employee_comment || '—' }}</span></p>
 
         <mat-form-field appearance="outline" class="request-detail-page__comment">
           <mat-label>Комментарий к решению</mat-label>
@@ -29,21 +36,25 @@
         <div class="request-detail-page__actions">
           @if (canSubmit()) {
             <button mat-flat-button color="primary" type="button" (click)="submitRequest()" [disabled]="acting()">
+              <mat-icon>send</mat-icon>
               Отправить на согласование
             </button>
           }
           @if (canApprove()) {
             <button mat-flat-button color="primary" type="button" (click)="approve()" [disabled]="acting()">
+              <mat-icon>check_circle</mat-icon>
               Согласовать
             </button>
           }
           @if (canRequestRevision()) {
             <button mat-stroked-button type="button" (click)="requestRevision()" [disabled]="acting()">
+              <mat-icon>edit_note</mat-icon>
               Вернуть на доработку
             </button>
           }
           @if (canReject()) {
             <button mat-stroked-button type="button" (click)="reject()" [disabled]="acting()">
+              <mat-icon>cancel</mat-icon>
               Отклонить
             </button>
           }
