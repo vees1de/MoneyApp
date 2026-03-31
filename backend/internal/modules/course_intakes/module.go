@@ -49,6 +49,7 @@ type Application struct {
 	Motivation            *string    `json:"motivation,omitempty"`
 	Status                string     `json:"status"`
 	EnrollmentID          *uuid.UUID `json:"enrollment_id,omitempty"`
+	EnrollmentStatus      *string    `json:"enrollment_status,omitempty"`
 	ManagerApproverID     *uuid.UUID `json:"manager_approver_id,omitempty"`
 	ManagerComment        *string    `json:"manager_comment,omitempty"`
 	ManagerDecidedAt      *time.Time `json:"manager_decided_at,omitempty"`
@@ -248,10 +249,12 @@ func (r *Repository) CreateApplication(ctx context.Context, item Application, ex
 func (r *Repository) GetApplication(ctx context.Context, id uuid.UUID) (*Application, error) {
 	row := r.db.QueryRowContext(ctx, `
 		SELECT ca.id, ca.intake_id, ca.applicant_id, ca.motivation, ca.status, ca.enrollment_id,
+			e.status,
 			ca.manager_approver_id, ca.manager_comment, ca.manager_decided_at,
 			ca.hr_approver_id, ca.hr_comment, ca.hr_decided_at, ca.payment_status, ca.created_at, ca.updated_at,
 			cert.id, cert.status, cert.uploaded_at
 		FROM course_applications ca
+		LEFT JOIN enrollments e ON e.id = ca.enrollment_id
 		LEFT JOIN LATERAL (
 			SELECT id, status, uploaded_at
 			FROM certificates
@@ -267,10 +270,12 @@ func (r *Repository) GetApplication(ctx context.Context, id uuid.UUID) (*Applica
 func (r *Repository) ListApplicationsByIntake(ctx context.Context, intakeID uuid.UUID) ([]Application, error) {
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT ca.id, ca.intake_id, ca.applicant_id, ca.motivation, ca.status, ca.enrollment_id,
+			e.status,
 			manager_approver_id, manager_comment, manager_decided_at,
 			ca.hr_approver_id, ca.hr_comment, ca.hr_decided_at, ca.payment_status, ca.created_at, ca.updated_at,
 			cert.id, cert.status, cert.uploaded_at
 		FROM course_applications ca
+		LEFT JOIN enrollments e ON e.id = ca.enrollment_id
 		LEFT JOIN LATERAL (
 			SELECT id, status, uploaded_at
 			FROM certificates
@@ -291,10 +296,12 @@ func (r *Repository) ListApplicationsByIntake(ctx context.Context, intakeID uuid
 func (r *Repository) ListMyApplications(ctx context.Context, userID uuid.UUID) ([]Application, error) {
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT ca.id, ca.intake_id, ca.applicant_id, ca.motivation, ca.status, ca.enrollment_id,
+			e.status,
 			ca.manager_approver_id, ca.manager_comment, ca.manager_decided_at,
 			ca.hr_approver_id, ca.hr_comment, ca.hr_decided_at, ca.payment_status, ca.created_at, ca.updated_at,
 			cert.id, cert.status, cert.uploaded_at
 		FROM course_applications ca
+		LEFT JOIN enrollments e ON e.id = ca.enrollment_id
 		LEFT JOIN LATERAL (
 			SELECT id, status, uploaded_at
 			FROM certificates
@@ -315,10 +322,12 @@ func (r *Repository) ListMyApplications(ctx context.Context, userID uuid.UUID) (
 func (r *Repository) ListPendingManagerApprovals(ctx context.Context, managerID uuid.UUID) ([]Application, error) {
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT ca.id, ca.intake_id, ca.applicant_id, ca.motivation, ca.status, ca.enrollment_id,
+			e.status,
 			ca.manager_approver_id, ca.manager_comment, ca.manager_decided_at,
 			ca.hr_approver_id, ca.hr_comment, ca.hr_decided_at, ca.payment_status, ca.created_at, ca.updated_at,
 			cert.id, cert.status, cert.uploaded_at
 		FROM course_applications ca
+		LEFT JOIN enrollments e ON e.id = ca.enrollment_id
 		LEFT JOIN LATERAL (
 			SELECT id, status, uploaded_at
 			FROM certificates
@@ -353,6 +362,7 @@ func (r *Repository) UpdateApplicationsPaymentStatusByIntake(ctx context.Context
 		SET payment_status = $2, updated_at = $3
 		WHERE intake_id = $1 AND status = 'enrolled'
 		RETURNING id, intake_id, applicant_id, motivation, status, enrollment_id,
+			(SELECT e.status FROM enrollments e WHERE e.id = course_applications.enrollment_id),
 			manager_approver_id, manager_comment, manager_decided_at,
 			hr_approver_id, hr_comment, hr_decided_at, payment_status, created_at, updated_at
 	`, intakeID, paymentStatus, updatedAt)
@@ -455,11 +465,13 @@ func scanApplication(row rowScanner, includeCertificate bool) (*Application, err
 	var err error
 	if includeCertificate {
 		err = row.Scan(&a.ID, &a.IntakeID, &a.ApplicantID, &a.Motivation, &a.Status, &a.EnrollmentID,
+			&a.EnrollmentStatus,
 			&a.ManagerApproverID, &a.ManagerComment, &a.ManagerDecidedAt,
 			&a.HRApproverID, &a.HRComment, &a.HRDecidedAt, &a.PaymentStatus,
 			&a.CreatedAt, &a.UpdatedAt, &a.CertificateID, &a.CertificateStatus, &a.CertificateUploadedAt)
 	} else {
 		err = row.Scan(&a.ID, &a.IntakeID, &a.ApplicantID, &a.Motivation, &a.Status, &a.EnrollmentID,
+			&a.EnrollmentStatus,
 			&a.ManagerApproverID, &a.ManagerComment, &a.ManagerDecidedAt,
 			&a.HRApproverID, &a.HRComment, &a.HRDecidedAt, &a.PaymentStatus,
 			&a.CreatedAt, &a.UpdatedAt)
@@ -477,11 +489,13 @@ func scanApplications(rows *sql.Rows, includeCertificate bool) ([]Application, e
 		var err error
 		if includeCertificate {
 			err = rows.Scan(&a.ID, &a.IntakeID, &a.ApplicantID, &a.Motivation, &a.Status, &a.EnrollmentID,
+				&a.EnrollmentStatus,
 				&a.ManagerApproverID, &a.ManagerComment, &a.ManagerDecidedAt,
 				&a.HRApproverID, &a.HRComment, &a.HRDecidedAt, &a.PaymentStatus,
 				&a.CreatedAt, &a.UpdatedAt, &a.CertificateID, &a.CertificateStatus, &a.CertificateUploadedAt)
 		} else {
 			err = rows.Scan(&a.ID, &a.IntakeID, &a.ApplicantID, &a.Motivation, &a.Status, &a.EnrollmentID,
+				&a.EnrollmentStatus,
 				&a.ManagerApproverID, &a.ManagerComment, &a.ManagerDecidedAt,
 				&a.HRApproverID, &a.HRComment, &a.HRDecidedAt, &a.PaymentStatus,
 				&a.CreatedAt, &a.UpdatedAt)
@@ -611,15 +625,30 @@ func defaultApplicationDeadline(startDate string) (time.Time, error) {
 // ---------------------------------------------------------------------------
 
 type Service struct {
-	db           *sql.DB
-	repo         *Repository
-	learningRepo *learningmodule.Repository
-	orgService   *orgmodule.Service
-	clock        clock.Clock
+	db                     *sql.DB
+	repo                   *Repository
+	learningRepo           *learningmodule.Repository
+	orgService             *orgmodule.Service
+	clock                  clock.Clock
+	managerApprovalEnabled bool
 }
 
-func NewService(database *sql.DB, repo *Repository, learningRepo *learningmodule.Repository, orgService *orgmodule.Service, clk clock.Clock) *Service {
-	return &Service{db: database, repo: repo, learningRepo: learningRepo, orgService: orgService, clock: clk}
+func NewService(
+	database *sql.DB,
+	repo *Repository,
+	learningRepo *learningmodule.Repository,
+	orgService *orgmodule.Service,
+	clk clock.Clock,
+	managerApprovalEnabled bool,
+) *Service {
+	return &Service{
+		db:                     database,
+		repo:                   repo,
+		learningRepo:           learningRepo,
+		orgService:             orgService,
+		clock:                  clk,
+		managerApprovalEnabled: managerApprovalEnabled,
+	}
 }
 
 // --- Intakes ---
@@ -787,7 +816,9 @@ func (s *Service) Apply(ctx context.Context, principal platformauth.Principal, r
 		UpdatedAt:     now,
 	}
 
-	if req.UseManagerApproval {
+	// When the feature is disabled, new applications go straight to HR even if
+	// older clients still submit use_manager_approval=true.
+	if s.managerApprovalEnabled && req.UseManagerApproval {
 		managerID, err := s.orgService.GetPrimaryManager(ctx, principal.UserID)
 		if err != nil {
 			return nil, err
@@ -889,8 +920,7 @@ func (s *Service) ApproveByHR(ctx context.Context, principal platformauth.Princi
 		return nil, httpx.NotFound("not_found", "application not found")
 	}
 
-	// HR can approve if status is "pending" (no manager) or "approved_by_manager"
-	if app.Status != "pending" && app.Status != "approved_by_manager" {
+	if !s.canHRReviewApplication(app.Status) {
 		return nil, httpx.BadRequest("invalid_status", "application is not pending HR approval")
 	}
 
@@ -915,7 +945,7 @@ func (s *Service) RejectByHR(ctx context.Context, principal platformauth.Princip
 	if app == nil {
 		return nil, httpx.NotFound("not_found", "application not found")
 	}
-	if app.Status != "pending" && app.Status != "approved_by_manager" {
+	if !s.canHRReviewApplication(app.Status) {
 		return nil, httpx.BadRequest("invalid_status", "application is not pending HR approval")
 	}
 
@@ -1001,6 +1031,7 @@ func (s *Service) EnrollApplication(ctx context.Context, principal platformauth.
 
 		app.Status = "enrolled"
 		app.EnrollmentID = &enrollment.ID
+		app.EnrollmentStatus = &enrollment.Status
 		app.PaymentStatus = "unpaid"
 		app.UpdatedAt = now
 		return s.repo.UpdateApplication(ctx, *app, tx)
@@ -1041,6 +1072,14 @@ func intakeEndDateToDeadline(endDate *string) *time.Time {
 
 	deadline := time.Date(parsed.Year(), parsed.Month(), parsed.Day(), 23, 59, 0, 0, time.UTC)
 	return &deadline
+}
+
+func (s *Service) canHRReviewApplication(status string) bool {
+	if status == "pending" || status == "approved_by_manager" {
+		return true
+	}
+
+	return !s.managerApprovalEnabled && status == "pending_manager"
 }
 
 // --- Suggestions ---

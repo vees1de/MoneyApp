@@ -6,6 +6,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCardModule } from '@angular/material/card';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -22,6 +23,7 @@ import type { CourseApplication, CourseIntake } from '@core/api/contracts';
 import { AuthStateService } from '@core/auth/auth-state.service';
 import type { IdentityUserView, RoleCode } from '@core/auth/auth.types';
 import { PERMISSIONS } from '@core/auth/permissions';
+import { COURSE_INTAKE_MANAGER_APPROVAL_ENABLED } from '@core/config/feature-flags';
 import { toDatetimeLocalValue } from '@core/domain/date-input.util';
 import {
   buildIntakeSchedulePayload,
@@ -43,6 +45,11 @@ import { identityUserDisplayName } from '@core/domain/identity.util';
 import type { Certificate } from '@entities/certificate';
 import type { Course } from '@entities/course';
 import type { Enrollment } from '@entities/enrollment';
+
+import {
+  IntakeSettingsDialogComponent,
+  type IntakeSettingsDialogResult,
+} from './intake-settings-dialog.component';
 
 @Component({
   selector: 'app-page-intake-detail',
@@ -73,6 +80,7 @@ export class IntakeDetailPageComponent implements OnInit {
   private readonly authState = inject(AuthStateService);
   private readonly route = inject(ActivatedRoute);
   private readonly fb = inject(FormBuilder);
+  private readonly dialog = inject(MatDialog);
 
   protected readonly loading = signal(true);
   protected readonly acting = signal(false);
@@ -103,8 +111,9 @@ export class IntakeDetailPageComponent implements OnInit {
 
   protected readonly applyForm = this.fb.group({
     motivation: [''],
-    use_manager_approval: [true],
+    use_manager_approval: [COURSE_INTAKE_MANAGER_APPROVAL_ENABLED],
   });
+  protected readonly managerApprovalEnabled = COURSE_INTAKE_MANAGER_APPROVAL_ENABLED;
 
   protected readonly role = computed<RoleCode>(
     () => this.authState.currentUser()?.roles[0] ?? 'employee',
@@ -235,10 +244,6 @@ export class IntakeDetailPageComponent implements OnInit {
     return canEnrollApplication(application.status);
   }
 
-  protected canForceStartEnrollment(application: CourseApplication): boolean {
-    return !!application.enrollment_id;
-  }
-
   protected canReviewCertificate(application: CourseApplication): boolean {
     return (
       !!application.certificate_id &&
@@ -249,6 +254,41 @@ export class IntakeDetailPageComponent implements OnInit {
 
   protected hasEnrolledApplications(): boolean {
     return this.applications().some((application) => application.status === 'enrolled');
+  }
+
+  protected hasStartableEnrollments(): boolean {
+    return this.applications().some((application) => this.isEnrollmentStartable(application));
+  }
+
+  protected openManageDialog(): void {
+    const item = this.intake();
+    if (!item || this.acting()) {
+      return;
+    }
+
+    const dialogRef = this.dialog.open<
+      IntakeSettingsDialogComponent,
+      { intake: CourseIntake },
+      IntakeSettingsDialogResult | null
+    >(IntakeSettingsDialogComponent, {
+      width: '860px',
+      maxWidth: '96vw',
+      data: { intake: item },
+    });
+
+    dialogRef.afterClosed().subscribe((result) => {
+      if (!result) {
+        return;
+      }
+
+      if (result.action === 'close') {
+        this.closeIntake();
+        return;
+      }
+
+      this.editForm.patchValue(result.values);
+      this.saveIntake();
+    });
   }
 
   protected saveIntake(): void {
@@ -337,7 +377,9 @@ export class IntakeDetailPageComponent implements OnInit {
       .apply({
         intake_id: item.id,
         motivation: normalizeText(this.applyForm.controls.motivation.value),
-        use_manager_approval: !!this.applyForm.controls.use_manager_approval.value,
+        use_manager_approval: this.managerApprovalEnabled
+          ? !!this.applyForm.controls.use_manager_approval.value
+          : false,
       })
       .subscribe({
         next: (application) => {
@@ -401,24 +443,74 @@ export class IntakeDetailPageComponent implements OnInit {
     });
   }
 
-  protected startEnrollmentFor(application: CourseApplication): void {
-    if (!application.enrollment_id || this.acting()) {
+  protected startEnrolledApplications(): void {
+    if (this.acting()) {
+      return;
+    }
+
+    const startableApplications = this.applications().filter((application) =>
+      this.isEnrollmentStartable(application),
+    );
+    if (startableApplications.length === 0) {
       return;
     }
 
     this.acting.set(true);
     this.error.set(null);
 
-    this.enrollmentsApi.start(application.enrollment_id).subscribe({
-      next: (updated) => {
+    forkJoin(
+      startableApplications.map((application) =>
+        this.enrollmentsApi
+          .start(application.enrollment_id as string)
+          .pipe(catchError(() => of(null))),
+      ),
+    ).subscribe({
+      next: (updatedEnrollments) => {
+        let successCount = 0;
+
+        this.applications.update((items) =>
+          items.map((item) => {
+            const index = startableApplications.findIndex(
+              (application) => application.id === item.id,
+            );
+            if (index === -1) {
+              return item;
+            }
+
+            const updatedEnrollment = updatedEnrollments[index];
+            if (!updatedEnrollment) {
+              return item;
+            }
+
+            successCount += 1;
+            return {
+              ...item,
+              enrollment_status: updatedEnrollment.status,
+            };
+          }),
+        );
+
         const current = this.myApplication();
-        if (current?.id === application.id) {
-          this.myEnrollment.set(updated);
+        if (current) {
+          const index = startableApplications.findIndex(
+            (application) => application.id === current.id,
+          );
+          const updatedEnrollment = index >= 0 ? updatedEnrollments[index] : null;
+          if (updatedEnrollment) {
+            this.myEnrollment.set(updatedEnrollment);
+            this.myApplication.set({
+              ...current,
+              enrollment_status: updatedEnrollment.status,
+            });
+          }
         }
-        this.acting.set(false);
-      },
-      error: () => {
-        this.error.set('Не удалось принудительно стартовать обучение.');
+
+        if (successCount === 0) {
+          this.error.set('Не удалось стартовать ни один курс.');
+        } else if (successCount < startableApplications.length) {
+          this.error.set('Часть курсов не удалось стартовать.');
+        }
+
         this.acting.set(false);
       },
     });
@@ -517,6 +609,12 @@ export class IntakeDetailPageComponent implements OnInit {
               .subscribe({
                 next: (enrollment) => {
                   this.myEnrollment.set(enrollment);
+                  if (enrollment && currentMyApplication) {
+                    this.myApplication.set({
+                      ...currentMyApplication,
+                      enrollment_status: enrollment.status,
+                    });
+                  }
                   this.loading.set(false);
                 },
                 error: () => {
@@ -599,7 +697,19 @@ export class IntakeDetailPageComponent implements OnInit {
         this.enrollmentsApi
           .getById(updated.enrollment_id)
           .pipe(catchError(() => of(null)))
-          .subscribe((enrollment) => this.myEnrollment.set(enrollment));
+          .subscribe((enrollment) => {
+            this.myEnrollment.set(enrollment);
+            if (enrollment) {
+              this.myApplication.update((application) =>
+                application
+                  ? {
+                      ...application,
+                      enrollment_status: enrollment.status,
+                    }
+                  : application,
+              );
+            }
+          });
       }
     }
   }
@@ -660,5 +770,12 @@ export class IntakeDetailPageComponent implements OnInit {
         this.acting.set(false);
       },
     });
+  }
+
+  private isEnrollmentStartable(application: CourseApplication): boolean {
+    return (
+      !!application.enrollment_id &&
+      (application.enrollment_status === 'enrolled' || application.enrollment_status == null)
+    );
   }
 }

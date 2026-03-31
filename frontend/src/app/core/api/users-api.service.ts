@@ -2,9 +2,16 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 
-import type { IdentityUserView, MeResponse } from '@core/auth/auth.types';
 import { API_BASE_URL } from '@core/config/api.config';
+import type {
+  CreateDevelopmentTeamRequest,
+  DevelopmentTeam,
+  ProfileMeResponse,
+  ProfileRole,
+  UpdateUserProfileRequest,
+} from './contracts';
 import type { ListResponse } from './api.types';
+import type { IdentityUserView } from '@core/auth/auth.types';
 
 @Injectable({ providedIn: 'root' })
 export class UsersApiService {
@@ -13,8 +20,48 @@ export class UsersApiService {
 
   constructor(private readonly http: HttpClient) {}
 
-  me(): Observable<MeResponse> {
-    return this.http.get<MeResponse>(`${this.base}/me`);
+  me(): Observable<ProfileMeResponse> {
+    return this.http.get<ProfileMeResponse>(`${this.base}/me`);
+  }
+
+  updateMe(payload: UpdateUserProfileRequest): Observable<ProfileMeResponse> {
+    return this.http.patch<ProfileMeResponse>(`${this.base}/me`, payload);
+  }
+
+  uploadAvatar(file: File): Observable<ProfileMeResponse> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<ProfileMeResponse>(`${this.base}/me/avatar`, formData);
+  }
+
+  listProfileRoles(): Observable<ProfileRole[]> {
+    return this.http
+      .get<ListResponse<ProfileRole>>(`${this.base}/profile-roles`)
+      .pipe(map((response) => response.items ?? []));
+  }
+
+  listDevelopmentTeams(): Observable<DevelopmentTeam[]> {
+    return this.http
+      .get<ListResponse<DevelopmentTeam>>(`${this.base}/development-teams`)
+      .pipe(map((response) => response.items ?? []));
+  }
+
+  listAvailableDevelopmentTeams(): Observable<DevelopmentTeam[]> {
+    return this.http
+      .get<ListResponse<DevelopmentTeam>>(`${this.base}/development-teams/available`)
+      .pipe(map((response) => response.items ?? []));
+  }
+
+  createDevelopmentTeam(payload: CreateDevelopmentTeamRequest): Observable<ProfileMeResponse> {
+    return this.http.post<ProfileMeResponse>(`${this.base}/development-teams`, payload);
+  }
+
+  joinDevelopmentTeam(id: string): Observable<ProfileMeResponse> {
+    return this.http.post<ProfileMeResponse>(`${this.base}/development-teams/${id}/join`, {});
+  }
+
+  leaveCurrentDevelopmentTeam(): Observable<ProfileMeResponse> {
+    return this.http.post<ProfileMeResponse>(`${this.base}/development-teams/current/leave`, {});
   }
 
   listAdminUsers(): Observable<IdentityUserView[]> {

@@ -29,12 +29,21 @@
 
 .intake-detail-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(380px, 0.9fr);
   gap: 16px;
   align-items: start;
 }
 
+.intake-detail-grid--with-manage {
+  grid-template-columns: minmax(0, 1.1fr) minmax(380px, 0.9fr);
+}
+
+.intake-detail-primary {
+  display: grid;
+  gap: 16px;
+}
+
 .intake-summary-card__content,
+.intake-self-service-card mat-card-content,
 .application-card__content {
   display: grid;
   gap: 8px;
@@ -55,6 +64,18 @@
 
 .application-state--learning {
   margin-top: 8px;
+}
+
+.intake-self-service-card .application-state {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.intake-self-service-card .application-state--learning {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(8, 15, 29, 0.08);
 }
 
 .application-state h3,
@@ -176,7 +197,7 @@
 }
 
 @media (max-width: 1180px) {
-  .intake-detail-grid,
+  .intake-detail-grid--with-manage,
   .applications-grid {
     grid-template-columns: 1fr;
   }

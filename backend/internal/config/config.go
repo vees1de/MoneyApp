@@ -15,12 +15,14 @@ type Config struct {
 	HTTP         HTTPConfig
 	Database     DatabaseConfig
 	Auth         AuthConfig
+	Features     FeatureConfig
 	Integrations IntegrationsConfig
 }
 
 type HTTPConfig struct {
 	Address         string
 	FrontendDistDir string
+	UploadsDir      string
 	ReadTimeout     time.Duration
 	WriteTimeout    time.Duration
 	IdleTimeout     time.Duration
@@ -42,6 +44,10 @@ type AuthConfig struct {
 	DefaultBaseCurrency     string
 	DefaultTimezone         string
 	DefaultWeeklyReviewHour int
+}
+
+type FeatureConfig struct {
+	CourseIntakeManagerApprovalEnabled bool
 }
 
 type IntegrationsConfig struct {
@@ -75,6 +81,7 @@ func Load() (*Config, error) {
 		HTTP: HTTPConfig{
 			Address:         getEnv("HTTP_ADDR", ":8080"),
 			FrontendDistDir: getEnv("FRONTEND_DIST_DIR", ""),
+			UploadsDir:      getEnv("HTTP_UPLOADS_DIR", "uploads"),
 			ReadTimeout:     getDurationEnv("HTTP_READ_TIMEOUT", 10*time.Second),
 			WriteTimeout:    getDurationEnv("HTTP_WRITE_TIMEOUT", 15*time.Second),
 			IdleTimeout:     getDurationEnv("HTTP_IDLE_TIMEOUT", 60*time.Second),
@@ -94,6 +101,9 @@ func Load() (*Config, error) {
 			DefaultBaseCurrency:     getEnv("DEFAULT_BASE_CURRENCY", "RUB"),
 			DefaultTimezone:         getEnv("DEFAULT_TIMEZONE", "Europe/Amsterdam"),
 			DefaultWeeklyReviewHour: getIntEnv("DEFAULT_WEEKLY_REVIEW_HOUR", 18),
+		},
+		Features: FeatureConfig{
+			CourseIntakeManagerApprovalEnabled: getBoolEnv("FEATURE_COURSE_INTAKE_MANAGER_APPROVAL", false),
 		},
 		Integrations: IntegrationsConfig{
 			Telegram: TelegramConfig{

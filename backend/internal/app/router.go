@@ -23,6 +23,9 @@ func NewRouter(container *Container) http.Handler {
 	router.Get("/swagger.json", docs.SwaggerJSON)
 	router.Get("/swagger", docs.SwaggerUI("/openapi.yaml"))
 	router.Get("/swagger/", docs.SwaggerUI("/openapi.yaml"))
+	if uploadsHandler := newUploadsHandler(container.Config.HTTP.UploadsDir); uploadsHandler != nil {
+		router.Handle("/api/uploads/*", uploadsHandler)
+	}
 
 	router.Route("/api/v1", func(r chi.Router) {
 		r.Route("/auth", func(r chi.Router) {
@@ -130,9 +133,13 @@ func NewRouter(container *Container) http.Handler {
 			r.Route("/users", func(r chi.Router) {
 				r.Get("/me", container.UsersHandler.Me)
 				r.Patch("/me", container.UsersHandler.UpdateProfile)
+				r.Post("/me/avatar", container.UsersHandler.UploadAvatar)
 				r.Get("/profile-roles", container.UsersHandler.ListProfileRoles)
 				r.Get("/development-teams", container.UsersHandler.ListDevelopmentTeams)
+				r.Get("/development-teams/available", container.UsersHandler.ListAvailableDevelopmentTeams)
 				r.Post("/development-teams", container.UsersHandler.CreateDevelopmentTeam)
+				r.Post("/development-teams/current/leave", container.UsersHandler.LeaveCurrentDevelopmentTeam)
+				r.Post("/development-teams/{id}/join", container.UsersHandler.JoinDevelopmentTeam)
 			})
 
 			r.Route("/admin", func(r chi.Router) {

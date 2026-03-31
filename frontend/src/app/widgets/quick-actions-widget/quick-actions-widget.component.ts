@@ -11,6 +11,7 @@ import { CourseSuggestionsApiService } from '@core/api/course-suggestions-api.se
 import { LearningPlanApiService } from '@core/api/learning-plan-api.service';
 import { AuthStateService } from '@core/auth/auth-state.service';
 import { PERMISSIONS } from '@core/auth/permissions';
+import { COURSE_INTAKE_MANAGER_APPROVAL_ENABLED } from '@core/config/feature-flags';
 import { isIntakeManageRole } from '@core/domain/course-intakes.workflow';
 import { WidgetShellComponent } from '@app/widgets/widget-shell/widget-shell.component';
 
@@ -40,8 +41,8 @@ export class QuickActionsWidgetComponent implements OnInit {
     return isIntakeManageRole(role) || this.authState.hasPermission(PERMISSIONS.intakesManage);
   });
 
-  protected readonly canReviewManager = computed(() =>
-    this.authState.hasAnyRole(['manager', 'admin']),
+  protected readonly canReviewManager = computed(
+    () => COURSE_INTAKE_MANAGER_APPROVAL_ENABLED && this.authState.hasAnyRole(['manager', 'admin']),
   );
 
   ngOnInit(): void {

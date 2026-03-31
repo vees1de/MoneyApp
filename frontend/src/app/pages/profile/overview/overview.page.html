@@ -1,14 +1,213 @@
-﻿<section class="page-shell">
-  <header class="page-header">
-    <h1>Профиль</h1>
-    <p>Route: <code>/profile/overview</code></p>
+<section class="profile-page">
+  <header class="profile-page__header">
+    <div>
+      <p class="profile-page__eyebrow">Профиль</p>
+      <h1>Профиль сотрудника</h1>
+      <p class="profile-page__subtitle">
+        Route: <code>/profile/overview</code>. Настройки редактируются отдельно по кнопке
+        <strong>Редактировать</strong>.
+      </p>
+    </div>
+
+    <div class="profile-page__header-actions">
+      <button mat-stroked-button type="button" (click)="refresh()" [disabled]="loading()">
+        <mat-icon>refresh</mat-icon>
+        Обновить
+      </button>
+      <button mat-flat-button color="primary" type="button" (click)="logout()">
+        <mat-icon>logout</mat-icon>
+        Выйти
+      </button>
+    </div>
   </header>
 
-  <main class="page-content">
-    <p>Страница профиля в процессе наполнения.</p>
+  @if (notice()) {
+    <section class="profile-banner profile-banner--success">
+      <div>
+        <strong>Готово.</strong>
+        <span>{{ notice() }}</span>
+      </div>
+      <button mat-button type="button" (click)="clearNotice()">Скрыть</button>
+    </section>
+  }
 
-    <button mat-flat-button color="primary" type="button" (click)="logout()">
-      Выйти
-    </button>
-  </main>
+  @if (error()) {
+    <section class="profile-banner profile-banner--error">
+      <div>
+        <strong>Ошибка.</strong>
+        <span>{{ error() }}</span>
+      </div>
+      <button mat-button type="button" (click)="clearError()">Закрыть</button>
+    </section>
+  }
+
+  @if (loading()) {
+    <section class="profile-loading">
+      <div class="profile-skeleton profile-skeleton--hero"></div>
+      <div class="profile-skeleton profile-skeleton--team"></div>
+    </section>
+  } @else if (profile(); as currentProfile) {
+    <section class="profile-layout">
+      <mat-card class="profile-card">
+        <mat-card-content class="profile-card__content profile-card__content--hero">
+          <div class="profile-card__identity">
+            @if (currentProfile.avatar_url) {
+              <img
+                class="profile-card__avatar"
+                [src]="currentProfile.avatar_url"
+                [alt]="profileName()"
+              />
+            } @else {
+              <div class="profile-card__avatar profile-card__avatar--fallback">
+                {{ avatarInitials() }}
+              </div>
+            }
+
+            <div class="profile-card__identity-copy">
+              <h2>{{ profileName() }}</h2>
+              <p>{{ currentProfile.email }}</p>
+
+              <div class="profile-badges">
+                @for (role of currentProfile.profile_roles; track role.code) {
+                  <span class="profile-badge">{{ role.name }}</span>
+                }
+
+                @if (currentProfile.profile_roles.length === 0) {
+                  <span class="profile-badge profile-badge--muted"
+                    >Роль в ИТ-компании не выбрана</span
+                  >
+                }
+              </div>
+            </div>
+          </div>
+
+          <div class="profile-card__actions">
+            <button
+              mat-flat-button
+              color="primary"
+              type="button"
+              (click)="openEditDialog()"
+              [disabled]="saving()"
+            >
+              <mat-icon>edit</mat-icon>
+              Редактировать
+            </button>
+          </div>
+        </mat-card-content>
+
+        <mat-card-content class="profile-card__content profile-card__content--meta">
+          <div class="profile-kv">
+            <span>Должность</span>
+            <strong>{{ employeeProfile()?.position_title || 'Не указана' }}</strong>
+          </div>
+          <div class="profile-kv">
+            <span>Часовой пояс</span>
+            <strong>{{ employeeProfile()?.timezone || 'Не указан' }}</strong>
+          </div>
+          <div class="profile-kv">
+            <span>Outlook</span>
+            <strong>{{ employeeProfile()?.outlook_email || 'Не подключен' }}</strong>
+          </div>
+          <div class="profile-kv">
+            <span>Системные роли</span>
+            <div class="profile-badges profile-badges--compact">
+              @for (roleCode of systemRoles(); track roleCode) {
+                <span class="profile-badge profile-badge--system">{{ roleLabel(roleCode) }}</span>
+              }
+
+              @if (systemRoles().length === 0) {
+                <span class="profile-badge profile-badge--muted">Нет системных ролей</span>
+              }
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="team-widget">
+        <mat-card-header>
+          <mat-card-title>Команда разработки</mat-card-title>
+          <mat-card-subtitle>
+            Один виджет текущей команды. Если команды нет, доступны действия создания и вступления.
+          </mat-card-subtitle>
+        </mat-card-header>
+
+        <mat-card-content class="team-widget__content">
+          @if (currentTeam(); as team) {
+            <div class="team-widget__summary">
+              <div>
+                <h3>{{ team.name }}</h3>
+                <p>{{ team.description || 'Описание команды пока не заполнено.' }}</p>
+              </div>
+
+              <button
+                mat-stroked-button
+                type="button"
+                (click)="leaveCurrentTeam()"
+                [disabled]="leavingTeam()"
+              >
+                <mat-icon>logout</mat-icon>
+                {{ leavingTeam() ? 'Выходим...' : 'Выйти' }}
+              </button>
+            </div>
+
+            <div class="team-widget__members">
+              @for (member of team.members; track member.user_id) {
+                <div class="team-member">
+                  <div class="team-member__avatar">
+                    @if (member.avatar_url) {
+                      <img [src]="member.avatar_url" [alt]="member.display_name" />
+                    } @else {
+                      <span>{{ member.display_name.slice(0, 1).toUpperCase() }}</span>
+                    }
+                  </div>
+
+                  <div class="team-member__meta">
+                    <strong>{{ member.display_name }}</strong>
+                    <span>{{ member.email }}</span>
+                  </div>
+
+                  @if (member.is_lead) {
+                    <span class="profile-badge profile-badge--lead">Lead</span>
+                  }
+                </div>
+              }
+            </div>
+          } @else {
+            <div class="team-widget__empty">
+              <div>
+                <h3>Вы пока не состоите в команде разработки</h3>
+                <p>
+                  Можно создать новую команду или вступить в уже существующую через отдельную
+                  модалку.
+                </p>
+              </div>
+
+              <div class="team-widget__empty-actions">
+                <button
+                  mat-flat-button
+                  color="primary"
+                  type="button"
+                  (click)="openCreateTeamDialog()"
+                  [disabled]="joiningTeam()"
+                >
+                  <mat-icon>groups</mat-icon>
+                  Создать команду разработки
+                </button>
+
+                <button
+                  mat-stroked-button
+                  type="button"
+                  (click)="openJoinTeamDialog()"
+                  [disabled]="joiningTeam()"
+                >
+                  <mat-icon>group_add</mat-icon>
+                  Вступить в команду разработки
+                </button>
+              </div>
+            </div>
+          }
+        </mat-card-content>
+      </mat-card>
+    </section>
+  }
 </section>

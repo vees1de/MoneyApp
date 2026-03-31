@@ -364,6 +364,9 @@ func (s *Service) StartEnrollment(ctx context.Context, principal platformauth.Pr
 	if item.UserID != principal.UserID && !principal.HasPermission("enrollments.manage") {
 		return Enrollment{}, httpx.Forbidden("forbidden", "only owner or HR/admin can start enrollment")
 	}
+	if item.Status == "completed" || item.Status == "canceled" {
+		return Enrollment{}, httpx.BadRequest("invalid_status", "completed or canceled enrollment cannot be started")
+	}
 	now := s.clock.Now()
 	if item.StartedAt == nil {
 		item.StartedAt = &now

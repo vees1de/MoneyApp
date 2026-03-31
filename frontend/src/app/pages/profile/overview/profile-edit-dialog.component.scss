@@ -1,0 +1,97 @@
+.profile-edit-dialog {
+  display: grid;
+  gap: 20px;
+  min-width: min(720px, 100vw - 48px);
+}
+
+.profile-edit-dialog__avatar-block {
+  align-items: center;
+  display: flex;
+  gap: 20px;
+}
+
+.profile-edit-dialog__avatar {
+  border-radius: 24px;
+  flex: 0 0 88px;
+  height: 88px;
+  object-fit: cover;
+  width: 88px;
+}
+
+.profile-edit-dialog__avatar--fallback {
+  align-items: center;
+  background: linear-gradient(135deg, var(--app-primary), #7f90f0);
+  color: #fff;
+  display: inline-flex;
+  font-size: 1.2rem;
+  font-weight: 700;
+  justify-content: center;
+}
+
+.profile-edit-dialog__avatar-meta {
+  display: grid;
+  gap: 8px;
+}
+
+.profile-edit-dialog__avatar-meta h3,
+.profile-edit-dialog__roles-header h3 {
+  margin: 0;
+}
+
+.profile-edit-dialog__avatar-meta p,
+.profile-edit-dialog__roles-header p {
+  color: var(--app-muted);
+  margin: 0;
+}
+
+.profile-edit-dialog__upload {
+  display: inline-flex;
+}
+
+.profile-edit-dialog__upload input {
+  display: none;
+}
+
+.profile-edit-dialog__upload span {
+  border: 1px solid var(--app-border);
+  border-radius: 999px;
+  cursor: pointer;
+  padding: 10px 14px;
+}
+
+.profile-edit-dialog__field,
+.profile-edit-dialog__role-grid {
+  width: 100%;
+}
+
+.profile-edit-dialog__roles {
+  display: grid;
+  gap: 12px;
+}
+
+.profile-edit-dialog__role-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.profile-edit-dialog__role {
+  border-radius: 999px !important;
+}
+
+.profile-edit-dialog__role--selected {
+  background: var(--app-primary-soft) !important;
+  border-color: rgb(86 106 230 / 45%) !important;
+  color: var(--app-primary) !important;
+}
+
+@media (max-width: 780px) {
+  .profile-edit-dialog {
+    min-width: auto;
+  }
+
+  .profile-edit-dialog__avatar-block {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

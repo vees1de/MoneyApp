@@ -1,0 +1,60 @@
+<h2 mat-dialog-title>Настройки профиля</h2>
+
+<mat-dialog-content class="profile-edit-dialog">
+  <section class="profile-edit-dialog__avatar-block">
+    @if (previewUrl()) {
+      <img class="profile-edit-dialog__avatar" [src]="previewUrl()!" alt="Фото профиля" />
+    } @else {
+      <div class="profile-edit-dialog__avatar profile-edit-dialog__avatar--fallback">
+        {{ avatarInitials() || 'ME' }}
+      </div>
+    }
+
+    <div class="profile-edit-dialog__avatar-meta">
+      <h3>Фото профиля</h3>
+      <p>Загрузите jpg, png, webp или gif до 5 МБ.</p>
+
+      <label class="profile-edit-dialog__upload">
+        <input
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/gif"
+          (change)="onAvatarSelected($event)"
+        />
+        <span>Загрузить фото</span>
+      </label>
+    </div>
+  </section>
+
+  <form [formGroup]="form">
+    <mat-form-field appearance="outline" class="profile-edit-dialog__field">
+      <mat-label>Имя в профиле</mat-label>
+      <input matInput formControlName="display_name" placeholder="Например, Иван Петров" />
+    </mat-form-field>
+  </form>
+
+  <section class="profile-edit-dialog__roles">
+    <div class="profile-edit-dialog__roles-header">
+      <h3>Роль в ИТ-компании</h3>
+      <p>Роль отображается в профиле. Описания скрыты, чтобы интерфейс был компактнее.</p>
+    </div>
+
+    <div class="profile-edit-dialog__role-grid">
+      @for (role of data.availableRoles; track role.code) {
+        <button
+          mat-stroked-button
+          type="button"
+          class="profile-edit-dialog__role"
+          [class.profile-edit-dialog__role--selected]="isRoleSelected(role.code)"
+          (click)="toggleRole(role.code)"
+        >
+          {{ role.name }}
+        </button>
+      }
+    </div>
+  </section>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-stroked-button type="button" (click)="close()">Отмена</button>
+  <button mat-flat-button color="primary" type="button" (click)="save()">Сохранить</button>
+</mat-dialog-actions>

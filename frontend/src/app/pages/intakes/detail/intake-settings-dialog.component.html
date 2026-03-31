@@ -1,0 +1,95 @@
+<h2 mat-dialog-title>Настроить набор</h2>
+
+<mat-dialog-content class="intake-settings-dialog">
+  <p class="intake-settings-dialog__intro">
+    Параметры набора открываются в отдельном окне, чтобы не перегружать основную страницу.
+  </p>
+
+  <form class="intake-settings-form" [formGroup]="form">
+    <mat-form-field appearance="outline">
+      <mat-label>Название</mat-label>
+      <input matInput formControlName="title" />
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Статус</mat-label>
+      <mat-select formControlName="status">
+        @for (option of statusOptions; track option.value) {
+          <mat-option [value]="option.value">{{ option.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="intake-settings-form__wide">
+      <mat-label>Описание</mat-label>
+      <textarea matInput rows="4" formControlName="description"></textarea>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Количество участников</mat-label>
+      <input matInput type="number" min="1" formControlName="max_participants" />
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Цена курса</mat-label>
+      <input matInput inputmode="decimal" formControlName="price" />
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Валюта</mat-label>
+      <input matInput maxlength="3" formControlName="price_currency" />
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Старт</mat-label>
+      <input matInput type="date" formControlName="start_date" />
+    </mat-form-field>
+
+    <div class="intake-settings-form__schedule-toggle">
+      <span class="intake-settings-form__section-label">Длительность</span>
+      <mat-button-toggle-group formControlName="schedule_mode">
+        <mat-button-toggle value="weeks">Количество недель</mat-button-toggle>
+        <mat-button-toggle value="end">Дата окончания</mat-button-toggle>
+      </mat-button-toggle-group>
+    </div>
+
+    @if (isWeeksMode()) {
+      <mat-form-field appearance="outline">
+        <mat-label>Количество недель</mat-label>
+        <input matInput type="number" min="1" formControlName="duration_weeks" />
+      </mat-form-field>
+
+      <div class="intake-settings-form__derived">
+        <span class="intake-settings-form__section-label">Расчёт окончания</span>
+        <p>
+          {{ calculatedEndDate() ? calculatedEndDate() : 'Укажите старт и количество недель.' }}
+        </p>
+      </div>
+    } @else {
+      <mat-form-field appearance="outline">
+        <mat-label>Дата окончания</mat-label>
+        <input matInput type="date" formControlName="end_date" />
+      </mat-form-field>
+    }
+
+    <mat-form-field appearance="outline">
+      <mat-label>Дедлайн подачи</mat-label>
+      <input matInput type="datetime-local" formControlName="application_deadline" />
+    </mat-form-field>
+  </form>
+
+  @if (error()) {
+    <p class="intake-settings-form__error">{{ error() }}</p>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  @if (data.intake.status === 'open') {
+    <button mat-stroked-button type="button" (click)="requestClose()">Закрыть набор</button>
+  }
+  <button mat-stroked-button type="button" (click)="cancel()">Отмена</button>
+  <button mat-flat-button color="primary" type="button" (click)="save()">
+    <mat-icon>save</mat-icon>
+    Сохранить
+  </button>
+</mat-dialog-actions>

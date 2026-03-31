@@ -398,6 +398,172 @@ func (r *Repository) GetDevelopmentTeamByID(ctx context.Context, teamID uuid.UUI
 	return team, memberRows.Err()
 }
 
+func (r *Repository) FindCurrentDevelopmentTeamIDByUser(ctx context.Context, userID uuid.UUID, exec ...db.DBTX) (*uuid.UUID, error) {
+	var teamID uuid.UUID
+	err := r.base(exec...).QueryRowContext(ctx, `
+		select g.id
+		from org_groups g
+		join org_group_members gm on gm.group_id = g.id
+		where gm.user_id = $1
+		  and g.group_type = 'development_team'
+		  and g.is_active = true
+		order by g.created_at desc, g.id asc
+		limit 1
+	`, userID).Scan(&teamID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &teamID, nil
+}
+
+func (r *Repository) ListAvailableDevelopmentTeams(ctx context.Context, userID uuid.UUID, exec ...db.DBTX) ([]DevelopmentTeam, error) {
+	rows, err := r.base(exec...).QueryContext(ctx, `
+		select g.id, g.name, g.description, g.lead_user_id, g.created_by_user_id, g.created_at, g.updated_at
+		from org_groups g
+		where g.group_type = 'development_team'
+		  and g.is_active = true
+		  and not exists (
+		    select 1
+		    from org_group_members gm
+		    where gm.group_id = g.id and gm.user_id = $1
+		  )
+		order by g.name asc, g.created_at desc
+	`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	teams := make([]DevelopmentTeam, 0, 8)
+	for rows.Next() {
+		var team DevelopmentTeam
+		if err := rows.Scan(
+			&team.ID,
+			&team.Name,
+			&team.Description,
+			&team.LeadUserID,
+			&team.CreatedByUserID,
+			&team.CreatedAt,
+			&team.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		team.Members = []DevelopmentTeamMember{}
+		teams = append(teams, team)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if len(teams) == 0 {
+		return teams, nil
+	}
+
+	for index, team := range teams {
+		fullTeam, err := r.GetDevelopmentTeamByID(ctx, team.ID, exec...)
+		if err != nil {
+			return nil, err
+		}
+		teams[index] = fullTeam
+	}
+
+	return teams, nil
+}
+
+func (r *Repository) IsDevelopmentTeamMember(ctx context.Context, teamID, userID uuid.UUID, exec ...db.DBTX) (bool, error) {
+	var exists bool
+	err := r.base(exec...).QueryRowContext(ctx, `
+		select exists(
+			select 1
+			from org_group_members gm
+			join org_groups g on g.id = gm.group_id
+			where gm.group_id = $1
+			  and gm.user_id = $2
+			  and g.group_type = 'development_team'
+			  and g.is_active = true
+		)
+	`, teamID, userID).Scan(&exists)
+	return exists, err
+}
+
+func (r *Repository) AddDevelopmentTeamMember(ctx context.Context, teamID, userID uuid.UUID, createdAt time.Time, exec ...db.DBTX) error {
+	_, err := r.base(exec...).ExecContext(ctx, `
+		insert into org_group_members (group_id, user_id, created_at)
+		values ($1, $2, $3)
+		on conflict (group_id, user_id) do nothing
+	`, teamID, userID, createdAt)
+	return err
+}
+
+func (r *Repository) RemoveDevelopmentTeamMember(ctx context.Context, teamID, userID uuid.UUID, exec ...db.DBTX) error {
+	_, err := r.base(exec...).ExecContext(ctx, `
+		delete from org_group_members
+		where group_id = $1 and user_id = $2
+	`, teamID, userID)
+	return err
+}
+
+func (r *Repository) ListDevelopmentTeamMemberUserIDs(ctx context.Context, teamID uuid.UUID, exec ...db.DBTX) ([]uuid.UUID, error) {
+	rows, err := r.base(exec...).QueryContext(ctx, `
+		select user_id
+		from org_group_members
+		where group_id = $1
+		order by created_at asc, user_id asc
+	`, teamID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	userIDs := make([]uuid.UUID, 0, 4)
+	for rows.Next() {
+		var userID uuid.UUID
+		if err := rows.Scan(&userID); err != nil {
+			return nil, err
+		}
+		userIDs = append(userIDs, userID)
+	}
+
+	return userIDs, rows.Err()
+}
+
+func (r *Repository) UpdateDevelopmentTeamLead(ctx context.Context, teamID uuid.UUID, leadUserID *uuid.UUID, updatedAt time.Time, exec ...db.DBTX) error {
+	_, err := r.base(exec...).ExecContext(ctx, `
+		update org_groups
+		set lead_user_id = $2,
+		    updated_at = $3
+		where id = $1
+		  and group_type = 'development_team'
+	`, teamID, leadUserID, updatedAt)
+	return err
+}
+
+func (r *Repository) DeactivateDevelopmentTeam(ctx context.Context, teamID uuid.UUID, updatedAt time.Time, exec ...db.DBTX) error {
+	_, err := r.base(exec...).ExecContext(ctx, `
+		update org_groups
+		set is_active = false,
+		    lead_user_id = null,
+		    updated_at = $2
+		where id = $1
+		  and group_type = 'development_team'
+	`, teamID, updatedAt)
+	return err
+}
+
+func (r *Repository) TouchDevelopmentTeam(ctx context.Context, teamID uuid.UUID, updatedAt time.Time, exec ...db.DBTX) error {
+	_, err := r.base(exec...).ExecContext(ctx, `
+		update org_groups
+		set updated_at = $2
+		where id = $1
+		  and group_type = 'development_team'
+		  and is_active = true
+	`, teamID, updatedAt)
+	return err
+}
+
 func IsNotFound(err error) bool {
 	return errors.Is(err, sql.ErrNoRows)
 }

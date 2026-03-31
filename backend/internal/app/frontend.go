@@ -29,6 +29,14 @@ func newFrontendHandler(distDir string) *frontendHandler {
 	}
 }
 
+func newUploadsHandler(uploadsDir string) http.Handler {
+	if strings.TrimSpace(uploadsDir) == "" {
+		return nil
+	}
+
+	return http.StripPrefix("/api/uploads/", http.FileServer(http.Dir(uploadsDir)))
+}
+
 func (h *frontendHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		http.NotFound(w, r)

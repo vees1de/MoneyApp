@@ -15,10 +15,6 @@ type DevelopmentTeamsResponse struct {
 	Items []DevelopmentTeam `json:"items"`
 }
 
-type DevelopmentTeamResponse struct {
-	Team DevelopmentTeam `json:"team"`
-}
-
 type UpdateProfileRequest struct {
 	DisplayName *string  `json:"display_name" validate:"omitempty,max=150"`
 	AvatarURL   *string  `json:"avatar_url" validate:"omitempty,url,max=2048"`

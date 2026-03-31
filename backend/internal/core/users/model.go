@@ -57,3 +57,10 @@ type DevelopmentTeamMember struct {
 	AvatarURL   *string   `json:"avatar_url,omitempty"`
 	IsLead      bool      `json:"is_lead"`
 }
+
+type AvatarUpload struct {
+	OriginalName string
+	ContentType  string
+	Content      []byte
+	BaseURL      string
+}

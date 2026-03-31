@@ -6,6 +6,7 @@ import { permissionGuard } from '@core/auth/feature.guard';
 import { guestGuard } from '@core/auth/guest.guard';
 import { PERMISSIONS } from '@core/auth/permissions';
 import { roleGuard } from '@core/auth/role.guard';
+import { COURSE_INTAKE_MANAGER_APPROVAL_ENABLED } from '@core/config/feature-flags';
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
@@ -138,14 +139,18 @@ export const routes: Routes = [
         loadComponent: () =>
           import('@pages/applications/my/my.page').then((m) => m.ApplicationsMyPageComponent),
       },
-      {
-        path: 'applications/pending-manager',
-        canActivate: [roleGuard(['manager', 'admin'])],
-        loadComponent: () =>
-          import('@pages/applications/pending-manager/pending-manager.page').then(
-            (m) => m.ApplicationsPendingManagerPageComponent,
-          ),
-      },
+      ...(COURSE_INTAKE_MANAGER_APPROVAL_ENABLED
+        ? [
+            {
+              path: 'applications/pending-manager',
+              canActivate: [roleGuard(['manager', 'admin'])],
+              loadComponent: () =>
+                import('@pages/applications/pending-manager/pending-manager.page').then(
+                  (m) => m.ApplicationsPendingManagerPageComponent,
+                ),
+            },
+          ]
+        : []),
       {
         path: 'suggestions',
         loadComponent: () =>
@@ -282,6 +287,11 @@ export const routes: Routes = [
       },
       {
         path: 'profile',
+        pathMatch: 'full',
+        redirectTo: 'profile/overview',
+      },
+      {
+        path: 'profile/overview',
         canActivate: [permissionGuard([PERMISSIONS.coursesRead])],
         loadComponent: () =>
           import('@pages/profile/overview/overview.page').then(

@@ -1,0 +1,44 @@
+<h2 mat-dialog-title>Вступить в команду разработки</h2>
+
+<mat-dialog-content class="join-team-dialog">
+  <mat-form-field appearance="outline">
+    <mat-label>Поиск команды</mat-label>
+    <input
+      matInput
+      [value]="query()"
+      (input)="onQueryChange($event)"
+      placeholder="Название команды или имя лида"
+    />
+  </mat-form-field>
+
+  @if (loading()) {
+    <p class="join-team-dialog__state">Загружаем команды...</p>
+  } @else if (error()) {
+    <p class="join-team-dialog__state join-team-dialog__state--error">{{ error() }}</p>
+  } @else if (filteredTeams().length === 0) {
+    <p class="join-team-dialog__state">
+      Свободных команд не найдено. Попробуйте изменить запрос или создайте новую.
+    </p>
+  } @else {
+    <div class="join-team-dialog__list">
+      @for (team of filteredTeams(); track team.id) {
+        <button class="join-team-dialog__card" type="button" (click)="selectTeam(team.id)">
+          <div class="join-team-dialog__card-main">
+            <strong>{{ team.name }}</strong>
+            <span>{{ team.description || 'Описание команды пока не заполнено.' }}</span>
+          </div>
+
+          <div class="join-team-dialog__card-meta">
+            <span>Участников: {{ team.members.length }}</span>
+            <span>Лид: {{ teamLeadLabel(team) }}</span>
+            <span class="join-team-dialog__action">Вступить</span>
+          </div>
+        </button>
+      }
+    </div>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-stroked-button type="button" (click)="close()">Закрыть</button>
+</mat-dialog-actions>

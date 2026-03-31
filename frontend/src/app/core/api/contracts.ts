@@ -257,6 +257,7 @@ export interface CourseApplication {
   motivation?: string | null;
   status: string;
   enrollment_id?: string | null;
+  enrollment_status?: string | null;
   manager_approver_id?: string | null;
   manager_comment?: string | null;
   manager_decided_at?: string | null;
@@ -294,4 +295,64 @@ export interface CourseSuggestion {
 export interface SuggestionOpenIntakeResponse {
   suggestion: CourseSuggestion;
   intake: CourseIntake;
+}
+
+export interface ProfileRole {
+  id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  sort_order: number;
+}
+
+export interface DevelopmentTeamMember {
+  user_id: string;
+  display_name: string;
+  email: string;
+  avatar_url?: string | null;
+  is_lead: boolean;
+}
+
+export interface DevelopmentTeam {
+  id: string;
+  name: string;
+  description?: string | null;
+  lead_user_id?: string | null;
+  created_by_user_id?: string | null;
+  members: DevelopmentTeamMember[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  display_name?: string | null;
+  avatar_url?: string | null;
+  profile_roles: ProfileRole[];
+  teams: DevelopmentTeam[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProfileMeResponse {
+  profile: UserProfile;
+  available_profile_roles: ProfileRole[];
+}
+
+export interface UpdateUserProfileRequest {
+  display_name?: string | null;
+  avatar_url?: string | null;
+  role_codes?: string[];
+}
+
+export interface CreateDevelopmentTeamRequest {
+  name: string;
+  description?: string | null;
+  lead_user_id?: string | null;
+  member_user_ids?: string[];
+}
+
+export interface DevelopmentTeamResponse {
+  team: DevelopmentTeam;
 }

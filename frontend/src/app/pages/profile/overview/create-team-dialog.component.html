@@ -1,0 +1,27 @@
+<h2 mat-dialog-title>Создать команду разработки</h2>
+
+<mat-dialog-content class="create-team-dialog">
+  <p>Команда создастся с вами как первым участником и текущим лидом.</p>
+
+  <form [formGroup]="form" class="create-team-dialog__form">
+    <mat-form-field appearance="outline">
+      <mat-label>Название команды</mat-label>
+      <input matInput formControlName="name" placeholder="Например, Mobile Platform" />
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Описание</mat-label>
+      <textarea
+        matInput
+        rows="4"
+        formControlName="description"
+        placeholder="Коротко: за что отвечает команда"
+      ></textarea>
+    </mat-form-field>
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-stroked-button type="button" (click)="close()">Отмена</button>
+  <button mat-flat-button color="primary" type="button" (click)="save()">Создать</button>
+</mat-dialog-actions>

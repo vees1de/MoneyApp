@@ -1,0 +1,19 @@
+.create-team-dialog {
+  min-width: min(560px, 100vw - 48px);
+}
+
+.create-team-dialog p {
+  color: var(--app-muted);
+  margin: 0 0 16px;
+}
+
+.create-team-dialog__form {
+  display: grid;
+  gap: 12px;
+}
+
+@media (max-width: 620px) {
+  .create-team-dialog {
+    min-width: auto;
+  }
+}

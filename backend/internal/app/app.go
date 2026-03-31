@@ -99,14 +99,21 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 	dashboardAPIRepo := dashboardapimodule.NewRepository(database)
 
 	orgService := orgmodule.NewService(orgRepo)
-	usersService := coreusers.NewService(database, usersRepo)
+	usersService := coreusers.NewService(database, usersRepo, cfg.HTTP.UploadsDir)
 	identityService := identitymodule.NewService(database, identityRepo, orgService, outboxService, queue, jwtManager, appClock, cfg.Auth.AccessTokenTTL, cfg.Auth.RefreshTokenTTL)
 	adminService := adminmodule.NewService(database, identityRepo, orgService, appClock)
 	catalogService := catalogmodule.NewService(catalogRepo, appClock)
 	learningService := learningmodule.NewService(database, learningRepo, orgService, catalogService, outboxService, appClock)
 	testingService := testingmodule.NewService(database, testingRepo, appClock)
 	certificatesService := certificatesmodule.NewService(database, certificatesRepo, outboxService, appClock)
-	courseIntakesService := courseintakesmodule.NewService(database, courseIntakesRepo, learningRepo, orgService, appClock)
+	courseIntakesService := courseintakesmodule.NewService(
+		database,
+		courseIntakesRepo,
+		learningRepo,
+		orgService,
+		appClock,
+		cfg.Features.CourseIntakeManagerApprovalEnabled,
+	)
 	courseRequestsService := courserequestsmodule.NewService(database, courseRequestsRepo, identityRepo, orgService, catalogService, learningRepo, certificatesRepo, appClock)
 	externalTrainingService := externaltrainingmodule.NewService(database, externalTrainingRepo, identityRepo, orgService, outboxService, queue, appClock)
 	calendarService := calendarmodule.NewService(calendarRepo)
