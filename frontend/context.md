@@ -38,17 +38,25 @@
   - team overview (`auth/me` + manager dashboard)
   - upcoming events (`GET /calendar/events/upcoming`)
   - jira summary (`GET /jira/board-summary`)
-  - course requests (`GET /external-requests/pending-approvals`)
+  - course requests:
+    - employee: `GET /external-requests?scope=my&status=manager_approval&status=hr_approval`
+    - fallback if filters endpoint unavailable: `GET /external-requests/my` + frontend status filter
+    - approver roles: `GET /external-requests/pending-approvals`
   - current learning (`GET /learning-plan/my`)
   - recommendations (`GET /recommendations/courses`)
   - quick actions counters (`GET /learning-plan/my` + `GET /external-requests/my`)
   - my requests (`GET /external-requests/my`)
   - work activity (`GET /notifications`)
 
+## Catalog Page
+- `/catalog` now loads real courses from `GET /api/v1/courses`.
+- Filters sent as query params: `status`, `source_type`, `level`, `limit`, `offset`.
+
 ## Auth implementation status
 - login page with email/password form is implemented
 - explicit field validation messages are shown under each input
 - auth API service + session storage + bootstrap + auth interceptor are implemented
+- auth persistence on reload is implemented via localStorage (tokens + user snapshot)
 - global `401` handler: clear session + clear user + redirect `/login`
 - redirect after successful login is implemented
 - refresh/logout/tests deferred by request

@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '@core/config/api.config';
@@ -19,6 +19,14 @@ export class ExternalRequestsApiService {
 
   listMy(): Observable<ExternalRequest[]> {
     return this.http.get<ExternalRequest[]>(`${this.base}/my`);
+  }
+
+  listByScopeAndStatuses(scope: 'my' | 'team' | 'all', statuses: string[]): Observable<ExternalRequest[]> {
+    let params = new HttpParams().set('scope', scope);
+    statuses.forEach((status) => {
+      params = params.append('status', status);
+    });
+    return this.http.get<ExternalRequest[]>(this.base, { params });
   }
 
   listPendingApprovals(): Observable<PendingApprovalItem[]> {

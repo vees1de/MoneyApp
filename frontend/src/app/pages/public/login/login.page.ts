@@ -96,6 +96,7 @@ export class PublicLoginPageComponent {
       this.authSession.setTokens(loginRes.tokens);
       const me = await firstValueFrom(this.authApi.me());
       this.authState.setCurrentUserFromMe(me);
+      this.authSession.setUserSnapshot(me.user);
 
       await this.router.navigateByUrl('/dashboard');
     } catch {
