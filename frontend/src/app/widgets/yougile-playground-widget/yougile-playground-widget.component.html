@@ -8,22 +8,174 @@
       <p class="agile__message agile__message--success">{{ actionNotice() }}</p>
     }
 
-    @if (connectionLoading()) {
-      <section class="agile__panel">
-        <p class="agile__hint">Загружаю текущее подключение YouGile...</p>
-      </section>
-    }
-
-    @if (showWizard()) {
-      <section class="agile__panel agile__panel--wizard">
-        <div class="agile__panel-head">
-          <h3>{{ reconnectMode() ? 'Переподключение YouGile' : 'Подключение YouGile' }}</h3>
-          <p>Сначала находим компании по login и password, затем сохраняем выбранную компанию.</p>
+    <section class="agile__hero">
+      @if (connectionLoading()) {
+        <p class="agile__hint">Загружаю подключение...</p>
+      } @else if (currentConnection(); as connection) {
+        <div class="agile__hero-copy">
+          <span class="agile__eyebrow">YouGile</span>
+          <h3>{{ connectionLabel(connection) }}</h3>
+          <div class="agile__meta-row">
+            <span class="agile__status-pill">{{ connectionStatusLabel(connection.status) }}</span>
+            <span>{{ connection.yougile_company_id }}</span>
+            <span>{{ formatSyncTime(connection.last_success_sync_at) }}</span>
+          </div>
         </div>
 
+        <div class="agile__actions">
+          <button mat-stroked-button type="button" (click)="openConnectModal(true)">Сменить</button>
+          <button
+            mat-stroked-button
+            type="button"
+            (click)="syncCurrentConnection()"
+            [disabled]="syncingConnection()"
+          >
+            {{ syncingConnection() ? 'Sync...' : 'Full sync' }}
+          </button>
+          <button
+            mat-stroked-button
+            type="button"
+            (click)="deleteCurrentConnection()"
+            [disabled]="deletingConnection()"
+          >
+            {{ deletingConnection() ? 'Отключаю...' : 'Отключить' }}
+          </button>
+        </div>
+      } @else {
+        <div class="agile__hero-copy">
+          <span class="agile__eyebrow">YouGile</span>
+          <h3>Подключите agile</h3>
+        </div>
+
+        <div class="agile__actions">
+          <button mat-flat-button type="button" (click)="openConnectModal()">Подключить</button>
+        </div>
+      }
+    </section>
+
+    @if (currentConnection(); as connection) {
+      <section class="agile__panel">
+        <div class="agile__toolbar">
+          <div class="agile__chips">
+            <button
+              class="agile__chip"
+              type="button"
+              [class.agile__chip--active]="selectedBoardId() === null"
+              (click)="selectBoard(null)"
+            >
+              Все доски
+            </button>
+
+            @for (board of boardOptions(); track trackBoard($index, board)) {
+              <button
+                class="agile__chip"
+                type="button"
+                [class.agile__chip--active]="selectedBoardId() === board.board_id"
+                (click)="selectBoard(board.board_id)"
+              >
+                {{ board.title }}
+              </button>
+            }
+          </div>
+
+          <div class="agile__actions">
+            <button mat-stroked-button type="button" (click)="reloadSummary()">Обновить</button>
+          </div>
+        </div>
+
+        @if (summaryLoading()) {
+          <p class="agile__hint">Подгружаю summary...</p>
+        } @else if (summaryError()) {
+          <p class="agile__message agile__message--error">{{ summaryError() }}</p>
+        } @else if (summaryUnavailable()) {
+          <p class="agile__hint">Summary пока недоступен.</p>
+        } @else if (summary(); as summary) {
+          <div class="agile__stats">
+            <article class="agile__stat-card">
+              <span>Всего</span>
+              <strong>{{ summary.summary.tasks_total }}</strong>
+            </article>
+            <article class="agile__stat-card">
+              <span>Активные</span>
+              <strong>{{ summary.summary.active_total }}</strong>
+            </article>
+            <article class="agile__stat-card">
+              <span>Done</span>
+              <strong>{{ summary.summary.completed_total }}</strong>
+            </article>
+            <article class="agile__stat-card">
+              <span>Просрочено</span>
+              <strong>{{ summary.summary.overdue_total }}</strong>
+            </article>
+          </div>
+
+          <div class="agile__body">
+            <section class="agile__panel agile__panel--nested">
+              <div class="agile__panel-head">
+                <h3>{{ activeBoard()?.title || 'Доски' }}</h3>
+              </div>
+
+              <div class="agile__boards">
+                @for (board of summary.boards; track trackBoard($index, board)) {
+                  <article class="agile__board-card">
+                    <div class="agile__board-top">
+                      <strong>{{ board.title }}</strong>
+                      <span>{{ board.tasks_total }}</span>
+                    </div>
+
+                    <div class="agile__board-metrics">
+                      <span>Активные: {{ board.active_total }}</span>
+                      <span>Done: {{ board.completed_total }}</span>
+                      <span>Просрочено: {{ board.overdue_total }}</span>
+                    </div>
+                  </article>
+                }
+              </div>
+            </section>
+
+            <section class="agile__panel agile__panel--nested">
+              <div class="agile__panel-head">
+                <h3>Overdue</h3>
+              </div>
+
+              @if (summary.overdue_tasks.length) {
+                <ul class="agile__tasks">
+                  @for (task of summary.overdue_tasks; track task.task_id) {
+                    <li class="agile__task">
+                      <div class="agile__task-copy">
+                        <strong>{{ task.title }}</strong>
+                        <span>{{ boardLabel(task) }}</span>
+                      </div>
+
+                      <time>{{ formatDeadline(task.deadline_at) }}</time>
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <p class="agile__hint">Просроченных задач нет.</p>
+              }
+            </section>
+          </div>
+        }
+      </section>
+    }
+  </section>
+
+  @if (modalOpen()) {
+    <div class="agile__modal-backdrop" (click)="closeConnectModal()">
+      <section class="agile__modal" (click)="$event.stopPropagation()">
+        <div class="agile__modal-head">
+          <h3>{{ reconnectMode() ? 'Сменить компанию' : 'Подключить YouGile' }}</h3>
+          <button class="agile__icon-button" type="button" (click)="closeConnectModal()">×</button>
+        </div>
+
+        @if (modalError()) {
+          <p class="agile__message agile__message--error">{{ modalError() }}</p>
+        }
+
         <form
-          class="agile__form-grid"
           [formGroup]="credentialsForm"
+          class="agile__form-grid"
           (ngSubmit)="discoverCompanies()"
         >
           <mat-form-field appearance="outline">
@@ -48,37 +200,20 @@
           </mat-form-field>
 
           <mat-form-field appearance="outline" class="agile__field-wide">
-            <mat-label>Фильтр по названию компании</mat-label>
-            <input matInput formControlName="name" placeholder="Например, Хакатон" />
+            <mat-label>Название компании</mat-label>
+            <input matInput formControlName="name" />
           </mat-form-field>
 
           <div class="agile__actions agile__field-wide">
             <button mat-flat-button type="submit" [disabled]="discoveringCompanies()">
-              {{ discoveringCompanies() ? 'Ищу компании...' : 'Найти компании' }}
+              {{ discoveringCompanies() ? 'Ищу...' : 'Найти компании' }}
             </button>
-
-            @if (reconnectMode()) {
-              <button mat-stroked-button type="button" (click)="cancelReconnect()">Отмена</button>
-            }
           </div>
         </form>
 
-        @if (discoveringCompanies()) {
-          <p class="agile__hint">Проверяю доступ и загружаю список компаний...</p>
-        } @else if (hasCompanySearch() && !availableCompanies().length) {
-          <p class="agile__hint">
-            Компании не найдены. Попробуйте другой фильтр или проверьте доступ.
-          </p>
-        } @else if (availableCompanies().length) {
-          <div class="agile__panel-head">
-            <h3>Выберите компанию</h3>
-            <p>
-              В UI остаётся только одна активная интеграция, выбранная компания заменит текущую.
-            </p>
-          </div>
-
+        @if (availableCompanies().length) {
           <div class="agile__company-list">
-            @for (company of availableCompanies(); track company.id) {
+            @for (company of availableCompanies(); track trackCompany($index, company)) {
               <button
                 class="agile__company-card"
                 type="button"
@@ -99,179 +234,22 @@
               </button>
             }
           </div>
-
-          @if (selectedCompany(); as company) {
-            @if (!company.isAdmin) {
-              <p class="agile__message agile__message--warning">
-                У выбранной компании нет admin-прав. Подключение может завершиться ошибкой.
-              </p>
-            }
-          }
-
-          <div class="agile__actions">
-            <button
-              mat-flat-button
-              type="button"
-              (click)="connectSelectedCompany()"
-              [disabled]="!selectedCompanyId() || connectingConnection()"
-            >
-              {{ connectingConnection() ? 'Подключаю...' : 'Подключить выбранную компанию' }}
-            </button>
-          </div>
+        } @else if (hasCompanySearch() && !discoveringCompanies()) {
+          <p class="agile__hint">Компании не найдены.</p>
         }
+
+        <div class="agile__modal-actions">
+          <button mat-stroked-button type="button" (click)="closeConnectModal()">Отмена</button>
+          <button
+            mat-flat-button
+            type="button"
+            (click)="connectSelectedCompany()"
+            [disabled]="!selectedCompanyId() || connectingConnection()"
+          >
+            {{ connectingConnection() ? 'Подключаю...' : 'Подключить' }}
+          </button>
+        </div>
       </section>
-    }
-
-    @if (currentConnection(); as connection) {
-      <section class="agile__panel">
-        <div class="agile__connection-header">
-          <div class="agile__panel-head">
-            <h3>{{ connectionLabel(connection) }}</h3>
-            <p>Единственное активное YouGile-подключение пользователя в playground.</p>
-          </div>
-
-          <div class="agile__actions">
-            <button mat-stroked-button type="button" (click)="beginReconnect()">
-              Переподключить
-            </button>
-            <button
-              mat-stroked-button
-              type="button"
-              (click)="syncCurrentConnection()"
-              [disabled]="syncingConnection()"
-            >
-              {{ syncingConnection() ? 'Sync...' : 'Full sync' }}
-            </button>
-            <button
-              mat-stroked-button
-              type="button"
-              (click)="deleteCurrentConnection()"
-              [disabled]="deletingConnection()"
-            >
-              {{ deletingConnection() ? 'Удаляю...' : 'Удалить' }}
-            </button>
-          </div>
-        </div>
-
-        <div class="agile__connection-meta">
-          <span>Company ID: {{ connection.yougile_company_id }}</span>
-          <span>Статус: {{ connectionStatusLabel(connection.status) }}</span>
-          <span>Последний sync: {{ formatSyncTime(connection.last_success_sync_at) }}</span>
-        </div>
-
-        <div class="agile__toolbar">
-          <div class="agile__chips">
-            <button
-              class="agile__chip"
-              type="button"
-              [class.agile__chip--active]="selectedBoardId() === null"
-              (click)="selectBoard(null)"
-            >
-              Все доски
-            </button>
-
-            @for (board of boardOptions(); track board.board_id) {
-              <button
-                class="agile__chip"
-                type="button"
-                [class.agile__chip--active]="selectedBoardId() === board.board_id"
-                (click)="selectBoard(board.board_id)"
-              >
-                {{ board.title }}
-              </button>
-            }
-          </div>
-
-          <div class="agile__actions">
-            <button mat-stroked-button type="button" (click)="reloadSummary()">
-              Обновить summary
-            </button>
-          </div>
-        </div>
-
-        @if (summaryLoading()) {
-          <p class="agile__hint">Подгружаю agile summary...</p>
-        } @else if (summaryError()) {
-          <p class="agile__message agile__message--error">{{ summaryError() }}</p>
-        } @else if (summaryUnavailable()) {
-          <p class="agile__hint">
-            Summary пока недоступен. Обычно это значит, что данные ещё не успели импортироваться
-            после full sync.
-          </p>
-        } @else if (summary(); as summary) {
-          <div class="agile__stats">
-            <article class="agile__stat-card">
-              <span>Всего задач</span>
-              <strong>{{ summary.summary.tasks_total }}</strong>
-            </article>
-            <article class="agile__stat-card">
-              <span>Активные</span>
-              <strong>{{ summary.summary.active_total }}</strong>
-            </article>
-            <article class="agile__stat-card">
-              <span>Завершено</span>
-              <strong>{{ summary.summary.completed_total }}</strong>
-            </article>
-            <article class="agile__stat-card">
-              <span>Просрочено</span>
-              <strong>{{ summary.summary.overdue_total }}</strong>
-            </article>
-          </div>
-
-          <div class="agile__body">
-            <section class="agile__panel agile__panel--nested">
-              <div class="agile__panel-head">
-                <h3>{{ activeBoard()?.title || 'Доски' }}</h3>
-                <p>
-                  Источник: {{ summary.source }} ·
-                  {{ activeBoard() ? 'Фокус по выбранной доске' : 'Сводка по всем доскам' }}
-                </p>
-              </div>
-
-              <div class="agile__boards">
-                @for (board of summary.boards; track board.board_id) {
-                  <article class="agile__board-card">
-                    <div class="agile__board-top">
-                      <strong>{{ board.title }}</strong>
-                      <span>{{ board.tasks_total }} задач</span>
-                    </div>
-
-                    <div class="agile__board-metrics">
-                      <span>Активные: {{ board.active_total }}</span>
-                      <span>Done: {{ board.completed_total }}</span>
-                      <span>Просрочено: {{ board.overdue_total }}</span>
-                    </div>
-                  </article>
-                }
-              </div>
-            </section>
-
-            <section class="agile__panel agile__panel--nested">
-              <div class="agile__panel-head">
-                <h3>Overdue</h3>
-                <p>Ближайшие просроченные задачи из backend summary.</p>
-              </div>
-
-              @if (summary.overdue_tasks.length) {
-                <ul class="agile__tasks">
-                  @for (task of summary.overdue_tasks; track task.task_id) {
-                    <li class="agile__task">
-                      <div class="agile__task-copy">
-                        <strong>{{ task.title }}</strong>
-                        <span>{{ boardLabel(task) }}</span>
-                      </div>
-
-                      <time>{{ formatDeadline(task.deadline_at) }}</time>
-                    </li>
-                  }
-                </ul>
-              } @else {
-                <p class="agile__hint">Просроченных задач сейчас нет.</p>
-              }
-            </section>
-          </div>
-        }
-      </section>
-    }
-  </section>
+    </div>
+  }
 </app-widget-shell>

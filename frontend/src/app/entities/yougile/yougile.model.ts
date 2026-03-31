@@ -54,6 +54,7 @@ export interface YougileConnectRequest {
   login: string;
   password: string;
   companyId: string;
+  companyName?: string | null;
 }
 
 export interface YougileCreateKeyResponse {

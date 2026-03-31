@@ -7,23 +7,15 @@
   gap: var(--space-4);
 }
 
-.agile__form-grid,
 .agile__stats,
 .agile__body,
 .agile__boards,
 .agile__board-metrics,
 .agile__tasks,
-.agile__company-list {
+.agile__company-list,
+.agile__form-grid {
   display: grid;
   gap: var(--space-3);
-}
-
-.agile__form-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.agile__field-wide {
-  grid-column: 1 / -1;
 }
 
 .agile__stats {
@@ -31,7 +23,7 @@
 }
 
 .agile__body {
-  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+  grid-template-columns: minmax(0, 1.05fr) minmax(300px, 0.95fr);
 }
 
 .agile__boards {
@@ -42,53 +34,67 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.agile__form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.agile__field-wide {
+  grid-column: 1 / -1;
+}
+
+.agile__hero,
 .agile__panel,
 .agile__stat-card,
 .agile__board-card,
+.agile__task,
 .agile__company-card,
-.agile__task {
+.agile__modal {
   background:
-    linear-gradient(180deg, rgb(255 255 255 / 78%), rgb(238 244 251 / 92%)), var(--app-surface);
+    linear-gradient(180deg, rgb(255 255 255 / 84%), rgb(238 244 251 / 96%)), var(--app-surface);
   border: 1px solid var(--app-border);
   border-radius: var(--radius-md);
 }
 
+.agile__hero,
 .agile__panel,
+.agile__modal,
 .agile__stat-card,
 .agile__task {
   padding: var(--space-4);
 }
 
-.agile__panel {
+.agile__hero,
+.agile__panel,
+.agile__modal {
   display: grid;
   gap: var(--space-4);
 }
 
-.agile__panel--wizard {
-  background:
-    radial-gradient(circle at top right, rgb(79 137 168 / 12%), transparent 40%),
-    linear-gradient(180deg, rgb(255 255 255 / 82%), rgb(238 244 251 / 96%)), var(--app-surface);
+.agile__hero {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
 }
 
-.agile__panel--nested {
-  background: rgb(255 255 255 / 56%);
-}
-
-.agile__panel-head {
+.agile__hero-copy,
+.agile__company-copy,
+.agile__task-copy {
   display: grid;
   gap: 4px;
 }
 
+.agile__hero-copy h3,
 .agile__panel-head h3,
-.agile__panel-head p,
 .agile__hint,
-.agile__message {
+.agile__message,
+.agile__meta-row,
+.agile__company-copy span {
   margin: 0;
 }
 
-.agile__panel-head p,
+.agile__eyebrow,
 .agile__hint,
-.agile__connection-meta,
+.agile__meta-row,
 .agile__stat-card span,
 .agile__board-top span,
 .agile__board-metrics span,
@@ -98,19 +104,25 @@
   color: var(--app-muted);
 }
 
+.agile__eyebrow {
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
 .agile__actions,
 .agile__toolbar,
 .agile__chips,
-.agile__connection-meta,
-.agile__connection-header {
+.agile__meta-row,
+.agile__modal-actions,
+.agile__modal-head {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
 }
 
-.agile__connection-header,
-.agile__toolbar {
+.agile__toolbar,
+.agile__modal-head {
   justify-content: space-between;
 }
 
@@ -133,36 +145,15 @@
   border-color: var(--app-primary);
 }
 
-.agile__company-card {
-  align-items: start;
-  color: var(--app-text);
-  cursor: pointer;
-  display: flex;
-  gap: var(--space-3);
-  justify-content: space-between;
-  padding: 16px 18px;
-  text-align: left;
-}
-
-.agile__company-card--active {
-  background: var(--app-primary-soft);
-  border-color: var(--app-primary);
-}
-
-.agile__company-copy {
-  display: grid;
-  gap: 4px;
-}
-
+.agile__status-pill,
 .agile__badge {
   border-radius: 999px;
   display: inline-flex;
-  font-size: 0.78rem;
   font-weight: 600;
   padding: 6px 10px;
-  text-transform: uppercase;
 }
 
+.agile__status-pill,
 .agile__badge--success {
   background: rgb(46 125 50 / 10%);
   color: var(--status-success);
@@ -173,14 +164,25 @@
   color: var(--status-warning, #b26a00);
 }
 
+.agile__company-card {
+  align-items: start;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+  padding: 16px;
+  text-align: left;
+}
+
+.agile__company-card--active {
+  background: var(--app-primary-soft);
+  border-color: var(--app-primary);
+}
+
 .agile__stat-card {
   display: grid;
   gap: 6px;
-}
-
-.agile__stat-card span {
-  font-size: 0.82rem;
-  text-transform: uppercase;
 }
 
 .agile__stat-card strong {
@@ -206,16 +208,6 @@
   padding: 0;
 }
 
-.agile__task-copy {
-  display: grid;
-  gap: 4px;
-}
-
-.agile__task time {
-  flex-shrink: 0;
-  font-size: 0.9rem;
-}
-
 .agile__message {
   border-radius: var(--radius-sm);
   padding: 10px 12px;
@@ -231,9 +223,33 @@
   color: var(--status-success);
 }
 
-.agile__message--warning {
-  background: rgb(239 108 0 / 10%);
-  color: var(--status-warning, #b26a00);
+.agile__modal-backdrop {
+  align-items: center;
+  background: rgb(11 19 27 / 44%);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 24px;
+  position: fixed;
+  z-index: 1000;
+}
+
+.agile__modal {
+  box-shadow: 0 28px 80px rgb(11 19 27 / 22%);
+  max-height: min(80vh, 720px);
+  max-width: 760px;
+  overflow: auto;
+  width: min(100%, 760px);
+}
+
+.agile__icon-button {
+  background: transparent;
+  border: 0;
+  color: var(--app-muted);
+  cursor: pointer;
+  font-size: 1.5rem;
+  line-height: 1;
+  padding: 0;
 }
 
 @media (max-width: 1180px) {
@@ -254,11 +270,17 @@
     grid-template-columns: 1fr;
   }
 
-  .agile__connection-header,
+  .agile__hero,
   .agile__toolbar,
   .agile__board-top,
   .agile__task,
-  .agile__company-card {
+  .agile__company-card,
+  .agile__modal-head,
+  .agile__modal-actions {
     flex-direction: column;
+  }
+
+  .agile__modal-backdrop {
+    padding: 12px;
   }
 }
