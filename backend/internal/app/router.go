@@ -57,6 +57,7 @@ func NewRouter(container *Container) http.Handler {
 
 			r.Route("/integrations/yougile", func(r chi.Router) {
 				r.Post("/connections", container.YougileHandler.CreateConnection)
+				r.Post("/connections/connect", container.YougileHandler.ConnectConnection)
 				r.Post("/connections/test-key", container.YougileHandler.TestKey)
 				r.Post("/connections/create-key", container.YougileHandler.CreateKey)
 				r.Post("/discover-companies", container.YougileHandler.DiscoverCompanies)

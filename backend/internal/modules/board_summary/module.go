@@ -55,11 +55,11 @@ func NewRepository(database *sql.DB) *Repository {
 	return &Repository{db: database}
 }
 
-func (r *Repository) resolveConnection(ctx context.Context, connectionID *uuid.UUID) (*uuid.UUID, error) {
-	query := `select id from integration_yougile_connections where status = 'active'`
-	args := []any{}
+func (r *Repository) resolveConnection(ctx context.Context, userID uuid.UUID, connectionID *uuid.UUID) (*uuid.UUID, error) {
+	query := `select id from integration_yougile_connections where created_by = $1 and status <> 'revoked'`
+	args := []any{userID}
 	if connectionID != nil {
-		query += ` and id = $1`
+		query += ` and id = $2`
 		args = append(args, *connectionID)
 	}
 	query += ` order by updated_at desc limit 1`
@@ -153,8 +153,8 @@ func NewService(repo *Repository) *Service {
 	return &Service{repo: repo}
 }
 
-func (s *Service) Summary(ctx context.Context, _ platformauth.Principal, connectionID *uuid.UUID, boardID *string) (BoardSummary, error) {
-	resolvedID, err := s.repo.resolveConnection(ctx, connectionID)
+func (s *Service) Summary(ctx context.Context, principal platformauth.Principal, connectionID *uuid.UUID, boardID *string) (BoardSummary, error) {
+	resolvedID, err := s.repo.resolveConnection(ctx, principal.UserID, connectionID)
 	if err != nil {
 		return BoardSummary{}, err
 	}

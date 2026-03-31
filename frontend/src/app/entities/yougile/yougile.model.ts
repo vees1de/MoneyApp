@@ -22,6 +22,46 @@ export interface YougileCreateConnectionRequest {
   apiKey: string;
 }
 
+export interface YougileCreateKeyRequest {
+  login: string;
+  password: string;
+  companyId: string;
+}
+
+export interface YougileDiscoverCompaniesRequest {
+  login: string;
+  password: string;
+  name?: string | null;
+}
+
+export interface YougileDiscoverCompaniesResponse {
+  paging: {
+    count: number;
+    limit: number;
+    offset: number;
+    next: boolean;
+  };
+  content: YougileCompanyOption[];
+}
+
+export interface YougileCompanyOption {
+  id: string;
+  name: string;
+  isAdmin: boolean;
+}
+
+export interface YougileConnectRequest {
+  login: string;
+  password: string;
+  companyId: string;
+}
+
+export interface YougileCreateKeyResponse {
+  companyId: string;
+  apiKey: string;
+  warning: string;
+}
+
 export interface YougileTestKeyRequest {
   apiBaseUrl: string;
   apiKey: string;

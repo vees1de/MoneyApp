@@ -143,6 +143,13 @@ type CreateKeyRequest struct {
 type DiscoverCompaniesRequest struct {
 	Login    string `json:"login" validate:"required"`
 	Password string `json:"password" validate:"required"`
+	Name     string `json:"name,omitempty"`
+}
+
+type ConnectConnectionRequest struct {
+	Login     string `json:"login" validate:"required"`
+	Password  string `json:"password" validate:"required"`
+	CompanyID string `json:"companyId" validate:"required"`
 }
 
 type UpdateConnectionRequest struct {
@@ -184,6 +191,32 @@ type CreateKeyResponse struct {
 	CompanyID string `json:"companyId"`
 	APIKey    string `json:"apiKey"`
 	Warning   string `json:"warning"`
+}
+
+type DiscoverCompaniesPaging struct {
+	Count  int  `json:"count"`
+	Limit  int  `json:"limit"`
+	Offset int  `json:"offset"`
+	Next   bool `json:"next"`
+}
+
+type DiscoverCompaniesCompany struct {
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	IsAdmin bool   `json:"isAdmin"`
+}
+
+type DiscoverCompaniesResponse struct {
+	Paging  DiscoverCompaniesPaging    `json:"paging"`
+	Content []DiscoverCompaniesCompany `json:"content"`
+}
+
+type CompanyDetails struct {
+	Deleted   bool           `json:"deleted"`
+	ID        string         `json:"id"`
+	Title     string         `json:"title"`
+	Timestamp int64          `json:"timestamp"`
+	APIData   map[string]any `json:"apiData,omitempty"`
 }
 
 type ImportUsersResponse struct {
@@ -236,13 +269,17 @@ func (r *Repository) UpdateConnection(ctx context.Context, item storedConnection
 		update integration_yougile_connections
 		set title = $2,
 		    api_base_url = $3,
-		    status = $4,
-		    last_sync_at = $5,
-		    last_success_sync_at = $6,
-		    last_error = $7,
-		    updated_at = $8
+		    yougile_company_id = $4,
+		    api_key_encrypted = $5,
+		    api_key_last4 = $6,
+		    status = $7,
+		    last_sync_at = $8,
+		    last_success_sync_at = $9,
+		    last_error = $10,
+		    updated_at = $11
 		where id = $1
-	`, item.ID, item.Title, item.APIBaseURL, item.Status, item.LastSyncAt, item.LastSuccessSyncAt, item.LastError, item.UpdatedAt)
+	`, item.ID, item.Title, item.APIBaseURL, item.YougileCompanyID, item.APIKeyEncrypted, item.APIKeyLast4, item.Status,
+		item.LastSyncAt, item.LastSuccessSyncAt, item.LastError, item.UpdatedAt)
 	return err
 }
 
@@ -267,13 +304,40 @@ func (r *Repository) GetConnection(ctx context.Context, id uuid.UUID, exec ...db
 	return item, err
 }
 
-func (r *Repository) ListConnections(ctx context.Context, exec ...db.DBTX) ([]Connection, error) {
+func (r *Repository) GetConnectionForUser(ctx context.Context, id, userID uuid.UUID, exec ...db.DBTX) (storedConnection, error) {
+	var item storedConnection
+	err := r.base(exec...).QueryRowContext(ctx, `
+			select id, company_id, title, api_base_url, yougile_company_id, api_key_encrypted, api_key_last4,
+			       status, created_by, last_sync_at, last_success_sync_at, last_error, created_at, updated_at
+			from integration_yougile_connections
+			where id = $1 and created_by = $2
+		`, id, userID).Scan(&item.ID, &item.CompanyID, &item.Title, &item.APIBaseURL, &item.YougileCompanyID, &item.APIKeyEncrypted,
+		&item.APIKeyLast4, &item.Status, &item.CreatedBy, &item.LastSyncAt, &item.LastSuccessSyncAt, &item.LastError, &item.CreatedAt, &item.UpdatedAt)
+	return item, err
+}
+
+func (r *Repository) GetCurrentConnectionByUser(ctx context.Context, userID uuid.UUID, exec ...db.DBTX) (storedConnection, error) {
+	var item storedConnection
+	err := r.base(exec...).QueryRowContext(ctx, `
+			select id, company_id, title, api_base_url, yougile_company_id, api_key_encrypted, api_key_last4,
+			       status, created_by, last_sync_at, last_success_sync_at, last_error, created_at, updated_at
+			from integration_yougile_connections
+			where created_by = $1 and status <> 'revoked'
+			order by updated_at desc, created_at desc
+			limit 1
+		`, userID).Scan(&item.ID, &item.CompanyID, &item.Title, &item.APIBaseURL, &item.YougileCompanyID, &item.APIKeyEncrypted,
+		&item.APIKeyLast4, &item.Status, &item.CreatedBy, &item.LastSyncAt, &item.LastSuccessSyncAt, &item.LastError, &item.CreatedAt, &item.UpdatedAt)
+	return item, err
+}
+
+func (r *Repository) ListConnections(ctx context.Context, userID uuid.UUID, exec ...db.DBTX) ([]Connection, error) {
 	rows, err := r.base(exec...).QueryContext(ctx, `
 			select id, company_id, title, api_base_url, yougile_company_id, api_key_last4,
 			       status, created_by, last_sync_at, last_success_sync_at, last_error, created_at, updated_at
 			from integration_yougile_connections
-			order by created_at desc
-		`)
+			where created_by = $1
+			order by updated_at desc, created_at desc
+		`, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -288,6 +352,27 @@ func (r *Repository) ListConnections(ctx context.Context, exec ...db.DBTX) ([]Co
 		items = append(items, item)
 	}
 	return items, rows.Err()
+}
+
+func (r *Repository) ResetConnectionData(ctx context.Context, connectionID uuid.UUID, exec ...db.DBTX) error {
+	statements := []string{
+		`delete from yougile_employee_metrics_daily where connection_id = $1`,
+		`delete from yougile_webhook_events where connection_id = $1`,
+		`delete from yougile_webhook_subscriptions where connection_id = $1`,
+		`delete from yougile_sync_jobs where connection_id = $1`,
+		`delete from yougile_employee_mappings where connection_id = $1`,
+		`delete from yougile_users where connection_id = $1`,
+		`delete from yougile_tasks where connection_id = $1`,
+		`delete from yougile_columns where connection_id = $1`,
+		`delete from yougile_boards where connection_id = $1`,
+		`delete from yougile_projects where connection_id = $1`,
+	}
+	for _, statement := range statements {
+		if _, err := r.base(exec...).ExecContext(ctx, statement, connectionID); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (r *Repository) UpsertUser(ctx context.Context, item ImportedUser, rawPayload []byte, exec ...db.DBTX) (bool, error) {
@@ -568,6 +653,20 @@ func (r *Repository) GetSyncJob(ctx context.Context, id uuid.UUID, exec ...db.DB
 	return item, err
 }
 
+func (r *Repository) GetSyncJobForUser(ctx context.Context, id, userID uuid.UUID, exec ...db.DBTX) (SyncJob, error) {
+	var item SyncJob
+	err := r.base(exec...).QueryRowContext(ctx, `
+			select job.id, job.connection_id, job.job_type, job.status,
+			       coalesce(job.cursor, '{}'::jsonb)::text, coalesce(job.progress, '{}'::jsonb)::text,
+			       job.started_at, job.finished_at, job.attempt, job.next_retry_at, job.error_text, job.created_at, job.updated_at
+			from yougile_sync_jobs job
+			join integration_yougile_connections connection on connection.id = job.connection_id
+			where job.id = $1 and connection.created_by = $2
+		`, id, userID).Scan(&item.ID, &item.ConnectionID, &item.JobType, &item.Status, &item.Cursor, &item.Progress, &item.StartedAt, &item.FinishedAt,
+		&item.Attempt, &item.NextRetryAt, &item.ErrorText, &item.CreatedAt, &item.UpdatedAt)
+	return item, err
+}
+
 func (r *Repository) MarkSyncJobProcessing(ctx context.Context, id uuid.UUID, progress []byte, startedAt time.Time, exec ...db.DBTX) error {
 	_, err := r.base(exec...).ExecContext(ctx, `
 		update yougile_sync_jobs
@@ -613,19 +712,74 @@ func NewClient(baseURL, apiKey string) *Client {
 	}
 }
 
-func (c *Client) DiscoverCompanies(ctx context.Context, login, password string) (map[string]any, error) {
-	return c.doJSON(ctx, http.MethodPost, "/api-v2/auth/companies", map[string]any{
+func (c *Client) DiscoverCompanies(ctx context.Context, login, password, name string) (DiscoverCompaniesResponse, error) {
+	body := map[string]any{
 		"login":    login,
 		"password": password,
-	}, false)
+	}
+	if trimmedName := strings.TrimSpace(name); trimmedName != "" {
+		body["name"] = trimmedName
+	}
+	payload, err := c.doJSON(ctx, http.MethodPost, "/api-v2/auth/companies?limit=1000", body, false)
+	if err != nil {
+		return DiscoverCompaniesResponse{}, err
+	}
+	result := DiscoverCompaniesResponse{
+		Content: []DiscoverCompaniesCompany{},
+	}
+	if paging, ok := payload["paging"].(map[string]any); ok {
+		result.Paging = DiscoverCompaniesPaging{
+			Count:  intFromAny(paging["count"]),
+			Limit:  intFromAny(paging["limit"]),
+			Offset: intFromAny(paging["offset"]),
+			Next:   boolFromAny(paging["next"]),
+		}
+	}
+	for _, item := range extractItems(payload) {
+		result.Content = append(result.Content, DiscoverCompaniesCompany{
+			ID:      firstString(item, "id"),
+			Name:    firstString(item, "name", "title"),
+			IsAdmin: boolFromAny(item["isAdmin"]),
+		})
+	}
+	return result, nil
 }
 
-func (c *Client) CreateKey(ctx context.Context, login, password, companyID string) (map[string]any, error) {
-	return c.doJSON(ctx, http.MethodPost, "/api-v2/auth/keys", map[string]any{
+func (c *Client) CreateKey(ctx context.Context, login, password, companyID string) (string, error) {
+	payload, err := c.doJSON(ctx, http.MethodPost, "/api-v2/auth/keys", map[string]any{
 		"login":     login,
 		"password":  password,
 		"companyId": companyID,
 	}, false)
+	if err != nil {
+		return "", err
+	}
+	key := stringFromAny(payload["key"])
+	if key == "" {
+		key = stringFromAny(payload["apiKey"])
+	}
+	if key == "" {
+		return "", httpx.Internal("yougile_invalid_response")
+	}
+	return key, nil
+}
+
+func (c *Client) GetCompany(ctx context.Context, companyID string) (CompanyDetails, error) {
+	payload, err := c.doJSON(ctx, http.MethodGet, "/api-v2/companies/"+url.PathEscape(strings.TrimSpace(companyID)), nil, true)
+	if err != nil {
+		return CompanyDetails{}, err
+	}
+
+	result := CompanyDetails{
+		Deleted:   boolFromAny(payload["deleted"]),
+		ID:        firstString(payload, "id"),
+		Title:     firstString(payload, "title", "name"),
+		Timestamp: int64(intFromAny(payload["timestamp"])),
+	}
+	if apiData, ok := payload["apiData"].(map[string]any); ok {
+		result.APIData = apiData
+	}
+	return result, nil
 }
 
 func (c *Client) TestKey(ctx context.Context) error {
@@ -733,31 +887,109 @@ func NewService(database *sql.DB, repo *Repository, queue *worker.Queue, appCloc
 	}
 }
 
+func (s *Service) getOwnedConnection(ctx context.Context, userID, connectionID uuid.UUID) (storedConnection, error) {
+	item, err := s.repo.GetConnectionForUser(ctx, connectionID, userID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return storedConnection{}, httpx.NotFound("yougile_connection_not_found", "yougile connection not found")
+		}
+		return storedConnection{}, err
+	}
+	if item.Status == "revoked" {
+		return storedConnection{}, httpx.NotFound("yougile_connection_not_found", "yougile connection not found")
+	}
+	return item, nil
+}
+
+func (s *Service) saveConnection(ctx context.Context, principal platformauth.Principal, title *string, apiBaseURL, companyID, apiKey string) (Connection, error) {
+	companyID = strings.TrimSpace(companyID)
+	apiKey = strings.TrimSpace(apiKey)
+	now := s.clock.Now()
+	last4 := lastN(apiKey, 4)
+	baseURL := defaultBaseURL(apiBaseURL)
+
+	var saved Connection
+	err := db.WithTx(ctx, s.db, func(tx *sql.Tx) error {
+		current, err := s.repo.GetCurrentConnectionByUser(ctx, principal.UserID, tx)
+		switch {
+		case err == nil:
+			if current.YougileCompanyID != companyID {
+				if err := s.repo.ResetConnectionData(ctx, current.ID, tx); err != nil {
+					return err
+				}
+				current.LastSyncAt = nil
+				current.LastSuccessSyncAt = nil
+			}
+			current.Title = trimStringPtr(title)
+			current.APIBaseURL = baseURL
+			current.YougileCompanyID = companyID
+			current.APIKeyEncrypted = apiKey
+			current.APIKeyLast4 = stringPtr(last4)
+			current.Status = "active"
+			current.LastError = nil
+			current.UpdatedAt = now
+			if err := s.repo.UpdateConnection(ctx, current, tx); err != nil {
+				return err
+			}
+			saved = current.Connection
+			return nil
+		case !errors.Is(err, sql.ErrNoRows):
+			return err
+		}
+
+		item := storedConnection{
+			Connection: Connection{
+				ID:               uuid.New(),
+				Title:            trimStringPtr(title),
+				APIBaseURL:       baseURL,
+				YougileCompanyID: companyID,
+				APIKeyLast4:      stringPtr(last4),
+				Status:           "active",
+				CreatedBy:        principal.UserID,
+				CreatedAt:        now,
+				UpdatedAt:        now,
+			},
+			APIKeyEncrypted: apiKey,
+		}
+		if err := s.repo.CreateConnection(ctx, item, tx); err != nil {
+			return err
+		}
+		saved = item.Connection
+		return nil
+	})
+	if err != nil {
+		return Connection{}, err
+	}
+	return saved, nil
+}
+
 func (s *Service) CreateConnection(ctx context.Context, principal platformauth.Principal, req CreateConnectionRequest) (Connection, error) {
 	client := NewClient(req.APIBaseURL, req.APIKey)
 	if err := client.TestKey(ctx); err != nil {
 		return Connection{}, err
 	}
-	now := s.clock.Now()
-	last4 := lastN(req.APIKey, 4)
-	item := storedConnection{
-		Connection: Connection{
-			ID:               uuid.New(),
-			Title:            trimStringPtr(req.Title),
-			APIBaseURL:       defaultBaseURL(req.APIBaseURL),
-			YougileCompanyID: strings.TrimSpace(req.YougileCompanyID),
-			APIKeyLast4:      stringPtr(last4),
-			Status:           "active",
-			CreatedBy:        principal.UserID,
-			CreatedAt:        now,
-			UpdatedAt:        now,
-		},
-		APIKeyEncrypted: strings.TrimSpace(req.APIKey),
-	}
-	if err := s.repo.CreateConnection(ctx, item); err != nil {
+	return s.saveConnection(ctx, principal, req.Title, req.APIBaseURL, req.YougileCompanyID, req.APIKey)
+}
+
+func (s *Service) ConnectConnection(ctx context.Context, principal platformauth.Principal, req ConnectConnectionRequest) (Connection, error) {
+	client := NewClient("", "")
+	key, err := client.CreateKey(ctx, req.Login, req.Password, req.CompanyID)
+	if err != nil {
 		return Connection{}, err
 	}
-	return item.Connection, nil
+
+	details, err := NewClient("", key).GetCompany(ctx, req.CompanyID)
+	if err != nil {
+		return Connection{}, err
+	}
+
+	title := trimStringPtr(stringPtr(details.Title))
+	companyID := strings.TrimSpace(details.ID)
+	if companyID == "" {
+		companyID = strings.TrimSpace(req.CompanyID)
+	}
+
+	return s.saveConnection(ctx, principal, title, "", companyID, key)
 }
 
 func (s *Service) TestKey(ctx context.Context, req TestKeyRequest) (TestConnectionResponse, error) {
@@ -775,13 +1007,9 @@ func (s *Service) TestKey(ctx context.Context, req TestKeyRequest) (TestConnecti
 
 func (s *Service) CreateKey(ctx context.Context, req CreateKeyRequest) (CreateKeyResponse, error) {
 	client := NewClient("", "")
-	payload, err := client.CreateKey(ctx, req.Login, req.Password, req.CompanyID)
+	key, err := client.CreateKey(ctx, req.Login, req.Password, req.CompanyID)
 	if err != nil {
 		return CreateKeyResponse{}, err
-	}
-	key := stringFromAny(payload["key"])
-	if key == "" {
-		key = stringFromAny(payload["apiKey"])
 	}
 	return CreateKeyResponse{
 		CompanyID: req.CompanyID,
@@ -790,31 +1018,25 @@ func (s *Service) CreateKey(ctx context.Context, req CreateKeyRequest) (CreateKe
 	}, nil
 }
 
-func (s *Service) DiscoverCompanies(ctx context.Context, req DiscoverCompaniesRequest) (map[string]any, error) {
-	return NewClient("", "").DiscoverCompanies(ctx, req.Login, req.Password)
+func (s *Service) DiscoverCompanies(ctx context.Context, req DiscoverCompaniesRequest) (DiscoverCompaniesResponse, error) {
+	return NewClient("", "").DiscoverCompanies(ctx, req.Login, req.Password, req.Name)
 }
 
-func (s *Service) ListConnections(ctx context.Context) ([]Connection, error) {
-	return s.repo.ListConnections(ctx)
+func (s *Service) ListConnections(ctx context.Context, principal platformauth.Principal) ([]Connection, error) {
+	return s.repo.ListConnections(ctx, principal.UserID)
 }
 
-func (s *Service) GetConnection(ctx context.Context, id uuid.UUID) (Connection, error) {
-	item, err := s.repo.GetConnection(ctx, id)
+func (s *Service) GetConnection(ctx context.Context, principal platformauth.Principal, id uuid.UUID) (Connection, error) {
+	item, err := s.getOwnedConnection(ctx, principal.UserID, id)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return Connection{}, httpx.NotFound("yougile_connection_not_found", "yougile connection not found")
-		}
 		return Connection{}, err
 	}
 	return item.Connection, nil
 }
 
-func (s *Service) UpdateConnection(ctx context.Context, id uuid.UUID, req UpdateConnectionRequest) (Connection, error) {
-	item, err := s.repo.GetConnection(ctx, id)
+func (s *Service) UpdateConnection(ctx context.Context, principal platformauth.Principal, id uuid.UUID, req UpdateConnectionRequest) (Connection, error) {
+	item, err := s.getOwnedConnection(ctx, principal.UserID, id)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return Connection{}, httpx.NotFound("yougile_connection_not_found", "yougile connection not found")
-		}
 		return Connection{}, err
 	}
 	if req.Title != nil {
@@ -830,7 +1052,10 @@ func (s *Service) UpdateConnection(ctx context.Context, id uuid.UUID, req Update
 	return item.Connection, nil
 }
 
-func (s *Service) DeleteConnection(ctx context.Context, id uuid.UUID) error {
+func (s *Service) DeleteConnection(ctx context.Context, principal platformauth.Principal, id uuid.UUID) error {
+	if _, err := s.getOwnedConnection(ctx, principal.UserID, id); err != nil {
+		return err
+	}
 	return s.repo.RevokeConnection(ctx, id, s.clock.Now())
 }
 
@@ -1135,8 +1360,8 @@ func (s *Service) StartBackfill(ctx context.Context, connectionID uuid.UUID, req
 	return job, nil
 }
 
-func (s *Service) GetSyncJob(ctx context.Context, id uuid.UUID) (SyncJob, error) {
-	job, err := s.repo.GetSyncJob(ctx, id)
+func (s *Service) GetSyncJob(ctx context.Context, principal platformauth.Principal, id uuid.UUID) (SyncJob, error) {
+	job, err := s.repo.GetSyncJobForUser(ctx, id, principal.UserID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return SyncJob{}, httpx.NotFound("yougile_sync_job_not_found", "yougile sync job not found")
@@ -1208,10 +1433,18 @@ func yougilePrincipal(r *http.Request) (platformauth.Principal, error) {
 	return principal, nil
 }
 
-func (h *Handler) CreateConnection(w http.ResponseWriter, r *http.Request) {
+func requireYougilePrincipal(w http.ResponseWriter, r *http.Request) (platformauth.Principal, bool) {
 	principal, err := yougilePrincipal(r)
 	if err != nil {
 		httpx.WriteError(w, err)
+		return platformauth.Principal{}, false
+	}
+	return principal, true
+}
+
+func (h *Handler) CreateConnection(w http.ResponseWriter, r *http.Request) {
+	principal, ok := requireYougilePrincipal(w, r)
+	if !ok {
 		return
 	}
 	var req CreateConnectionRequest
@@ -1224,6 +1457,28 @@ func (h *Handler) CreateConnection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	item, err := h.service.CreateConnection(r.Context(), principal, req)
+	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusCreated, item)
+}
+
+func (h *Handler) ConnectConnection(w http.ResponseWriter, r *http.Request) {
+	principal, ok := requireYougilePrincipal(w, r)
+	if !ok {
+		return
+	}
+	var req ConnectConnectionRequest
+	if err := httpx.DecodeJSON(r, &req); err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	if err := h.validator.Struct(req); err != nil {
+		httpx.WriteError(w, httpx.BadRequest("invalid_request", err.Error()))
+		return
+	}
+	item, err := h.service.ConnectConnection(r.Context(), principal, req)
 	if err != nil {
 		httpx.WriteError(w, err)
 		return
@@ -1286,7 +1541,11 @@ func (h *Handler) DiscoverCompanies(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ListConnections(w http.ResponseWriter, r *http.Request) {
-	items, err := h.service.ListConnections(r.Context())
+	principal, ok := requireYougilePrincipal(w, r)
+	if !ok {
+		return
+	}
+	items, err := h.service.ListConnections(r.Context(), principal)
 	if err != nil {
 		httpx.WriteError(w, err)
 		return
@@ -1295,12 +1554,16 @@ func (h *Handler) ListConnections(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetConnection(w http.ResponseWriter, r *http.Request) {
+	principal, ok := requireYougilePrincipal(w, r)
+	if !ok {
+		return
+	}
 	id, err := parseUUIDParam(chi.URLParam(r, "id"), "invalid_connection_id")
 	if err != nil {
 		httpx.WriteError(w, err)
 		return
 	}
-	item, err := h.service.GetConnection(r.Context(), id)
+	item, err := h.service.GetConnection(r.Context(), principal, id)
 	if err != nil {
 		httpx.WriteError(w, err)
 		return
@@ -1309,6 +1572,10 @@ func (h *Handler) GetConnection(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) UpdateConnection(w http.ResponseWriter, r *http.Request) {
+	principal, ok := requireYougilePrincipal(w, r)
+	if !ok {
+		return
+	}
 	id, err := parseUUIDParam(chi.URLParam(r, "id"), "invalid_connection_id")
 	if err != nil {
 		httpx.WriteError(w, err)
@@ -1319,7 +1586,7 @@ func (h *Handler) UpdateConnection(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, err)
 		return
 	}
-	item, err := h.service.UpdateConnection(r.Context(), id, req)
+	item, err := h.service.UpdateConnection(r.Context(), principal, id, req)
 	if err != nil {
 		httpx.WriteError(w, err)
 		return
@@ -1328,12 +1595,16 @@ func (h *Handler) UpdateConnection(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) DeleteConnection(w http.ResponseWriter, r *http.Request) {
+	principal, ok := requireYougilePrincipal(w, r)
+	if !ok {
+		return
+	}
 	id, err := parseUUIDParam(chi.URLParam(r, "id"), "invalid_connection_id")
 	if err != nil {
 		httpx.WriteError(w, err)
 		return
 	}
-	if err := h.service.DeleteConnection(r.Context(), id); err != nil {
+	if err := h.service.DeleteConnection(r.Context(), principal, id); err != nil {
 		httpx.WriteError(w, err)
 		return
 	}
@@ -1341,8 +1612,16 @@ func (h *Handler) DeleteConnection(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ImportUsers(w http.ResponseWriter, r *http.Request) {
+	principal, ok := requireYougilePrincipal(w, r)
+	if !ok {
+		return
+	}
 	id, err := parseUUIDParam(chi.URLParam(r, "id"), "invalid_connection_id")
 	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	if _, err := h.service.GetConnection(r.Context(), principal, id); err != nil {
 		httpx.WriteError(w, err)
 		return
 	}
@@ -1355,8 +1634,16 @@ func (h *Handler) ImportUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ImportStructure(w http.ResponseWriter, r *http.Request) {
+	principal, ok := requireYougilePrincipal(w, r)
+	if !ok {
+		return
+	}
 	id, err := parseUUIDParam(chi.URLParam(r, "id"), "invalid_connection_id")
 	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	if _, err := h.service.GetConnection(r.Context(), principal, id); err != nil {
 		httpx.WriteError(w, err)
 		return
 	}
@@ -1369,6 +1656,10 @@ func (h *Handler) ImportStructure(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
+	principal, ok := requireYougilePrincipal(w, r)
+	if !ok {
+		return
+	}
 	id, err := parseUUIDParam(chi.URLParam(r, "id"), "invalid_connection_id")
 	if err != nil {
 		httpx.WriteError(w, err)
@@ -1380,6 +1671,10 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 		value := raw == "true" || raw == "1"
 		mapped = &value
 	}
+	if _, err := h.service.GetConnection(r.Context(), principal, id); err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
 	items, err := h.service.ListUsers(r.Context(), id, r.URL.Query().Get("q"), r.URL.Query().Get("email"), mapped, limit, offset)
 	if err != nil {
 		httpx.WriteError(w, err)
@@ -1389,8 +1684,16 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ListProjects(w http.ResponseWriter, r *http.Request) {
+	principal, ok := requireYougilePrincipal(w, r)
+	if !ok {
+		return
+	}
 	id, err := parseUUIDParam(chi.URLParam(r, "id"), "invalid_connection_id")
 	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	if _, err := h.service.GetConnection(r.Context(), principal, id); err != nil {
 		httpx.WriteError(w, err)
 		return
 	}
@@ -1403,8 +1706,16 @@ func (h *Handler) ListProjects(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ListBoards(w http.ResponseWriter, r *http.Request) {
+	principal, ok := requireYougilePrincipal(w, r)
+	if !ok {
+		return
+	}
 	id, err := parseUUIDParam(chi.URLParam(r, "id"), "invalid_connection_id")
 	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	if _, err := h.service.GetConnection(r.Context(), principal, id); err != nil {
 		httpx.WriteError(w, err)
 		return
 	}
@@ -1417,8 +1728,16 @@ func (h *Handler) ListBoards(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ListColumns(w http.ResponseWriter, r *http.Request) {
+	principal, ok := requireYougilePrincipal(w, r)
+	if !ok {
+		return
+	}
 	id, err := parseUUIDParam(chi.URLParam(r, "id"), "invalid_connection_id")
 	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	if _, err := h.service.GetConnection(r.Context(), principal, id); err != nil {
 		httpx.WriteError(w, err)
 		return
 	}
@@ -1431,6 +1750,10 @@ func (h *Handler) ListColumns(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) AutoMatch(w http.ResponseWriter, r *http.Request) {
+	principal, ok := requireYougilePrincipal(w, r)
+	if !ok {
+		return
+	}
 	id, err := parseUUIDParam(chi.URLParam(r, "id"), "invalid_connection_id")
 	if err != nil {
 		httpx.WriteError(w, err)
@@ -1445,6 +1768,10 @@ func (h *Handler) AutoMatch(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, httpx.BadRequest("invalid_request", err.Error()))
 		return
 	}
+	if _, err := h.service.GetConnection(r.Context(), principal, id); err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
 	item, err := h.service.AutoMatch(r.Context(), id, req.Strategy)
 	if err != nil {
 		httpx.WriteError(w, err)
@@ -1454,8 +1781,16 @@ func (h *Handler) AutoMatch(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ListMappings(w http.ResponseWriter, r *http.Request) {
+	principal, ok := requireYougilePrincipal(w, r)
+	if !ok {
+		return
+	}
 	id, err := parseUUIDParam(chi.URLParam(r, "id"), "invalid_connection_id")
 	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	if _, err := h.service.GetConnection(r.Context(), principal, id); err != nil {
 		httpx.WriteError(w, err)
 		return
 	}
@@ -1468,6 +1803,10 @@ func (h *Handler) ListMappings(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) CreateMapping(w http.ResponseWriter, r *http.Request) {
+	principal, ok := requireYougilePrincipal(w, r)
+	if !ok {
+		return
+	}
 	id, err := parseUUIDParam(chi.URLParam(r, "id"), "invalid_connection_id")
 	if err != nil {
 		httpx.WriteError(w, err)
@@ -1482,6 +1821,10 @@ func (h *Handler) CreateMapping(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, httpx.BadRequest("invalid_request", err.Error()))
 		return
 	}
+	if _, err := h.service.GetConnection(r.Context(), principal, id); err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
 	if err := h.service.CreateMapping(r.Context(), id, req); err != nil {
 		httpx.WriteError(w, err)
 		return
@@ -1490,6 +1833,10 @@ func (h *Handler) CreateMapping(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) DeleteMapping(w http.ResponseWriter, r *http.Request) {
+	principal, ok := requireYougilePrincipal(w, r)
+	if !ok {
+		return
+	}
 	connectionID, err := parseUUIDParam(chi.URLParam(r, "id"), "invalid_connection_id")
 	if err != nil {
 		httpx.WriteError(w, err)
@@ -1497,6 +1844,10 @@ func (h *Handler) DeleteMapping(w http.ResponseWriter, r *http.Request) {
 	}
 	mappingID, err := parseUUIDParam(chi.URLParam(r, "mappingId"), "invalid_mapping_id")
 	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	if _, err := h.service.GetConnection(r.Context(), principal, connectionID); err != nil {
 		httpx.WriteError(w, err)
 		return
 	}
@@ -1508,6 +1859,10 @@ func (h *Handler) DeleteMapping(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) StartSync(w http.ResponseWriter, r *http.Request) {
+	principal, ok := requireYougilePrincipal(w, r)
+	if !ok {
+		return
+	}
 	id, err := parseUUIDParam(chi.URLParam(r, "id"), "invalid_connection_id")
 	if err != nil {
 		httpx.WriteError(w, err)
@@ -1522,6 +1877,10 @@ func (h *Handler) StartSync(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, httpx.BadRequest("invalid_request", err.Error()))
 		return
 	}
+	if _, err := h.service.GetConnection(r.Context(), principal, id); err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
 	item, err := h.service.StartSync(r.Context(), id, req)
 	if err != nil {
 		httpx.WriteError(w, err)
@@ -1531,12 +1890,16 @@ func (h *Handler) StartSync(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetSyncJob(w http.ResponseWriter, r *http.Request) {
+	principal, ok := requireYougilePrincipal(w, r)
+	if !ok {
+		return
+	}
 	id, err := parseUUIDParam(chi.URLParam(r, "jobId"), "invalid_job_id")
 	if err != nil {
 		httpx.WriteError(w, err)
 		return
 	}
-	item, err := h.service.GetSyncJob(r.Context(), id)
+	item, err := h.service.GetSyncJob(r.Context(), principal, id)
 	if err != nil {
 		httpx.WriteError(w, err)
 		return
@@ -1545,6 +1908,10 @@ func (h *Handler) GetSyncJob(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Backfill(w http.ResponseWriter, r *http.Request) {
+	principal, ok := requireYougilePrincipal(w, r)
+	if !ok {
+		return
+	}
 	id, err := parseUUIDParam(chi.URLParam(r, "id"), "invalid_connection_id")
 	if err != nil {
 		httpx.WriteError(w, err)
@@ -1557,6 +1924,10 @@ func (h *Handler) Backfill(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := h.validator.Struct(req); err != nil {
 		httpx.WriteError(w, httpx.BadRequest("invalid_request", err.Error()))
+		return
+	}
+	if _, err := h.service.GetConnection(r.Context(), principal, id); err != nil {
+		httpx.WriteError(w, err)
 		return
 	}
 	item, err := h.service.StartBackfill(r.Context(), id, req)
@@ -1673,6 +2044,25 @@ func boolFromAny(value any) bool {
 	default:
 		return false
 	}
+}
+
+func intFromAny(value any) int {
+	switch typed := value.(type) {
+	case int:
+		return typed
+	case int32:
+		return int(typed)
+	case int64:
+		return int(typed)
+	case float64:
+		return int(typed)
+	case string:
+		var parsed int
+		if _, err := fmt.Sscanf(strings.TrimSpace(typed), "%d", &parsed); err == nil {
+			return parsed
+		}
+	}
+	return 0
 }
 
 func intPtrFromAny(value any) *int {

@@ -9,8 +9,13 @@ import type {
   YougileAutoMatchResponse,
   YougileBoard,
   YougileColumn,
+  YougileConnectRequest,
   YougileConnection,
   YougileCreateConnectionRequest,
+  YougileDiscoverCompaniesRequest,
+  YougileDiscoverCompaniesResponse,
+  YougileCreateKeyRequest,
+  YougileCreateKeyResponse,
   YougileImportedUser,
   YougileImportStructureResponse,
   YougileImportUsersResponse,
@@ -77,6 +82,30 @@ export class IntegrationsApiService {
 
   createYougileConnection(payload: YougileCreateConnectionRequest): Observable<YougileConnection> {
     return this.http.post<YougileConnection>(`${this.yougileBase}/connections`, payload);
+  }
+
+  connectYougileConnection(payload: YougileConnectRequest): Observable<YougileConnection> {
+    return this.http.post<YougileConnection>(`${this.yougileBase}/connections/connect`, payload);
+  }
+
+  createYougileKey(payload: YougileCreateKeyRequest): Observable<YougileCreateKeyResponse> {
+    return this.http.post<YougileCreateKeyResponse>(
+      `${this.yougileBase}/connections/create-key`,
+      payload,
+    );
+  }
+
+  discoverYougileCompanies(
+    payload: YougileDiscoverCompaniesRequest,
+  ): Observable<YougileDiscoverCompaniesResponse> {
+    return this.http.post<YougileDiscoverCompaniesResponse>(
+      `${this.yougileBase}/discover-companies`,
+      payload,
+    );
+  }
+
+  deleteYougileConnection(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.yougileBase}/connections/${id}`);
   }
 
   importYougileUsers(id: string): Observable<YougileImportUsersResponse> {
