@@ -1,11 +1,11 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 
 import { API_BASE_URL } from '@core/config/api.config';
 import type { Course } from '@entities/course';
+import type { ListQuery, ListResponse } from './api.types';
 import { toHttpParams } from './http-params.util';
-import type { ListQuery } from './api.types';
 
 @Injectable({ providedIn: 'root' })
 export class CoursesApiService {
@@ -14,7 +14,9 @@ export class CoursesApiService {
   constructor(private readonly http: HttpClient) {}
 
   list(query?: ListQuery): Observable<Course[]> {
-    return this.http.get<Course[]>(this.base, { params: toHttpParams(query) });
+    return this.http
+      .get<ListResponse<Course>>(this.base, { params: toHttpParams(query) })
+      .pipe(map((response) => response.items ?? []));
   }
 
   getById(id: string): Observable<Course> {
@@ -22,7 +24,9 @@ export class CoursesApiService {
   }
 
   getMaterials(id: string): Observable<Record<string, unknown>[]> {
-    return this.http.get<Record<string, unknown>[]>(`${this.base}/${id}/materials`);
+    return this.http
+      .get<ListResponse<Record<string, unknown>>>(`${this.base}/${id}/materials`)
+      .pipe(map((response) => response.items ?? []));
   }
 
   create(payload: Record<string, unknown>): Observable<Course> {

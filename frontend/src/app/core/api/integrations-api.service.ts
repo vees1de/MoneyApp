@@ -46,7 +46,7 @@ export class IntegrationsApiService {
     return this.http.post<Record<string, unknown>>(`${this.base}/outlook/disconnect`, {});
   }
 
-  getJiraBoardSummary(query?: {
+  getAgileBoardSummary(query?: {
     connection_id?: string;
     board_id?: string;
   }): Observable<BoardSummary> {
@@ -55,6 +55,13 @@ export class IntegrationsApiService {
     if (query?.board_id) params.set('board_id', query.board_id);
     const suffix = params.toString() ? `?${params.toString()}` : '';
     return this.http.get<BoardSummary>(`${API_BASE_URL}/v1/jira/board-summary${suffix}`);
+  }
+
+  getJiraBoardSummary(query?: {
+    connection_id?: string;
+    board_id?: string;
+  }): Observable<BoardSummary> {
+    return this.getAgileBoardSummary(query);
   }
 
   listYougileConnections(): Observable<{ items: YougileConnection[] }> {

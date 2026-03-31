@@ -19,9 +19,7 @@ export const routes: Routes = [
   {
     path: 'forbidden',
     loadComponent: () =>
-      import('@pages/public/forbidden/forbidden.page').then(
-        (m) => m.PublicForbiddenPageComponent,
-      ),
+      import('@pages/public/forbidden/forbidden.page').then((m) => m.PublicForbiddenPageComponent),
   },
   {
     path: 'error',
@@ -31,9 +29,7 @@ export const routes: Routes = [
   {
     path: 'not-found',
     loadComponent: () =>
-      import('@pages/public/not-found/not-found.page').then(
-        (m) => m.PublicNotFoundPageComponent,
-      ),
+      import('@pages/public/not-found/not-found.page').then((m) => m.PublicNotFoundPageComponent),
   },
 
   {
@@ -100,6 +96,14 @@ export const routes: Routes = [
         loadComponent: () =>
           import('@pages/dashboard/admin/admin.page').then((m) => m.DashboardAdminPageComponent),
       },
+      {
+        path: 'testadmin',
+        canActivate: [roleGuard(['admin', 'hr'])],
+        loadComponent: () =>
+          import('@pages/admin/testadmin/testadmin.page').then(
+            (m) => m.AdminTestAdminPageComponent,
+          ),
+      },
 
       {
         path: 'catalog',
@@ -115,13 +119,17 @@ export const routes: Routes = [
       },
       {
         path: 'my-learning',
-        canActivate: [permissionGuard([PERMISSIONS.enrollmentsRead, PERMISSIONS.enrollmentsManage])],
+        canActivate: [
+          permissionGuard([PERMISSIONS.enrollmentsRead, PERMISSIONS.enrollmentsManage]),
+        ],
         loadComponent: () =>
           import('@pages/my-learning/list/list.page').then((m) => m.MyLearningListPageComponent),
       },
       {
         path: 'learning/certificates',
-        canActivate: [permissionGuard([PERMISSIONS.certificatesVerify, PERMISSIONS.enrollmentsRead])],
+        canActivate: [
+          permissionGuard([PERMISSIONS.certificatesVerify, PERMISSIONS.enrollmentsRead]),
+        ],
         loadComponent: () =>
           import('@pages/learning/certificates/certificates.page').then(
             (m) => m.LearningCertificatesPageComponent,
@@ -129,7 +137,9 @@ export const routes: Routes = [
       },
       {
         path: 'learning/:enrollmentId',
-        canActivate: [permissionGuard([PERMISSIONS.enrollmentsRead, PERMISSIONS.enrollmentsManage])],
+        canActivate: [
+          permissionGuard([PERMISSIONS.enrollmentsRead, PERMISSIONS.enrollmentsManage]),
+        ],
         loadComponent: () =>
           import('@pages/learning/enrollment-detail/enrollment-detail.page').then(
             (m) => m.LearningEnrollmentDetailPageComponent,
@@ -235,7 +245,9 @@ export const routes: Routes = [
 
       {
         path: 'reports/overview',
-        canActivate: [permissionGuard([PERMISSIONS.analyticsReadHr, PERMISSIONS.analyticsReadManager])],
+        canActivate: [
+          permissionGuard([PERMISSIONS.analyticsReadHr, PERMISSIONS.analyticsReadManager]),
+        ],
         loadComponent: () =>
           import('@pages/reports/overview/overview.page').then(
             (m) => m.ReportsOverviewPageComponent,
@@ -243,7 +255,9 @@ export const routes: Routes = [
       },
       {
         path: 'reports/progress',
-        canActivate: [permissionGuard([PERMISSIONS.analyticsReadHr, PERMISSIONS.analyticsReadManager])],
+        canActivate: [
+          permissionGuard([PERMISSIONS.analyticsReadHr, PERMISSIONS.analyticsReadManager]),
+        ],
         loadComponent: () =>
           import('@pages/reports/progress/progress.page').then(
             (m) => m.ReportsProgressPageComponent,
@@ -257,7 +271,9 @@ export const routes: Routes = [
       },
       {
         path: 'reports/traceability',
-        canActivate: [permissionGuard([PERMISSIONS.analyticsReadHr, PERMISSIONS.analyticsReadManager])],
+        canActivate: [
+          permissionGuard([PERMISSIONS.analyticsReadHr, PERMISSIONS.analyticsReadManager]),
+        ],
         loadComponent: () =>
           import('@pages/reports/traceability/traceability.page').then(
             (m) => m.ReportsTraceabilityPageComponent,
@@ -265,7 +281,9 @@ export const routes: Routes = [
       },
       {
         path: 'reports/export',
-        canActivate: [permissionGuard([PERMISSIONS.analyticsReadHr, PERMISSIONS.analyticsReadManager])],
+        canActivate: [
+          permissionGuard([PERMISSIONS.analyticsReadHr, PERMISSIONS.analyticsReadManager]),
+        ],
         loadComponent: () =>
           import('@pages/reports/export/export.page').then((m) => m.ReportsExportPageComponent),
       },

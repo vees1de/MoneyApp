@@ -1,290 +1,108 @@
-<app-widget-shell title="YouGile Playground">
-  @if (!canManageSettings()) {
-    <p class="yougile__note">
-      Для работы с YouGile нужен permission <code>settings.manage</code>.
-    </p>
-  } @else {
-    <section class="yougile">
-      <div class="yougile__top-grid">
-        <form class="yougile__panel" [formGroup]="connectionForm" (ngSubmit)="createConnection()">
-          <div class="yougile__panel-head">
-            <div>
-              <h3>Новое подключение</h3>
-              <p>Проверка API key и создание connection через backend.</p>
-            </div>
-          </div>
+<app-widget-shell
+  title="YouGile Agile"
+  [loading]="loading()"
+  [error]="error()"
+  [empty]="isEmpty()"
+>
+  @if (summary(); as summary) {
+    <section class="agile">
+      <div class="agile__toolbar">
+        <div class="agile__chips">
+          <button
+            class="agile__chip"
+            type="button"
+            [class.agile__chip--active]="selectedBoardId() === null"
+            (click)="selectBoard(null)"
+          >
+            Все доски
+          </button>
 
-          <div class="yougile__form-grid">
-            <mat-form-field appearance="outline">
-              <mat-label>Название</mat-label>
-              <input matInput formControlName="title" placeholder="Team Operations" />
-            </mat-form-field>
-
-            <mat-form-field appearance="outline">
-              <mat-label>API Base URL</mat-label>
-              <input matInput formControlName="apiBaseUrl" />
-            </mat-form-field>
-
-            <mat-form-field appearance="outline">
-              <mat-label>YouGile Company ID</mat-label>
-              <input matInput formControlName="yougileCompanyId" />
-              @if (connectionForm.controls.yougileCompanyId.hasError('required')) {
-                <mat-error>Введите company id.</mat-error>
-              }
-            </mat-form-field>
-
-            <mat-form-field appearance="outline">
-              <mat-label>API Key</mat-label>
-              <input matInput formControlName="apiKey" type="password" />
-              @if (connectionForm.controls.apiKey.hasError('required')) {
-                <mat-error>Введите API key.</mat-error>
-              }
-            </mat-form-field>
-          </div>
-
-          @if (actionError()) {
-            <p class="yougile__message yougile__message--error">{{ actionError() }}</p>
-          }
-
-          @if (actionNotice()) {
-            <p class="yougile__message yougile__message--success">{{ actionNotice() }}</p>
-          }
-
-          <div class="yougile__actions">
+          @for (board of boardOptions(); track board.board_id) {
             <button
-              mat-stroked-button
+              class="agile__chip"
               type="button"
-              (click)="testKey()"
-              [disabled]="testingKey() || !connectionForm.controls.apiKey.value.trim()"
+              [class.agile__chip--active]="selectedBoardId() === board.board_id"
+              (click)="selectBoard(board.board_id)"
             >
-              {{ testingKey() ? 'Проверяю ключ...' : 'Проверить ключ' }}
+              {{ board.title }}
             </button>
+          }
+        </div>
 
-            <button mat-flat-button type="submit" [disabled]="creatingConnection()">
-              {{ creatingConnection() ? 'Создаю...' : 'Создать подключение' }}
-            </button>
+        <button mat-stroked-button type="button" (click)="reload()">Обновить</button>
+      </div>
+
+      <div class="agile__stats">
+        <article class="agile__stat-card">
+          <span>Всего задач</span>
+          <strong>{{ summary.summary.tasks_total }}</strong>
+        </article>
+        <article class="agile__stat-card">
+          <span>Активные</span>
+          <strong>{{ summary.summary.active_total }}</strong>
+        </article>
+        <article class="agile__stat-card">
+          <span>Завершено</span>
+          <strong>{{ summary.summary.completed_total }}</strong>
+        </article>
+        <article class="agile__stat-card">
+          <span>Просрочено</span>
+          <strong>{{ summary.summary.overdue_total }}</strong>
+        </article>
+      </div>
+
+      <div class="agile__body">
+        <section class="agile__panel">
+          <div class="agile__panel-head">
+            <h3>{{ activeBoard()?.title || 'Доски' }}</h3>
+            <p>
+              Источник: {{ summary.source }} ·
+              {{ activeBoard() ? 'Фокус по выбранной доске' : 'Сводка по всем доскам' }}
+            </p>
           </div>
-        </form>
 
-        <section class="yougile__panel">
-          <div class="yougile__panel-head">
-            <div>
-              <h3>Подключения</h3>
-              <p>Доступные connection'ы из `/integrations/yougile/connections`.</p>
-            </div>
+          <div class="agile__boards">
+            @for (board of summary.boards; track board.board_id) {
+              <article class="agile__board-card">
+                <div class="agile__board-top">
+                  <strong>{{ board.title }}</strong>
+                  <span>{{ board.tasks_total }} задач</span>
+                </div>
 
-            <button mat-stroked-button type="button" (click)="refreshConnections()">
-              Обновить
-            </button>
+                <div class="agile__board-metrics">
+                  <span>Активные: {{ board.active_total }}</span>
+                  <span>Done: {{ board.completed_total }}</span>
+                  <span>Просрочено: {{ board.overdue_total }}</span>
+                </div>
+              </article>
+            }
+          </div>
+        </section>
+
+        <section class="agile__panel">
+          <div class="agile__panel-head">
+            <h3>Overdue</h3>
+            <p>Показываю ближайшие просроченные задачи из backend summary.</p>
           </div>
 
-          @if (loadingConnections()) {
-            <p class="yougile__hint">Загружаю список подключений...</p>
-          } @else if (loadError()) {
-            <p class="yougile__message yougile__message--error">{{ loadError() }}</p>
-          } @else if (!connections().length) {
-            <p class="yougile__hint">Подключений пока нет. Создайте первое слева.</p>
-          } @else {
-            <div class="yougile__connections">
-              @for (connection of connections(); track connection.id) {
-                <button
-                  class="yougile__connection-item"
-                  type="button"
-                  [class.yougile__connection-item--active]="connection.id === selectedConnectionId()"
-                  (click)="selectConnection(connection.id)"
-                >
-                  <span class="yougile__connection-name">{{ connectionLabel(connection) }}</span>
-                  <span class="yougile__connection-meta">
-                    {{ connectionStatusLabel(connection.status) }} · {{ connection.yougile_company_id }}
-                  </span>
-                </button>
+          @if (summary.overdue_tasks.length) {
+            <ul class="agile__tasks">
+              @for (task of summary.overdue_tasks; track task.task_id) {
+                <li class="agile__task">
+                  <div class="agile__task-copy">
+                    <strong>{{ task.title }}</strong>
+                    <span>{{ boardLabel(task) }}</span>
+                  </div>
+
+                  <time>{{ formatDeadline(task.deadline_at) }}</time>
+                </li>
               }
-            </div>
+            </ul>
+          } @else {
+            <p class="agile__empty-copy">Просроченных задач сейчас нет.</p>
           }
         </section>
       </div>
-
-      @if (selectedConnection(); as connection) {
-        <section class="yougile__panel">
-          <div class="yougile__panel-head">
-            <div>
-              <h3>{{ connectionLabel(connection) }}</h3>
-              <p>Операции импорта, auto-match и full sync для выбранного подключения.</p>
-            </div>
-
-            <button mat-stroked-button type="button" (click)="refreshConnections()">
-              Обновить данные
-            </button>
-          </div>
-
-          <div class="yougile__meta-grid">
-            <article class="yougile__meta-item">
-              <span>Статус</span>
-              <strong>{{ connectionStatusLabel(connection.status) }}</strong>
-            </article>
-            <article class="yougile__meta-item">
-              <span>Company ID</span>
-              <strong>{{ connection.yougile_company_id }}</strong>
-            </article>
-            <article class="yougile__meta-item">
-              <span>API</span>
-              <strong>{{ connection.api_base_url }}</strong>
-            </article>
-            <article class="yougile__meta-item">
-              <span>Последний sync</span>
-              <strong>{{ formatDateTime(connection.last_success_sync_at ?? connection.last_sync_at) }}</strong>
-            </article>
-          </div>
-
-          @if (connection.last_error) {
-            <p class="yougile__message yougile__message--error">{{ connection.last_error }}</p>
-          }
-
-          <div class="yougile__actions">
-            <button
-              mat-stroked-button
-              type="button"
-              (click)="importUsers()"
-              [disabled]="importingUsers() || selectedConnectionRevoked()"
-            >
-              {{ importingUsers() ? 'Импортирую users...' : 'Импорт users' }}
-            </button>
-
-            <button
-              mat-stroked-button
-              type="button"
-              (click)="importStructure()"
-              [disabled]="importingStructure() || selectedConnectionRevoked()"
-            >
-              {{ importingStructure() ? 'Импортирую structure...' : 'Импорт structure' }}
-            </button>
-
-            <button
-              mat-stroked-button
-              type="button"
-              (click)="autoMatch()"
-              [disabled]="autoMatching() || selectedConnectionRevoked()"
-            >
-              {{ autoMatching() ? 'Сопоставляю...' : 'Auto-match email' }}
-            </button>
-
-            <button
-              mat-flat-button
-              type="button"
-              (click)="startFullSync()"
-              [disabled]="syncing() || selectedConnectionRevoked()"
-            >
-              {{ syncing() ? 'Запускаю sync...' : 'Full sync' }}
-            </button>
-
-            @if (syncJob()) {
-              <button
-                mat-stroked-button
-                type="button"
-                (click)="refreshSyncJob()"
-                [disabled]="syncJobLoading()"
-              >
-                {{ syncJobLoading() ? 'Обновляю job...' : 'Обновить job' }}
-              </button>
-            }
-          </div>
-
-          @if (syncJob(); as job) {
-            <section class="yougile__sync">
-              <div class="yougile__sync-head">
-                <strong>Sync job</strong>
-                <span>{{ syncStatusLabel(job.status) }}</span>
-              </div>
-              <p class="yougile__sync-meta">
-                {{ job.job_type }} · {{ formatDateTime(job.started_at ?? job.created_at) }}
-              </p>
-              @if (job.error_text) {
-                <p class="yougile__message yougile__message--error">{{ job.error_text }}</p>
-              }
-              <pre class="yougile__sync-progress">{{ job.progress | json }}</pre>
-            </section>
-          }
-
-          @if (overviewLoading()) {
-            <p class="yougile__hint">Подгружаю overview выбранного подключения...</p>
-          } @else {
-            <div class="yougile__stats">
-              <article class="yougile__stat">
-                <span>Users</span>
-                <strong>{{ users().length }}</strong>
-              </article>
-              <article class="yougile__stat">
-                <span>Projects</span>
-                <strong>{{ projects().length }}</strong>
-              </article>
-              <article class="yougile__stat">
-                <span>Boards</span>
-                <strong>{{ boards().length }}</strong>
-              </article>
-              <article class="yougile__stat">
-                <span>Columns</span>
-                <strong>{{ columns().length }}</strong>
-              </article>
-              <article class="yougile__stat">
-                <span>Mappings</span>
-                <strong>{{ mappings().length }}</strong>
-              </article>
-            </div>
-
-            <div class="yougile__preview-grid">
-              <section class="yougile__preview">
-                <h4>Users preview</h4>
-                @if (usersPreview().length) {
-                  <ul>
-                    @for (item of usersPreview(); track item.id) {
-                      <li>
-                        <strong>{{ item.real_name || item.email || item.yougile_user_id }}</strong>
-                        <span>{{ item.email || item.yougile_user_id }}</span>
-                      </li>
-                    }
-                  </ul>
-                } @else {
-                  <p class="yougile__hint">Пока пусто.</p>
-                }
-              </section>
-
-              <section class="yougile__preview">
-                <h4>Boards preview</h4>
-                @if (boardsPreview().length) {
-                  <ul>
-                    @for (item of boardsPreview(); track item.id) {
-                      <li>
-                        <strong>{{ item.title }}</strong>
-                        <span>{{ item.yougile_board_id }}</span>
-                      </li>
-                    }
-                  </ul>
-                } @else {
-                  <p class="yougile__hint">Структура ещё не импортирована.</p>
-                }
-              </section>
-
-              <section class="yougile__preview">
-                <h4>Mappings preview</h4>
-                @if (mappingsPreview().length) {
-                  <ul>
-                    @for (item of mappingsPreview(); track item.id) {
-                      <li>
-                        <strong>{{ item.employee_name }}</strong>
-                        <span>{{ item.yougile_real_name || item.yougile_user_id }}</span>
-                      </li>
-                    }
-                  </ul>
-                } @else {
-                  <p class="yougile__hint">Маппингов пока нет.</p>
-                }
-              </section>
-            </div>
-          }
-        </section>
-      } @else if (!loadingConnections() && !loadError()) {
-        <p class="yougile__hint">Выберите connection справа, чтобы увидеть overview и действия.</p>
-      }
     </section>
   }
 </app-widget-shell>
