@@ -188,6 +188,38 @@ func NewRouter(container *Container) http.Handler {
 				r.With(middleware.RBAC("certificates.verify")).Post("/{id}/reject", container.CertificatesHandler.Reject)
 			})
 
+			r.Route("/intakes", func(r chi.Router) {
+				r.With(middleware.RBAC("intakes.manage")).Post("/", container.CourseIntakesHandler.CreateIntake)
+				r.Get("/", container.CourseIntakesHandler.ListIntakes)
+				r.Get("/{id}", container.CourseIntakesHandler.GetIntake)
+				r.With(middleware.RBAC("intakes.manage")).Patch("/{id}", container.CourseIntakesHandler.UpdateIntake)
+				r.With(middleware.RBAC("intakes.manage")).Post("/{id}/close", container.CourseIntakesHandler.CloseIntake)
+				r.Get("/{intakeId}/applications", container.CourseIntakesHandler.ListApplicationsByIntake)
+			})
+
+			r.Route("/applications", func(r chi.Router) {
+				r.Post("/", container.CourseIntakesHandler.Apply)
+				r.Get("/my", container.CourseIntakesHandler.ListMyApplications)
+				r.Get("/pending-manager", container.CourseIntakesHandler.ListPendingManagerApprovals)
+				r.Get("/{id}", container.CourseIntakesHandler.GetApplication)
+				r.Post("/{id}/approve-manager", container.CourseIntakesHandler.ApproveByManager)
+				r.Post("/{id}/reject-manager", container.CourseIntakesHandler.RejectByManager)
+				r.With(middleware.RBAC("intakes.manage")).Post("/{id}/approve-hr", container.CourseIntakesHandler.ApproveByHR)
+				r.With(middleware.RBAC("intakes.manage")).Post("/{id}/reject-hr", container.CourseIntakesHandler.RejectByHR)
+				r.Post("/{id}/withdraw", container.CourseIntakesHandler.WithdrawApplication)
+				r.With(middleware.RBAC("intakes.manage")).Post("/{id}/enroll", container.CourseIntakesHandler.EnrollApplication)
+			})
+
+			r.Route("/suggestions", func(r chi.Router) {
+				r.Post("/", container.CourseIntakesHandler.CreateSuggestion)
+				r.Get("/", container.CourseIntakesHandler.ListSuggestions)
+				r.Get("/my", container.CourseIntakesHandler.ListMySuggestions)
+				r.Get("/{id}", container.CourseIntakesHandler.GetSuggestion)
+				r.With(middleware.RBAC("intakes.manage")).Post("/{id}/approve", container.CourseIntakesHandler.ApproveSuggestion)
+				r.With(middleware.RBAC("intakes.manage")).Post("/{id}/reject", container.CourseIntakesHandler.RejectSuggestion)
+				r.With(middleware.RBAC("intakes.manage")).Post("/{id}/open-intake", container.CourseIntakesHandler.OpenIntakeFromSuggestion)
+			})
+
 			r.Route("/course-requests", func(r chi.Router) {
 				r.Get("/", container.CourseRequestsHandler.List)
 				r.Get("/export/excel", container.CourseRequestsHandler.ExportExcel)

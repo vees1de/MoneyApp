@@ -15,6 +15,7 @@ import (
 	calendarmodule "moneyapp/backend/internal/modules/calendar"
 	catalogmodule "moneyapp/backend/internal/modules/catalog"
 	certificatesmodule "moneyapp/backend/internal/modules/certificates"
+	courseintakesmodule "moneyapp/backend/internal/modules/course_intakes"
 	courserequestsmodule "moneyapp/backend/internal/modules/course_requests"
 	dashboardapimodule "moneyapp/backend/internal/modules/dashboard_api"
 	externaltrainingmodule "moneyapp/backend/internal/modules/external_training"
@@ -81,6 +82,7 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 	learningRepo := learningmodule.NewRepository(database)
 	testingRepo := testingmodule.NewRepository(database)
 	certificatesRepo := certificatesmodule.NewRepository(database)
+	courseIntakesRepo := courseintakesmodule.NewRepository(database)
 	courseRequestsRepo := courserequestsmodule.NewRepository(database)
 	externalTrainingRepo := externaltrainingmodule.NewRepository(database)
 	outlookRepo := outlookmodule.NewRepository(database)
@@ -100,6 +102,7 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 	learningService := learningmodule.NewService(database, learningRepo, orgService, catalogService, outboxService, appClock)
 	testingService := testingmodule.NewService(database, testingRepo, appClock)
 	certificatesService := certificatesmodule.NewService(database, certificatesRepo, outboxService, appClock)
+	courseIntakesService := courseintakesmodule.NewService(database, courseIntakesRepo, appClock)
 	courseRequestsService := courserequestsmodule.NewService(database, courseRequestsRepo, identityRepo, orgService, catalogService, learningRepo, certificatesRepo, appClock)
 	externalTrainingService := externaltrainingmodule.NewService(database, externalTrainingRepo, identityRepo, orgService, outboxService, queue, appClock)
 	calendarService := calendarmodule.NewService(calendarRepo)
@@ -136,6 +139,7 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 		LearningService:         learningService,
 		TestingService:          testingService,
 		CertificatesService:     certificatesService,
+		CourseIntakesService:    courseIntakesService,
 		CourseRequestsService:   courseRequestsService,
 		ExternalTrainingService: externalTrainingService,
 		CalendarService:         calendarService,
@@ -156,6 +160,7 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 		LearningHandler:         learningmodule.NewHandler(learningService, validate),
 		TestingHandler:          testingmodule.NewHandler(testingService, validate),
 		CertificatesHandler:     certificatesmodule.NewHandler(certificatesService, validate),
+		CourseIntakesHandler:    courseintakesmodule.NewHandler(courseIntakesService, validate),
 		CourseRequestsHandler:   courserequestsmodule.NewHandler(courseRequestsService, validate),
 		ExternalTrainingHandler: externaltrainingmodule.NewHandler(externalTrainingService, validate),
 		CalendarHandler:         calendarmodule.NewHandler(calendarService),

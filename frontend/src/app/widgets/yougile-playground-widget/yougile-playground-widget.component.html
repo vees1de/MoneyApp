@@ -12,34 +12,18 @@
       @if (connectionLoading()) {
         <p class="agile__hint">Загружаю подключение...</p>
       } @else if (currentConnection(); as connection) {
+        <div class="agile__hero-top">
+          <span class="agile__status-pill">{{ connectionStatusLabel(connection.status) }}</span>
+          <button mat-stroked-button type="button" (click)="openSettingsModal()">Настройки</button>
+        </div>
+
         <div class="agile__hero-copy">
           <span class="agile__eyebrow">YouGile</span>
           <h3>{{ connectionLabel(connection) }}</h3>
           <div class="agile__meta-row">
-            <span class="agile__status-pill">{{ connectionStatusLabel(connection.status) }}</span>
             <span>{{ connection.yougile_company_id }}</span>
             <span>{{ formatSyncTime(connection.last_success_sync_at) }}</span>
           </div>
-        </div>
-
-        <div class="agile__actions">
-          <button mat-stroked-button type="button" (click)="openConnectModal(true)">Сменить</button>
-          <button
-            mat-stroked-button
-            type="button"
-            (click)="syncCurrentConnection()"
-            [disabled]="syncingConnection()"
-          >
-            {{ syncingConnection() ? 'Sync...' : 'Full sync' }}
-          </button>
-          <button
-            mat-stroked-button
-            type="button"
-            (click)="deleteCurrentConnection()"
-            [disabled]="deletingConnection()"
-          >
-            {{ deletingConnection() ? 'Отключаю...' : 'Отключить' }}
-          </button>
         </div>
       } @else {
         <div class="agile__hero-copy">
@@ -110,8 +94,8 @@
           </div>
 
           <div class="agile__body">
-            <section class="agile__panel agile__panel--nested">
-              <div class="agile__panel-head">
+            <section class="agile__section">
+              <div class="agile__section-head">
                 <h3>{{ activeBoard()?.title || 'Доски' }}</h3>
               </div>
 
@@ -133,8 +117,8 @@
               </div>
             </section>
 
-            <section class="agile__panel agile__panel--nested">
-              <div class="agile__panel-head">
+            <section class="agile__section">
+              <div class="agile__section-head">
                 <h3>Overdue</h3>
               </div>
 
@@ -158,8 +142,8 @@
           </div>
         }
 
-        <section class="agile__panel agile__panel--nested">
-          <div class="agile__panel-head">
+        <section class="agile__section agile__section--tasks">
+          <div class="agile__section-head">
             <h3>Текущие задачи</h3>
           </div>
 
@@ -203,7 +187,15 @@
     <div class="agile__modal-backdrop" (click)="closeConnectModal()">
       <section class="agile__modal" (click)="$event.stopPropagation()">
         <div class="agile__modal-head">
-          <h3>{{ reconnectMode() ? 'Сменить компанию' : 'Подключить YouGile' }}</h3>
+          <h3>
+            {{
+              currentConnection() && !reconnectMode()
+                ? 'Настройки YouGile'
+                : reconnectMode()
+                  ? 'Сменить компанию'
+                  : 'Подключить YouGile'
+            }}
+          </h3>
           <button class="agile__icon-button" type="button" (click)="closeConnectModal()">×</button>
         </div>
 
@@ -211,82 +203,112 @@
           <p class="agile__message agile__message--error">{{ modalError() }}</p>
         }
 
-        <form
-          [formGroup]="credentialsForm"
-          class="agile__form-grid"
-          (ngSubmit)="discoverCompanies()"
-        >
-          <mat-form-field appearance="outline">
-            <mat-label>Login</mat-label>
-            <input matInput formControlName="login" autocomplete="username" />
-            @if (credentialsForm.controls.login.hasError('required')) {
-              <mat-error>Введите login.</mat-error>
-            }
-          </mat-form-field>
-
-          <mat-form-field appearance="outline">
-            <mat-label>Password</mat-label>
-            <input
-              matInput
-              type="password"
-              formControlName="password"
-              autocomplete="current-password"
-            />
-            @if (credentialsForm.controls.password.hasError('required')) {
-              <mat-error>Введите password.</mat-error>
-            }
-          </mat-form-field>
-
-          <mat-form-field appearance="outline" class="agile__field-wide">
-            <mat-label>Название компании</mat-label>
-            <input matInput formControlName="name" />
-          </mat-form-field>
-
-          <div class="agile__actions agile__field-wide">
-            <button mat-flat-button type="submit" [disabled]="discoveringCompanies()">
-              {{ discoveringCompanies() ? 'Ищу...' : 'Найти компании' }}
+        @if (currentConnection() && !reconnectMode()) {
+          <div class="agile__settings-grid">
+            <button
+              mat-stroked-button
+              type="button"
+              (click)="syncCurrentConnection()"
+              [disabled]="syncingConnection()"
+            >
+              {{ syncingConnection() ? 'Sync...' : 'Full sync' }}
+            </button>
+            <button mat-stroked-button type="button" (click)="switchToReconnect()">
+              Сменить компанию
+            </button>
+            <button
+              mat-stroked-button
+              type="button"
+              (click)="deleteCurrentConnection()"
+              [disabled]="deletingConnection()"
+            >
+              {{ deletingConnection() ? 'Отключаю...' : 'Отключить' }}
             </button>
           </div>
-        </form>
-
-        @if (availableCompanies().length) {
-          <div class="agile__company-list">
-            @for (company of availableCompanies(); track trackCompany($index, company)) {
-              <button
-                class="agile__company-card"
-                type="button"
-                [class.agile__company-card--active]="selectedCompanyId() === company.id"
-                (click)="chooseCompany(company.id)"
-              >
-                <div class="agile__company-copy">
-                  <strong>{{ company.name }}</strong>
-                  <span>{{ company.id }}</span>
-                </div>
-                <span
-                  class="agile__badge"
-                  [class.agile__badge--warning]="!company.isAdmin"
-                  [class.agile__badge--success]="company.isAdmin"
-                >
-                  {{ company.isAdmin ? 'admin' : 'member' }}
-                </span>
-              </button>
-            }
-          </div>
-        } @else if (hasCompanySearch() && !discoveringCompanies()) {
-          <p class="agile__hint">Компании не найдены.</p>
-        }
-
-        <div class="agile__modal-actions">
-          <button mat-stroked-button type="button" (click)="closeConnectModal()">Отмена</button>
-          <button
-            mat-flat-button
-            type="button"
-            (click)="connectSelectedCompany()"
-            [disabled]="!selectedCompanyId() || connectingConnection()"
+        } @else {
+          <form
+            [formGroup]="credentialsForm"
+            class="agile__form-grid"
+            (ngSubmit)="discoverCompanies()"
           >
-            {{ connectingConnection() ? 'Подключаю...' : 'Подключить' }}
-          </button>
-        </div>
+            <mat-form-field appearance="outline">
+              <mat-label>Login</mat-label>
+              <input matInput formControlName="login" autocomplete="username" />
+              @if (credentialsForm.controls.login.hasError('required')) {
+                <mat-error>Введите login.</mat-error>
+              }
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Password</mat-label>
+              <input
+                matInput
+                type="password"
+                formControlName="password"
+                autocomplete="current-password"
+              />
+              @if (credentialsForm.controls.password.hasError('required')) {
+                <mat-error>Введите password.</mat-error>
+              }
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="agile__field-wide">
+              <mat-label>Название компании</mat-label>
+              <input matInput formControlName="name" />
+            </mat-form-field>
+
+            <div class="agile__actions agile__field-wide">
+              <button mat-flat-button type="submit" [disabled]="discoveringCompanies()">
+                {{ discoveringCompanies() ? 'Ищу...' : 'Найти компании' }}
+              </button>
+            </div>
+          </form>
+
+          @if (availableCompanies().length) {
+            <div class="agile__company-list">
+              @for (company of availableCompanies(); track trackCompany($index, company)) {
+                <button
+                  class="agile__company-card"
+                  type="button"
+                  [class.agile__company-card--active]="selectedCompanyId() === company.id"
+                  (click)="chooseCompany(company.id)"
+                >
+                  <div class="agile__company-copy">
+                    <strong>{{ company.name }}</strong>
+                    <span>{{ company.id }}</span>
+                  </div>
+                  <span
+                    class="agile__badge"
+                    [class.agile__badge--warning]="!company.isAdmin"
+                    [class.agile__badge--success]="company.isAdmin"
+                  >
+                    {{ company.isAdmin ? 'admin' : 'member' }}
+                  </span>
+                </button>
+              }
+            </div>
+          } @else if (hasCompanySearch() && !discoveringCompanies()) {
+            <p class="agile__hint">Компании не найдены.</p>
+          }
+
+          <div class="agile__modal-actions">
+            <button
+              mat-stroked-button
+              type="button"
+              (click)="currentConnection() ? backToSettings() : closeConnectModal()"
+            >
+              {{ currentConnection() ? 'Назад' : 'Отмена' }}
+            </button>
+            <button
+              mat-flat-button
+              type="button"
+              (click)="connectSelectedCompany()"
+              [disabled]="!selectedCompanyId() || connectingConnection()"
+            >
+              {{ connectingConnection() ? 'Подключаю...' : 'Подключить' }}
+            </button>
+          </div>
+        }
       </section>
     </div>
   }

@@ -15,6 +15,7 @@ import (
 	calendarmodule "moneyapp/backend/internal/modules/calendar"
 	catalogmodule "moneyapp/backend/internal/modules/catalog"
 	certificatesmodule "moneyapp/backend/internal/modules/certificates"
+	courseintakesmodule "moneyapp/backend/internal/modules/course_intakes"
 	courserequestsmodule "moneyapp/backend/internal/modules/course_requests"
 	dashboardapimodule "moneyapp/backend/internal/modules/dashboard_api"
 	externaltrainingmodule "moneyapp/backend/internal/modules/external_training"
@@ -53,6 +54,7 @@ type Container struct {
 	LearningService         *learningmodule.Service
 	TestingService          *testingmodule.Service
 	CertificatesService     *certificatesmodule.Service
+	CourseIntakesService    *courseintakesmodule.Service
 	CourseRequestsService   *courserequestsmodule.Service
 	ExternalTrainingService *externaltrainingmodule.Service
 	CalendarService         *calendarmodule.Service
@@ -74,6 +76,7 @@ type Container struct {
 	LearningHandler         *learningmodule.Handler
 	TestingHandler          *testingmodule.Handler
 	CertificatesHandler     *certificatesmodule.Handler
+	CourseIntakesHandler    *courseintakesmodule.Handler
 	CourseRequestsHandler   *courserequestsmodule.Handler
 	ExternalTrainingHandler *externaltrainingmodule.Handler
 	CalendarHandler         *calendarmodule.Handler

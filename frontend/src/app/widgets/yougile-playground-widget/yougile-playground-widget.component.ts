@@ -120,11 +120,36 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
     void this.loadCurrentConnection();
   }
 
+  protected openSettingsModal(): void {
+    this.clearMessages();
+    this.modalError.set(null);
+    this.reconnectMode.set(false);
+    this.modalOpen.set(true);
+    this.resetModalState(true);
+  }
+
   protected openConnectModal(reconnect = false): void {
     this.clearMessages();
     this.modalError.set(null);
     this.reconnectMode.set(reconnect);
     this.modalOpen.set(true);
+    this.resetModalState(true);
+  }
+
+  protected switchToReconnect(): void {
+    this.modalError.set(null);
+    this.reconnectMode.set(true);
+    this.resetModalState(true);
+  }
+
+  protected backToSettings(): void {
+    if (!this.currentConnection()) {
+      this.closeConnectModal();
+      return;
+    }
+
+    this.modalError.set(null);
+    this.reconnectMode.set(false);
     this.resetModalState(true);
   }
 
@@ -230,6 +255,7 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
 
     try {
       await firstValueFrom(this.integrationsApi.deleteYougileConnection(connection.id));
+      this.closeConnectModal(true);
       this.currentConnection.set(null);
       this.summary.set(null);
       this.summaryError.set(null);
@@ -256,6 +282,7 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
 
     try {
       await this.runSync(connection.id, false);
+      this.closeConnectModal(true);
       this.actionNotice.set('Full sync запущен.');
     } catch (error) {
       this.actionError.set(this.describeError(error));
