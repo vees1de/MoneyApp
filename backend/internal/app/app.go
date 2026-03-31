@@ -103,7 +103,7 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 	learningService := learningmodule.NewService(database, learningRepo, orgService, catalogService, outboxService, appClock)
 	testingService := testingmodule.NewService(database, testingRepo, appClock)
 	certificatesService := certificatesmodule.NewService(database, certificatesRepo, outboxService, appClock)
-	courseIntakesService := courseintakesmodule.NewService(database, courseIntakesRepo, orgService, appClock)
+	courseIntakesService := courseintakesmodule.NewService(database, courseIntakesRepo, learningRepo, orgService, appClock)
 	courseRequestsService := courserequestsmodule.NewService(database, courseRequestsRepo, identityRepo, orgService, catalogService, learningRepo, certificatesRepo, appClock)
 	externalTrainingService := externaltrainingmodule.NewService(database, externalTrainingRepo, identityRepo, orgService, outboxService, queue, appClock)
 	calendarService := calendarmodule.NewService(calendarRepo)

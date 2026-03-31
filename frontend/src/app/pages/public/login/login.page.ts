@@ -1,4 +1,5 @@
 ﻿import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -11,6 +12,15 @@ import { firstValueFrom } from 'rxjs';
 import { AuthApiService } from '@core/auth/auth-api.service';
 import { AuthSessionService } from '@core/auth/auth-session.service';
 import { AuthStateService } from '@core/auth/auth-state.service';
+import type { LoginResponse } from '@core/auth/auth.types';
+
+interface AuthApiErrorPayload {
+  error?: {
+    code?: string;
+    message?: string;
+  };
+  message?: string;
+}
 
 @Component({
   selector: 'app-page-public-login',
@@ -38,7 +48,7 @@ export class PublicLoginPageComponent {
 
   protected readonly form = this.fb.group({
     email: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.required, Validators.minLength(6)]],
+    password: ['', [Validators.required]],
   });
 
   protected get emailControl() {
@@ -69,9 +79,6 @@ export class PublicLoginPageComponent {
     if (this.passwordControl.hasError('required')) {
       return 'Введите пароль.';
     }
-    if (this.passwordControl.hasError('minlength')) {
-      return 'Пароль должен быть не короче 6 символов.';
-    }
     return '';
   }
 
@@ -86,23 +93,57 @@ export class PublicLoginPageComponent {
 
     try {
       const payload = this.form.getRawValue();
-      const loginRes = await firstValueFrom(
+      const response = await firstValueFrom(
         this.authApi.login({
           email: payload.email ?? '',
           password: payload.password ?? '',
         }),
       );
 
-      this.authSession.setTokens(loginRes.tokens);
-      const me = await firstValueFrom(this.authApi.me());
-      this.authState.setCurrentUserFromMe(me);
-      this.authSession.setUserSnapshot(me.user);
-
-      await this.router.navigateByUrl('/dashboard');
-    } catch {
-      this.authError.set('Не удалось войти. Проверьте логин и пароль.');
+      await this.completeAuthentication(response);
+    } catch (error) {
+      this.authError.set(this.resolveAuthError(error));
     } finally {
       this.submitting.set(false);
     }
+  }
+
+  private async completeAuthentication(response: LoginResponse): Promise<void> {
+    this.authSession.setTokens(response.tokens);
+    this.authState.setCurrentUser(response.user);
+    this.authSession.setUserSnapshot(response.user);
+
+    await this.router.navigateByUrl('/dashboard');
+  }
+
+  private resolveAuthError(error: unknown): string {
+    const fallback = 'Не удалось войти. Проверьте логин и пароль.';
+    if (!(error instanceof HttpErrorResponse)) {
+      return fallback;
+    }
+
+    const apiError = this.extractApiError(error);
+    if (error.status === 401 || apiError?.code === 'invalid_credentials') {
+      return fallback;
+    }
+
+    return apiError?.message ?? fallback;
+  }
+
+  private extractApiError(error: HttpErrorResponse): AuthApiErrorPayload['error'] | null {
+    const payload = error.error;
+    if (!payload || typeof payload !== 'object') {
+      return null;
+    }
+
+    const typedPayload = payload as AuthApiErrorPayload;
+    if (typedPayload.error) {
+      return typedPayload.error;
+    }
+    if (typedPayload.message) {
+      return { message: typedPayload.message };
+    }
+
+    return null;
   }
 }

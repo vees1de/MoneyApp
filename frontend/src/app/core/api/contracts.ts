@@ -256,6 +256,7 @@ export interface CourseApplication {
   applicant_id: string;
   motivation?: string | null;
   status: string;
+  enrollment_id?: string | null;
   manager_approver_id?: string | null;
   manager_comment?: string | null;
   manager_decided_at?: string | null;
@@ -263,6 +264,9 @@ export interface CourseApplication {
   hr_comment?: string | null;
   hr_decided_at?: string | null;
   payment_status: string;
+  certificate_id?: string | null;
+  certificate_status?: string | null;
+  certificate_uploaded_at?: string | null;
   created_at: string;
   updated_at: string;
 }

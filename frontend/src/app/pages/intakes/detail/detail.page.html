@@ -113,6 +113,37 @@
                 <span class="kv__key">Комментарий HR:</span>
                 <span class="kv__value">{{ application.hr_comment || '—' }}</span>
               </p>
+              @if (application.enrollment_id) {
+                <section class="application-state application-state--learning">
+                  <h3>Обучение и сертификат</h3>
+                  <p>
+                    <span class="kv__key">Карточка обучения:</span>
+                    <a class="kv__value" [routerLink]="'/learning/' + application.enrollment_id">
+                      Открыть обучение
+                    </a>
+                  </p>
+                  <p>
+                    <span class="kv__key">Статус обучения:</span>
+                    <span class="kv__value">{{
+                      enrollmentStatusLabel(myEnrollment()?.status)
+                    }}</span>
+                  </p>
+                  <p>
+                    <span class="kv__key">Сертификат:</span>
+                    <span class="kv__value">{{
+                      certificateStatusLabel(application.certificate_status)
+                    }}</span>
+                  </p>
+                  <p>
+                    <span class="kv__key">Загружен:</span>
+                    <span class="kv__value">{{
+                      application.certificate_uploaded_at
+                        ? (application.certificate_uploaded_at | date: 'dd.MM.yyyy HH:mm')
+                        : '—'
+                    }}</span>
+                  </p>
+                </section>
+              }
 
               @if (canWithdrawMyApplication()) {
                 <button
@@ -372,6 +403,28 @@
                       application.created_at | date: 'dd.MM.yyyy HH:mm'
                     }}</span>
                   </p>
+                  <p>
+                    <span class="kv__key">Сертификат:</span>
+                    <span class="kv__value">{{
+                      certificateStatusLabel(application.certificate_status)
+                    }}</span>
+                  </p>
+                  <p>
+                    <span class="kv__key">Загружен:</span>
+                    <span class="kv__value">{{
+                      application.certificate_uploaded_at
+                        ? (application.certificate_uploaded_at | date: 'dd.MM.yyyy HH:mm')
+                        : '—'
+                    }}</span>
+                  </p>
+                  @if (application.enrollment_id) {
+                    <p>
+                      <span class="kv__key">Карточка обучения:</span>
+                      <a class="kv__value" [routerLink]="'/learning/' + application.enrollment_id">
+                        Открыть обучение
+                      </a>
+                    </p>
+                  }
 
                   @if (canHrApprove(application)) {
                     <mat-form-field appearance="outline" class="application-card__comment">
@@ -381,6 +434,17 @@
                         rows="3"
                         [value]="applicationComment(application.id)"
                         (input)="setApplicationComment(application.id, $any($event.target).value)"
+                      ></textarea>
+                    </mat-form-field>
+                  }
+                  @if (canReviewCertificate(application)) {
+                    <mat-form-field appearance="outline" class="application-card__comment">
+                      <mat-label>Комментарий по сертификату</mat-label>
+                      <textarea
+                        matInput
+                        rows="3"
+                        [value]="certificateComment(application.id)"
+                        (input)="setCertificateComment(application.id, $any($event.target).value)"
                       ></textarea>
                     </mat-form-field>
                   }
@@ -417,6 +481,38 @@
                       >
                         <mat-icon>groups</mat-icon>
                         Взять сотрудника
+                      </button>
+                    }
+                    @if (canForceStartEnrollment(application)) {
+                      <button
+                        mat-stroked-button
+                        type="button"
+                        (click)="startEnrollmentFor(application)"
+                        [disabled]="acting()"
+                      >
+                        <mat-icon>play_circle</mat-icon>
+                        Стартовать курс
+                      </button>
+                    }
+                    @if (canReviewCertificate(application)) {
+                      <button
+                        mat-flat-button
+                        color="primary"
+                        type="button"
+                        (click)="verifyCertificate(application)"
+                        [disabled]="acting()"
+                      >
+                        <mat-icon>verified</mat-icon>
+                        Подтвердить сертификат
+                      </button>
+                      <button
+                        mat-stroked-button
+                        type="button"
+                        (click)="rejectCertificate(application)"
+                        [disabled]="acting()"
+                      >
+                        <mat-icon>report_problem</mat-icon>
+                        Отклонить сертификат
                       </button>
                     }
                   </div>

@@ -1,6 +1,14 @@
-﻿<section class="enrollment-detail-page">
-  <header>
-    <h1>Детали обучения</h1>
+<section class="enrollment-detail-page">
+  <header class="enrollment-detail-page__header">
+    <div>
+      <h1>Карточка обучения</h1>
+      <p>Сотрудник завершает курс здесь и после завершения загружает сертификат для проверки HR.</p>
+    </div>
+
+    <a mat-stroked-button routerLink="/my-learning">
+      <mat-icon>arrow_back</mat-icon>
+      Мои обучения
+    </a>
   </header>
 
   @if (loading()) {
@@ -8,43 +16,171 @@
   } @else if (error()) {
     <p class="enrollment-detail-page__error">{{ error() }}</p>
   } @else if (enrollment(); as item) {
-    <mat-card>
+    <mat-card class="enrollment-detail-card">
       <mat-card-header>
-        <mat-card-title>Enrollment {{ item.id }}</mat-card-title>
-        <mat-card-subtitle>{{ item.status }}</mat-card-subtitle>
+        <mat-card-title>Обучение {{ item.id }}</mat-card-title>
+        <mat-card-subtitle>{{ enrollmentStatusLabel(item.status) }}</mat-card-subtitle>
       </mat-card-header>
 
-      <mat-card-content>
+      <mat-card-content class="enrollment-detail-card__content">
         <mat-progress-bar mode="determinate" [value]="progressValue(item)"></mat-progress-bar>
-        <p>Прогресс: {{ progressValue(item) }}%</p>
-        @if (item.deadline_at) {
-          <p>Дедлайн: {{ item.deadline_at }}</p>
-        }
+        <p>
+          <span class="kv__key">Прогресс:</span>
+          <span class="kv__value">{{ progressValue(item) }}%</span>
+        </p>
+        <p>
+          <span class="kv__key">Записан:</span>
+          <span class="kv__value">{{ item.enrolled_at | date: 'dd.MM.yyyy HH:mm' }}</span>
+        </p>
+        <p>
+          <span class="kv__key">Старт:</span>
+          <span class="kv__value">{{
+            item.started_at ? (item.started_at | date: 'dd.MM.yyyy HH:mm') : '—'
+          }}</span>
+        </p>
+        <p>
+          <span class="kv__key">Завершение:</span>
+          <span class="kv__value">{{
+            item.completed_at ? (item.completed_at | date: 'dd.MM.yyyy HH:mm') : '—'
+          }}</span>
+        </p>
+        <p>
+          <span class="kv__key">Дедлайн:</span>
+          <span class="kv__value">{{
+            item.deadline_at ? (item.deadline_at | date: 'dd.MM.yyyy HH:mm') : '—'
+          }}</span>
+        </p>
 
         <div class="enrollment-detail-page__actions">
-          <button mat-flat-button color="primary" type="button" (click)="start()" [disabled]="acting()">
-            Старт
+          <button
+            mat-flat-button
+            color="primary"
+            type="button"
+            (click)="start()"
+            [disabled]="acting() || item.status === 'completed'"
+          >
+            <mat-icon>play_circle</mat-icon>
+            Начать курс
           </button>
-          <button mat-flat-button color="primary" type="button" (click)="complete()" [disabled]="acting()">
-            Отметить завершенным
+          <button
+            mat-flat-button
+            color="primary"
+            type="button"
+            (click)="complete()"
+            [disabled]="acting() || item.status === 'completed'"
+          >
+            <mat-icon>task_alt</mat-icon>
+            Завершить курс
           </button>
         </div>
 
-        <form class="enrollment-detail-page__progress-form" [formGroup]="progressForm" (ngSubmit)="updateProgress()">
-          <mat-form-field appearance="outline">
-            <mat-label>Course module id</mat-label>
-            <input matInput formControlName="course_module_id" />
-          </mat-form-field>
+        <mat-form-field appearance="outline" class="enrollment-detail-page__wide">
+          <mat-label>Комментарий к завершению</mat-label>
+          <textarea matInput rows="3" [formControl]="completionForm.controls.notes"></textarea>
+        </mat-form-field>
 
-          <mat-form-field appearance="outline">
-            <mat-label>Прогресс %</mat-label>
-            <input matInput type="number" min="0" max="100" formControlName="progress_percent" />
-          </mat-form-field>
+        @if (item.status !== 'completed') {
+          <form
+            class="enrollment-detail-page__progress-form"
+            [formGroup]="progressForm"
+            (ngSubmit)="updateProgress()"
+          >
+            <mat-form-field appearance="outline">
+              <mat-label>Course module id</mat-label>
+              <input matInput formControlName="course_module_id" />
+            </mat-form-field>
 
-          <button mat-stroked-button type="submit" [disabled]="acting() || progressForm.invalid">
-            Обновить прогресс
-          </button>
-        </form>
+            <mat-form-field appearance="outline">
+              <mat-label>Прогресс %</mat-label>
+              <input matInput type="number" min="0" max="100" formControlName="progress_percent" />
+            </mat-form-field>
+
+            <button mat-stroked-button type="submit" [disabled]="acting() || progressForm.invalid">
+              Обновить прогресс
+            </button>
+          </form>
+        }
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="certificate-card">
+      <mat-card-header>
+        <mat-card-title>Сертификат</mat-card-title>
+        <mat-card-subtitle>{{
+          certificateStatusLabel(latestCertificate()?.status)
+        }}</mat-card-subtitle>
+      </mat-card-header>
+
+      <mat-card-content class="certificate-card__content">
+        @if (latestCertificate(); as certificate) {
+          <p>
+            <span class="kv__key">Загружен:</span>
+            <span class="kv__value">{{ certificate.uploaded_at | date: 'dd.MM.yyyy HH:mm' }}</span>
+          </p>
+          <p>
+            <span class="kv__key">Номер:</span>
+            <span class="kv__value">{{ certificate.certificate_no || '—' }}</span>
+          </p>
+          <p>
+            <span class="kv__key">Кем выдан:</span>
+            <span class="kv__value">{{ certificate.issued_by || '—' }}</span>
+          </p>
+          <p>
+            <span class="kv__key">Комментарий HR:</span>
+            <span class="kv__value">{{ certificate.notes || '—' }}</span>
+          </p>
+        } @else {
+          <p class="certificate-card__hint">Сертификат ещё не загружен.</p>
+        }
+
+        @if (canUploadCertificate()) {
+          <div class="certificate-upload">
+            <label class="certificate-upload__picker">
+              <span>Выберите файл сертификата</span>
+              <input type="file" (change)="onCertificateFileSelected($event)" />
+            </label>
+
+            <p class="certificate-upload__filename">{{ selectedCertificateFileName() }}</p>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Номер сертификата</mat-label>
+              <input matInput [formControl]="certificateForm.controls.certificate_no" />
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Кем выдан</mat-label>
+              <input matInput [formControl]="certificateForm.controls.issued_by" />
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="enrollment-detail-page__wide">
+              <mat-label>Комментарий к сертификату</mat-label>
+              <textarea matInput rows="3" [formControl]="certificateForm.controls.notes"></textarea>
+            </mat-form-field>
+
+            <button
+              mat-flat-button
+              color="primary"
+              type="button"
+              (click)="uploadCertificate()"
+              [disabled]="acting() || !selectedCertificateFile()"
+            >
+              <mat-icon>upload_file</mat-icon>
+              Загрузить сертификат
+            </button>
+          </div>
+        } @else {
+          <p class="certificate-card__hint">
+            @if (item.status !== 'completed') {
+              Сначала завершите курс, затем можно будет загрузить сертификат.
+            } @else if (latestCertificate()?.status === 'uploaded') {
+              Сертификат уже загружен и ждёт проверки HR.
+            } @else if (latestCertificate()?.status === 'verified') {
+              Сертификат уже подтверждён HR.
+            } @else {
+              Доступна повторная загрузка только после отклонения предыдущего сертификата.
+            }
+          </p>
+        }
       </mat-card-content>
     </mat-card>
   }

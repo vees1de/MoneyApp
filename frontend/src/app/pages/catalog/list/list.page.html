@@ -33,16 +33,6 @@
           </mat-select>
         </mat-form-field>
 
-        <mat-form-field appearance="outline">
-          <mat-label>Лимит</mat-label>
-          <input matInput type="number" min="1" max="200" formControlName="limit" />
-        </mat-form-field>
-
-        <mat-form-field appearance="outline">
-          <mat-label>Offset</mat-label>
-          <input matInput type="number" min="0" formControlName="offset" />
-        </mat-form-field>
-
         <div class="catalog-filters__actions">
           <button mat-flat-button color="primary" type="submit">
             <mat-icon>tune</mat-icon>
@@ -75,7 +65,7 @@
             <mat-card-title>
               <a [routerLink]="'/catalog/' + course.id">{{ course.title }}</a>
             </mat-card-title>
-            <mat-card-subtitle>{{ course.source_type }} · {{ course.status }}</mat-card-subtitle>
+            <mat-card-subtitle>{{ formatCourseSubtitle(course) }}</mat-card-subtitle>
           </mat-card-header>
 
           <mat-card-content class="course-card__content">
@@ -83,14 +73,59 @@
               <p class="course-card__description">{{ course.short_description }}</p>
             }
 
-            <p><span class="kv__key">Уровень:</span> <span class="kv__value">{{ course.level || '—' }}</span></p>
-            <p><span class="kv__key">Часы:</span> <span class="kv__value">{{ course.duration_hours || '—' }}</span></p>
-            <p><span class="kv__key">Язык:</span> <span class="kv__value">{{ course.language || '—' }}</span></p>
-            <p><span class="kv__key">Стоимость:</span> <span class="kv__value">{{ course.price || '—' }} {{ course.price_currency || '' }}</span></p>
-            <p><span class="kv__key">Обновлено:</span> <span class="kv__value">{{ course.updated_at | date: 'dd.MM.yyyy HH:mm' }}</span></p>
+            <div class="course-card__pills">
+              <span [ngClass]="['course-pill', getLevelPillClass(course)]">
+                <span class="course-pill__label">Уровень</span>
+                <span class="course-pill__value">{{ formatMetaValue(course.level) }}</span>
+              </span>
+
+              <span [ngClass]="['course-pill', getDurationPillClass(course)]">
+                <span class="course-pill__label">Часы</span>
+                <span class="course-pill__value">{{ formatDurationHours(course.duration_hours) }}</span>
+              </span>
+
+              <span [ngClass]="['course-pill', getLanguagePillClass(course)]">
+                <span class="course-pill__label">Язык</span>
+                <span class="course-pill__value">{{ formatMetaValue(course.language) }}</span>
+              </span>
+            </div>
+
+            <div class="course-card__footer-meta">
+              <p><span class="kv__key">Стоимость:</span> <span class="kv__value">{{ formatPrice(course) }}</span></p>
+              <p><span class="kv__key">Обновлено:</span> <span class="kv__value">{{ course.updated_at | date: 'dd.MM.yyyy HH:mm' }}</span></p>
+            </div>
           </mat-card-content>
         </mat-card>
       }
+    </section>
+
+    <section class="catalog-pagination">
+      <div class="catalog-pagination__summary">
+        <span class="catalog-pagination__eyebrow">Каталог</span>
+        <strong class="catalog-pagination__range">{{ pageRangeLabel() }}</strong>
+        <span class="catalog-pagination__meta">Страница {{ currentPage() }} · {{ pageMetaLabel() }}</span>
+      </div>
+
+      <div class="catalog-pagination__actions">
+        <mat-form-field appearance="outline" class="catalog-pagination__limit">
+          <mat-label>На странице</mat-label>
+          <mat-select [value]="form.controls.limit.value" (selectionChange)="changeLimit($event.value)">
+            @for (size of pageSizeOptions; track size) {
+              <mat-option [value]="size">{{ size }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <button mat-stroked-button type="button" (click)="previousPage()" [disabled]="!canGoPrevious()">
+          <mat-icon>chevron_left</mat-icon>
+          Назад
+        </button>
+
+        <button mat-flat-button color="primary" type="button" (click)="nextPage()" [disabled]="!canGoNext()">
+          Дальше
+          <mat-icon>chevron_right</mat-icon>
+        </button>
+      </div>
     </section>
   }
 </section>

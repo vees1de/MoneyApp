@@ -3,7 +3,13 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '@core/config/api.config';
-import type { LoginRequest, LoginResponse, MeResponse, RefreshRequest } from './auth.types';
+import type {
+  LoginRequest,
+  LoginResponse,
+  MeResponse,
+  RefreshRequest,
+  RegisterRequest,
+} from './auth.types';
 
 @Injectable({ providedIn: 'root' })
 export class AuthApiService {
@@ -13,6 +19,10 @@ export class AuthApiService {
 
   login(payload: LoginRequest): Observable<LoginResponse> {
     return this.http.post<LoginResponse>(`${this.base}/login`, payload);
+  }
+
+  register(payload: RegisterRequest): Observable<LoginResponse> {
+    return this.http.post<LoginResponse>(`${this.base}/register`, payload);
   }
 
   me(): Observable<MeResponse> {

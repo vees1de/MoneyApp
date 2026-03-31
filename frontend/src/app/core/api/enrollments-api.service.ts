@@ -1,9 +1,10 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 
 import { API_BASE_URL } from '@core/config/api.config';
 import type { Enrollment } from '@entities/enrollment';
+import { unwrapListResponse } from './list-response.util';
 
 @Injectable({ providedIn: 'root' })
 export class EnrollmentsApiService {
@@ -12,7 +13,9 @@ export class EnrollmentsApiService {
   constructor(private readonly http: HttpClient) {}
 
   listMy(): Observable<Enrollment[]> {
-    return this.http.get<Enrollment[]>(`${this.base}/my`);
+    return this.http
+      .get<Enrollment[] | { items: Enrollment[] }>(`${this.base}/my`)
+      .pipe(map((response) => unwrapListResponse(response)));
   }
 
   getById(id: string): Observable<Enrollment> {

@@ -12,9 +12,11 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { catchError, forkJoin, of } from 'rxjs';
 
+import { CertificatesApiService } from '@core/api/certificates-api.service';
 import { CourseApplicationsApiService } from '@core/api/course-applications-api.service';
 import { CourseIntakesApiService } from '@core/api/course-intakes-api.service';
 import { CoursesApiService } from '@core/api/courses-api.service';
+import { EnrollmentsApiService } from '@core/api/enrollments-api.service';
 import { UsersApiService } from '@core/api/users-api.service';
 import type { CourseApplication, CourseIntake } from '@core/api/contracts';
 import { AuthStateService } from '@core/auth/auth-state.service';
@@ -38,7 +40,9 @@ import {
   isIntakeManageRole,
 } from '@core/domain/course-intakes.workflow';
 import { identityUserDisplayName } from '@core/domain/identity.util';
+import type { Certificate } from '@entities/certificate';
 import type { Course } from '@entities/course';
+import type { Enrollment } from '@entities/enrollment';
 
 @Component({
   selector: 'app-page-intake-detail',
@@ -62,7 +66,9 @@ import type { Course } from '@entities/course';
 export class IntakeDetailPageComponent implements OnInit {
   private readonly intakesApi = inject(CourseIntakesApiService);
   private readonly applicationsApi = inject(CourseApplicationsApiService);
+  private readonly certificatesApi = inject(CertificatesApiService);
   private readonly coursesApi = inject(CoursesApiService);
+  private readonly enrollmentsApi = inject(EnrollmentsApiService);
   private readonly usersApi = inject(UsersApiService);
   private readonly authState = inject(AuthStateService);
   private readonly route = inject(ActivatedRoute);
@@ -76,8 +82,10 @@ export class IntakeDetailPageComponent implements OnInit {
   protected readonly course = signal<Course | null>(null);
   protected readonly applications = signal<CourseApplication[]>([]);
   protected readonly myApplication = signal<CourseApplication | null>(null);
+  protected readonly myEnrollment = signal<Enrollment | null>(null);
   protected readonly users = signal<IdentityUserView[]>([]);
   protected readonly applicationComments = signal<Record<string, string>>({});
+  protected readonly certificateComments = signal<Record<string, string>>({});
 
   protected readonly editForm = this.fb.group({
     title: ['', [Validators.required]],
@@ -114,6 +122,9 @@ export class IntakeDetailPageComponent implements OnInit {
     const item = this.intake();
     return !!item && canApplyToIntake(item.status, !!this.myApplication());
   });
+  protected readonly canVerifyCertificates = computed(() =>
+    this.authState.hasPermission(PERMISSIONS.certificatesVerify),
+  );
   protected readonly canWithdrawMyApplication = computed(() => {
     const application = this.myApplication();
     return !!application && canWithdrawApplication(application.status);
@@ -151,6 +162,35 @@ export class IntakeDetailPageComponent implements OnInit {
     return courseApplicationPaymentStatusLabel(status);
   }
 
+  protected enrollmentStatusLabel(status?: string | null): string {
+    const labels: Record<string, string> = {
+      enrolled: 'Назначено',
+      in_progress: 'В процессе',
+      completed: 'Завершено',
+      canceled: 'Отменено',
+    };
+
+    if (!status) {
+      return '—';
+    }
+
+    return labels[status] ?? status;
+  }
+
+  protected certificateStatusLabel(status?: string | null): string {
+    const labels: Record<string, string> = {
+      uploaded: 'На проверке HR',
+      verified: 'Подтверждён HR',
+      rejected: 'Отклонён HR',
+    };
+
+    if (!status) {
+      return 'Не загружен';
+    }
+
+    return labels[status] ?? status;
+  }
+
   protected userLabel(userId: string | null | undefined): string {
     if (!userId) {
       return '—';
@@ -176,12 +216,35 @@ export class IntakeDetailPageComponent implements OnInit {
     }));
   }
 
+  protected certificateComment(id: string): string {
+    return this.certificateComments()[id] ?? '';
+  }
+
+  protected setCertificateComment(id: string, value: string): void {
+    this.certificateComments.update((state) => ({
+      ...state,
+      [id]: value,
+    }));
+  }
+
   protected canHrApprove(application: CourseApplication): boolean {
     return canHrReviewApplication(application.status);
   }
 
   protected canHrEnroll(application: CourseApplication): boolean {
     return canEnrollApplication(application.status);
+  }
+
+  protected canForceStartEnrollment(application: CourseApplication): boolean {
+    return !!application.enrollment_id;
+  }
+
+  protected canReviewCertificate(application: CourseApplication): boolean {
+    return (
+      !!application.certificate_id &&
+      this.canVerifyCertificates() &&
+      application.certificate_status !== 'verified'
+    );
   }
 
   protected hasEnrolledApplications(): boolean {
@@ -338,6 +401,37 @@ export class IntakeDetailPageComponent implements OnInit {
     });
   }
 
+  protected startEnrollmentFor(application: CourseApplication): void {
+    if (!application.enrollment_id || this.acting()) {
+      return;
+    }
+
+    this.acting.set(true);
+    this.error.set(null);
+
+    this.enrollmentsApi.start(application.enrollment_id).subscribe({
+      next: (updated) => {
+        const current = this.myApplication();
+        if (current?.id === application.id) {
+          this.myEnrollment.set(updated);
+        }
+        this.acting.set(false);
+      },
+      error: () => {
+        this.error.set('Не удалось принудительно стартовать обучение.');
+        this.acting.set(false);
+      },
+    });
+  }
+
+  protected verifyCertificate(application: CourseApplication): void {
+    this.updateCertificateDecision(application, 'verify');
+  }
+
+  protected rejectCertificate(application: CourseApplication): void {
+    this.updateCertificateDecision(application, 'reject');
+  }
+
   protected updateAllPayments(status: 'paid' | 'unpaid'): void {
     const item = this.intake();
     if (!item || this.acting()) {
@@ -352,11 +446,13 @@ export class IntakeDetailPageComponent implements OnInit {
         const map = new Map(
           updatedApplications.map((application) => [application.id, application]),
         );
-        this.applications.update((items) => items.map((item) => map.get(item.id) ?? item));
+        this.applications.update((items) =>
+          items.map((item) => (map.has(item.id) ? { ...item, ...(map.get(item.id) ?? {}) } : item)),
+        );
 
         const current = this.myApplication();
         if (current && map.has(current.id)) {
-          this.myApplication.set(map.get(current.id) ?? current);
+          this.myApplication.set({ ...current, ...(map.get(current.id) ?? {}) });
         }
 
         this.acting.set(false);
@@ -401,14 +497,32 @@ export class IntakeDetailPageComponent implements OnInit {
             : of([]),
         }).subscribe({
           next: ({ course, applications, myApplications, users }) => {
+            const currentMyApplication =
+              (myApplications ?? []).find((application) => application.intake_id === intake.id) ??
+              null;
             this.course.set(course);
             this.applications.set(applications ?? []);
-            this.myApplication.set(
-              (myApplications ?? []).find((application) => application.intake_id === intake.id) ??
-                null,
-            );
+            this.myApplication.set(currentMyApplication);
             this.users.set(users ?? []);
-            this.loading.set(false);
+
+            if (!currentMyApplication?.enrollment_id) {
+              this.myEnrollment.set(null);
+              this.loading.set(false);
+              return;
+            }
+
+            this.enrollmentsApi
+              .getById(currentMyApplication.enrollment_id)
+              .pipe(catchError(() => of(null)))
+              .subscribe({
+                next: (enrollment) => {
+                  this.myEnrollment.set(enrollment);
+                  this.loading.set(false);
+                },
+                error: () => {
+                  this.loading.set(false);
+                },
+              });
           },
           error: () => {
             this.error.set('Не удалось загрузить детали набора.');
@@ -475,12 +589,76 @@ export class IntakeDetailPageComponent implements OnInit {
 
   private replaceApplication(updated: CourseApplication): void {
     this.applications.update((items) =>
-      items.map((item) => (item.id === updated.id ? updated : item)),
+      items.map((item) => (item.id === updated.id ? { ...item, ...updated } : item)),
     );
 
     const current = this.myApplication();
     if (current?.id === updated.id) {
-      this.myApplication.set(updated);
+      this.myApplication.set({ ...current, ...updated });
+      if (updated.enrollment_id) {
+        this.enrollmentsApi
+          .getById(updated.enrollment_id)
+          .pipe(catchError(() => of(null)))
+          .subscribe((enrollment) => this.myEnrollment.set(enrollment));
+      }
     }
+  }
+
+  private updateCertificateDecision(
+    application: CourseApplication,
+    action: 'verify' | 'reject',
+  ): void {
+    if (!application.certificate_id || this.acting()) {
+      return;
+    }
+
+    this.acting.set(true);
+    this.error.set(null);
+
+    const request$ =
+      action === 'verify'
+        ? this.certificatesApi.verify(application.certificate_id, {
+            comment: normalizeText(this.certificateComment(application.id)),
+          })
+        : this.certificatesApi.reject(application.certificate_id, {
+            comment: normalizeText(this.certificateComment(application.id)),
+          });
+
+    request$.subscribe({
+      next: (certificate: Certificate) => {
+        this.applications.update((items) =>
+          items.map((item) =>
+            item.id === application.id
+              ? {
+                  ...item,
+                  certificate_id: certificate.id,
+                  certificate_status: certificate.status,
+                  certificate_uploaded_at: certificate.uploaded_at,
+                }
+              : item,
+          ),
+        );
+
+        const current = this.myApplication();
+        if (current?.id === application.id) {
+          this.myApplication.set({
+            ...current,
+            certificate_id: certificate.id,
+            certificate_status: certificate.status,
+            certificate_uploaded_at: certificate.uploaded_at,
+          });
+        }
+
+        this.acting.set(false);
+      },
+      error: () => {
+        this.error.set(
+          action === 'verify'
+            ? 'Не удалось подтвердить сертификат.'
+            : 'Не удалось отклонить сертификат.',
+        );
+        this.acting.set(false);
+      },
+    });
   }
 }

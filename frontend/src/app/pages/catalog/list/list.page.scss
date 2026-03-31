@@ -16,7 +16,7 @@
   align-items: end;
   display: grid;
   gap: var(--space-3);
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .catalog-filters__actions {
@@ -34,6 +34,8 @@
 .course-card {
   background: #fff;
   border: 1px solid #d8deea !important;
+  display: flex;
+  flex-direction: column;
   height: 100%;
 }
 
@@ -50,7 +52,92 @@
 
 .course-card__content {
   display: grid;
+  flex: 1;
   gap: var(--space-2);
+}
+
+.course-card__footer-meta {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: auto;
+  padding-top: var(--space-2);
+}
+
+.course-card__pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.course-pill {
+  --pill-bg: #f4f7fb;
+  --pill-border: #d9e1ed;
+  --pill-label: #66758a;
+  --pill-text: #203041;
+  align-items: center;
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.78), rgb(255 255 255 / 0.18)), var(--pill-bg);
+  border: 1px solid var(--pill-border);
+  border-radius: 999px;
+  display: inline-flex;
+  gap: 0.45rem;
+  min-height: 2.25rem;
+  padding: 0.4rem 0.75rem;
+}
+
+.course-pill__label {
+  color: var(--pill-label);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.course-pill__value {
+  color: var(--pill-text);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.course-pill--neutral {
+  --pill-bg: #f3f5f7;
+  --pill-border: #dbe1e8;
+  --pill-label: #7d8795;
+  --pill-text: #55606f;
+}
+
+.course-pill--mint {
+  --pill-bg: #e5f7ef;
+  --pill-border: #b7e7cf;
+  --pill-label: #2f7e5a;
+  --pill-text: #17553a;
+}
+
+.course-pill--sky {
+  --pill-bg: #e7f1ff;
+  --pill-border: #bfd5ff;
+  --pill-label: #3f6daf;
+  --pill-text: #214a86;
+}
+
+.course-pill--amber {
+  --pill-bg: #fff2dc;
+  --pill-border: #f3d8a4;
+  --pill-label: #a06b12;
+  --pill-text: #7d5100;
+}
+
+.course-pill--violet {
+  --pill-bg: #eee9ff;
+  --pill-border: #d1c2ff;
+  --pill-label: #6a57b4;
+  --pill-text: #47308d;
+}
+
+.course-pill--coral {
+  --pill-bg: #ffe4df;
+  --pill-border: #f4bfb3;
+  --pill-label: #b4523e;
+  --pill-text: #8a2f1d;
 }
 
 .course-card__description {
@@ -94,6 +181,58 @@
   font-weight: 500;
 }
 
+.catalog-pagination {
+  align-items: center;
+  background: #fff;
+  border: 1px solid #d8deea;
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+}
+
+.catalog-pagination__summary {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.catalog-pagination__eyebrow {
+  color: var(--app-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.catalog-pagination__range {
+  color: var(--app-text);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.catalog-pagination__meta {
+  color: var(--app-muted);
+  font-size: 0.86rem;
+  font-weight: 500;
+}
+
+.catalog-pagination__actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.catalog-pagination__limit {
+  min-width: 150px;
+}
+
+.catalog-pagination__limit ::ng-deep .mat-mdc-form-field-subscript-wrapper {
+  display: none;
+}
+
 .catalog-grid--skeleton {
   min-height: 320px;
 }
@@ -129,5 +268,19 @@
   .catalog-filters,
   .catalog-grid {
     grid-template-columns: 1fr;
+  }
+
+  .catalog-pagination {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .catalog-pagination__actions {
+    width: 100%;
+  }
+
+  .catalog-pagination__actions button,
+  .catalog-pagination__limit {
+    flex: 1 1 100%;
   }
 }

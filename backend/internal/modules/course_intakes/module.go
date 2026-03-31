@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	learningmodule "moneyapp/backend/internal/modules/learning"
 	orgmodule "moneyapp/backend/internal/modules/org"
 	platformauth "moneyapp/backend/internal/platform/auth"
 	"moneyapp/backend/internal/platform/clock"
@@ -42,20 +43,24 @@ type Intake struct {
 }
 
 type Application struct {
-	ID                uuid.UUID  `json:"id"`
-	IntakeID          uuid.UUID  `json:"intake_id"`
-	ApplicantID       uuid.UUID  `json:"applicant_id"`
-	Motivation        *string    `json:"motivation,omitempty"`
-	Status            string     `json:"status"`
-	ManagerApproverID *uuid.UUID `json:"manager_approver_id,omitempty"`
-	ManagerComment    *string    `json:"manager_comment,omitempty"`
-	ManagerDecidedAt  *time.Time `json:"manager_decided_at,omitempty"`
-	HRApproverID      *uuid.UUID `json:"hr_approver_id,omitempty"`
-	HRComment         *string    `json:"hr_comment,omitempty"`
-	HRDecidedAt       *time.Time `json:"hr_decided_at,omitempty"`
-	PaymentStatus     string     `json:"payment_status"`
-	CreatedAt         time.Time  `json:"created_at"`
-	UpdatedAt         time.Time  `json:"updated_at"`
+	ID                    uuid.UUID  `json:"id"`
+	IntakeID              uuid.UUID  `json:"intake_id"`
+	ApplicantID           uuid.UUID  `json:"applicant_id"`
+	Motivation            *string    `json:"motivation,omitempty"`
+	Status                string     `json:"status"`
+	EnrollmentID          *uuid.UUID `json:"enrollment_id,omitempty"`
+	ManagerApproverID     *uuid.UUID `json:"manager_approver_id,omitempty"`
+	ManagerComment        *string    `json:"manager_comment,omitempty"`
+	ManagerDecidedAt      *time.Time `json:"manager_decided_at,omitempty"`
+	HRApproverID          *uuid.UUID `json:"hr_approver_id,omitempty"`
+	HRComment             *string    `json:"hr_comment,omitempty"`
+	HRDecidedAt           *time.Time `json:"hr_decided_at,omitempty"`
+	PaymentStatus         string     `json:"payment_status"`
+	CertificateID         *uuid.UUID `json:"certificate_id,omitempty"`
+	CertificateStatus     *string    `json:"certificate_status,omitempty"`
+	CertificateUploadedAt *time.Time `json:"certificate_uploaded_at,omitempty"`
+	CreatedAt             time.Time  `json:"created_at"`
+	UpdatedAt             time.Time  `json:"updated_at"`
 }
 
 type Suggestion struct {
@@ -229,11 +234,11 @@ func (r *Repository) UpdateIntake(ctx context.Context, item Intake, exec ...db.D
 
 func (r *Repository) CreateApplication(ctx context.Context, item Application, exec ...db.DBTX) error {
 	_, err := r.base(exec...).ExecContext(ctx, `
-		INSERT INTO course_applications (id, intake_id, applicant_id, motivation, status,
+		INSERT INTO course_applications (id, intake_id, applicant_id, motivation, status, enrollment_id,
 			manager_approver_id, manager_comment, manager_decided_at,
 			hr_approver_id, hr_comment, hr_decided_at, payment_status, created_at, updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
-	`, item.ID, item.IntakeID, item.ApplicantID, item.Motivation, item.Status,
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+	`, item.ID, item.IntakeID, item.ApplicantID, item.Motivation, item.Status, item.EnrollmentID,
 		item.ManagerApproverID, item.ManagerComment, item.ManagerDecidedAt,
 		item.HRApproverID, item.HRComment, item.HRDecidedAt, item.PaymentStatus,
 		item.CreatedAt, item.UpdatedAt)
@@ -242,65 +247,102 @@ func (r *Repository) CreateApplication(ctx context.Context, item Application, ex
 
 func (r *Repository) GetApplication(ctx context.Context, id uuid.UUID) (*Application, error) {
 	row := r.db.QueryRowContext(ctx, `
-		SELECT id, intake_id, applicant_id, motivation, status,
-			manager_approver_id, manager_comment, manager_decided_at,
-			hr_approver_id, hr_comment, hr_decided_at, payment_status, created_at, updated_at
-		FROM course_applications WHERE id = $1
+		SELECT ca.id, ca.intake_id, ca.applicant_id, ca.motivation, ca.status, ca.enrollment_id,
+			ca.manager_approver_id, ca.manager_comment, ca.manager_decided_at,
+			ca.hr_approver_id, ca.hr_comment, ca.hr_decided_at, ca.payment_status, ca.created_at, ca.updated_at,
+			cert.id, cert.status, cert.uploaded_at
+		FROM course_applications ca
+		LEFT JOIN LATERAL (
+			SELECT id, status, uploaded_at
+			FROM certificates
+			WHERE enrollment_id = ca.enrollment_id
+			ORDER BY uploaded_at DESC
+			LIMIT 1
+		) cert ON true
+		WHERE ca.id = $1
 	`, id)
-	return scanApplication(row)
+	return scanApplication(row, true)
 }
 
 func (r *Repository) ListApplicationsByIntake(ctx context.Context, intakeID uuid.UUID) ([]Application, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT id, intake_id, applicant_id, motivation, status,
+		SELECT ca.id, ca.intake_id, ca.applicant_id, ca.motivation, ca.status, ca.enrollment_id,
 			manager_approver_id, manager_comment, manager_decided_at,
-			hr_approver_id, hr_comment, hr_decided_at, payment_status, created_at, updated_at
-		FROM course_applications WHERE intake_id = $1 ORDER BY created_at DESC
+			ca.hr_approver_id, ca.hr_comment, ca.hr_decided_at, ca.payment_status, ca.created_at, ca.updated_at,
+			cert.id, cert.status, cert.uploaded_at
+		FROM course_applications ca
+		LEFT JOIN LATERAL (
+			SELECT id, status, uploaded_at
+			FROM certificates
+			WHERE enrollment_id = ca.enrollment_id
+			ORDER BY uploaded_at DESC
+			LIMIT 1
+		) cert ON true
+		WHERE ca.intake_id = $1
+		ORDER BY ca.created_at DESC
 	`, intakeID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	return scanApplications(rows)
+	return scanApplications(rows, true)
 }
 
 func (r *Repository) ListMyApplications(ctx context.Context, userID uuid.UUID) ([]Application, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT id, intake_id, applicant_id, motivation, status,
-			manager_approver_id, manager_comment, manager_decided_at,
-			hr_approver_id, hr_comment, hr_decided_at, payment_status, created_at, updated_at
-		FROM course_applications WHERE applicant_id = $1 ORDER BY created_at DESC
+		SELECT ca.id, ca.intake_id, ca.applicant_id, ca.motivation, ca.status, ca.enrollment_id,
+			ca.manager_approver_id, ca.manager_comment, ca.manager_decided_at,
+			ca.hr_approver_id, ca.hr_comment, ca.hr_decided_at, ca.payment_status, ca.created_at, ca.updated_at,
+			cert.id, cert.status, cert.uploaded_at
+		FROM course_applications ca
+		LEFT JOIN LATERAL (
+			SELECT id, status, uploaded_at
+			FROM certificates
+			WHERE enrollment_id = ca.enrollment_id
+			ORDER BY uploaded_at DESC
+			LIMIT 1
+		) cert ON true
+		WHERE ca.applicant_id = $1
+		ORDER BY ca.created_at DESC
 	`, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	return scanApplications(rows)
+	return scanApplications(rows, true)
 }
 
 func (r *Repository) ListPendingManagerApprovals(ctx context.Context, managerID uuid.UUID) ([]Application, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT id, intake_id, applicant_id, motivation, status,
-			manager_approver_id, manager_comment, manager_decided_at,
-			hr_approver_id, hr_comment, hr_decided_at, payment_status, created_at, updated_at
-		FROM course_applications
-		WHERE manager_approver_id = $1 AND status = 'pending_manager'
-		ORDER BY created_at DESC
+		SELECT ca.id, ca.intake_id, ca.applicant_id, ca.motivation, ca.status, ca.enrollment_id,
+			ca.manager_approver_id, ca.manager_comment, ca.manager_decided_at,
+			ca.hr_approver_id, ca.hr_comment, ca.hr_decided_at, ca.payment_status, ca.created_at, ca.updated_at,
+			cert.id, cert.status, cert.uploaded_at
+		FROM course_applications ca
+		LEFT JOIN LATERAL (
+			SELECT id, status, uploaded_at
+			FROM certificates
+			WHERE enrollment_id = ca.enrollment_id
+			ORDER BY uploaded_at DESC
+			LIMIT 1
+		) cert ON true
+		WHERE ca.manager_approver_id = $1 AND ca.status = 'pending_manager'
+		ORDER BY ca.created_at DESC
 	`, managerID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	return scanApplications(rows)
+	return scanApplications(rows, true)
 }
 
 func (r *Repository) UpdateApplication(ctx context.Context, item Application, exec ...db.DBTX) error {
 	_, err := r.base(exec...).ExecContext(ctx, `
 		UPDATE course_applications
-		SET status=$2, manager_approver_id=$3, manager_comment=$4, manager_decided_at=$5,
-			hr_approver_id=$6, hr_comment=$7, hr_decided_at=$8, payment_status=$9, updated_at=$10
+		SET status=$2, enrollment_id=$3, manager_approver_id=$4, manager_comment=$5, manager_decided_at=$6,
+			hr_approver_id=$7, hr_comment=$8, hr_decided_at=$9, payment_status=$10, updated_at=$11
 		WHERE id=$1
-	`, item.ID, item.Status, item.ManagerApproverID, item.ManagerComment, item.ManagerDecidedAt,
+	`, item.ID, item.Status, item.EnrollmentID, item.ManagerApproverID, item.ManagerComment, item.ManagerDecidedAt,
 		item.HRApproverID, item.HRComment, item.HRDecidedAt, item.PaymentStatus, item.UpdatedAt)
 	return err
 }
@@ -310,7 +352,7 @@ func (r *Repository) UpdateApplicationsPaymentStatusByIntake(ctx context.Context
 		UPDATE course_applications
 		SET payment_status = $2, updated_at = $3
 		WHERE intake_id = $1 AND status = 'enrolled'
-		RETURNING id, intake_id, applicant_id, motivation, status,
+		RETURNING id, intake_id, applicant_id, motivation, status, enrollment_id,
 			manager_approver_id, manager_comment, manager_decided_at,
 			hr_approver_id, hr_comment, hr_decided_at, payment_status, created_at, updated_at
 	`, intakeID, paymentStatus, updatedAt)
@@ -318,7 +360,7 @@ func (r *Repository) UpdateApplicationsPaymentStatusByIntake(ctx context.Context
 		return nil, err
 	}
 	defer rows.Close()
-	return scanApplications(rows)
+	return scanApplications(rows, false)
 }
 
 // --- Suggestions ---
@@ -408,26 +450,43 @@ func scanIntake(row rowScanner) (*Intake, error) {
 	return &it, err
 }
 
-func scanApplication(row rowScanner) (*Application, error) {
+func scanApplication(row rowScanner, includeCertificate bool) (*Application, error) {
 	var a Application
-	err := row.Scan(&a.ID, &a.IntakeID, &a.ApplicantID, &a.Motivation, &a.Status,
-		&a.ManagerApproverID, &a.ManagerComment, &a.ManagerDecidedAt,
-		&a.HRApproverID, &a.HRComment, &a.HRDecidedAt, &a.PaymentStatus,
-		&a.CreatedAt, &a.UpdatedAt)
+	var err error
+	if includeCertificate {
+		err = row.Scan(&a.ID, &a.IntakeID, &a.ApplicantID, &a.Motivation, &a.Status, &a.EnrollmentID,
+			&a.ManagerApproverID, &a.ManagerComment, &a.ManagerDecidedAt,
+			&a.HRApproverID, &a.HRComment, &a.HRDecidedAt, &a.PaymentStatus,
+			&a.CreatedAt, &a.UpdatedAt, &a.CertificateID, &a.CertificateStatus, &a.CertificateUploadedAt)
+	} else {
+		err = row.Scan(&a.ID, &a.IntakeID, &a.ApplicantID, &a.Motivation, &a.Status, &a.EnrollmentID,
+			&a.ManagerApproverID, &a.ManagerComment, &a.ManagerDecidedAt,
+			&a.HRApproverID, &a.HRComment, &a.HRDecidedAt, &a.PaymentStatus,
+			&a.CreatedAt, &a.UpdatedAt)
+	}
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	return &a, err
 }
 
-func scanApplications(rows *sql.Rows) ([]Application, error) {
+func scanApplications(rows *sql.Rows, includeCertificate bool) ([]Application, error) {
 	var list []Application
 	for rows.Next() {
 		var a Application
-		if err := rows.Scan(&a.ID, &a.IntakeID, &a.ApplicantID, &a.Motivation, &a.Status,
-			&a.ManagerApproverID, &a.ManagerComment, &a.ManagerDecidedAt,
-			&a.HRApproverID, &a.HRComment, &a.HRDecidedAt, &a.PaymentStatus,
-			&a.CreatedAt, &a.UpdatedAt); err != nil {
+		var err error
+		if includeCertificate {
+			err = rows.Scan(&a.ID, &a.IntakeID, &a.ApplicantID, &a.Motivation, &a.Status, &a.EnrollmentID,
+				&a.ManagerApproverID, &a.ManagerComment, &a.ManagerDecidedAt,
+				&a.HRApproverID, &a.HRComment, &a.HRDecidedAt, &a.PaymentStatus,
+				&a.CreatedAt, &a.UpdatedAt, &a.CertificateID, &a.CertificateStatus, &a.CertificateUploadedAt)
+		} else {
+			err = rows.Scan(&a.ID, &a.IntakeID, &a.ApplicantID, &a.Motivation, &a.Status, &a.EnrollmentID,
+				&a.ManagerApproverID, &a.ManagerComment, &a.ManagerDecidedAt,
+				&a.HRApproverID, &a.HRComment, &a.HRDecidedAt, &a.PaymentStatus,
+				&a.CreatedAt, &a.UpdatedAt)
+		}
+		if err != nil {
 			return nil, err
 		}
 		list = append(list, a)
@@ -552,14 +611,15 @@ func defaultApplicationDeadline(startDate string) (time.Time, error) {
 // ---------------------------------------------------------------------------
 
 type Service struct {
-	db         *sql.DB
-	repo       *Repository
-	orgService *orgmodule.Service
-	clock      clock.Clock
+	db           *sql.DB
+	repo         *Repository
+	learningRepo *learningmodule.Repository
+	orgService   *orgmodule.Service
+	clock        clock.Clock
 }
 
-func NewService(database *sql.DB, repo *Repository, orgService *orgmodule.Service, clk clock.Clock) *Service {
-	return &Service{db: database, repo: repo, orgService: orgService, clock: clk}
+func NewService(database *sql.DB, repo *Repository, learningRepo *learningmodule.Repository, orgService *orgmodule.Service, clk clock.Clock) *Service {
+	return &Service{db: database, repo: repo, learningRepo: learningRepo, orgService: orgService, clock: clk}
 }
 
 // --- Intakes ---
@@ -908,13 +968,47 @@ func (s *Service) EnrollApplication(ctx context.Context, principal platformauth.
 		return nil, httpx.BadRequest("invalid_status", "application must be approved before enrollment")
 	}
 
-	app.Status = "enrolled"
-	app.PaymentStatus = "unpaid"
-	app.UpdatedAt = s.clock.Now()
-
-	if err := s.repo.UpdateApplication(ctx, *app); err != nil {
+	intake, err := s.repo.GetIntake(ctx, app.IntakeID)
+	if err != nil {
 		return nil, err
 	}
+	if intake == nil {
+		return nil, httpx.NotFound("not_found", "intake not found")
+	}
+	if intake.CourseID == nil {
+		return nil, httpx.Conflict("course_missing", "intake must be linked to a catalog course before enrollment")
+	}
+
+	now := s.clock.Now()
+	enrollment := learningmodule.Enrollment{
+		ID:                uuid.New(),
+		CourseID:          *intake.CourseID,
+		UserID:            app.ApplicantID,
+		Source:            "intake",
+		Status:            "enrolled",
+		EnrolledAt:        now,
+		DeadlineAt:        intakeEndDateToDeadline(intake.EndDate),
+		CompletionPercent: "0",
+		IsMandatory:       false,
+		CreatedAt:         now,
+		UpdatedAt:         now,
+	}
+
+	err = db.WithTx(ctx, s.db, func(tx *sql.Tx) error {
+		if err := s.learningRepo.CreateEnrollment(ctx, enrollment, tx); err != nil {
+			return err
+		}
+
+		app.Status = "enrolled"
+		app.EnrollmentID = &enrollment.ID
+		app.PaymentStatus = "unpaid"
+		app.UpdatedAt = now
+		return s.repo.UpdateApplication(ctx, *app, tx)
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	return app, nil
 }
 
@@ -928,6 +1022,25 @@ func (s *Service) UpdateApplicationsPaymentStatusByIntake(ctx context.Context, i
 	}
 
 	return s.repo.UpdateApplicationsPaymentStatusByIntake(ctx, intakeID, paymentStatus, s.clock.Now())
+}
+
+func intakeEndDateToDeadline(endDate *string) *time.Time {
+	if endDate == nil {
+		return nil
+	}
+
+	trimmed := strings.TrimSpace(*endDate)
+	if trimmed == "" {
+		return nil
+	}
+
+	parsed, err := time.Parse("2006-01-02", trimmed)
+	if err != nil {
+		return nil
+	}
+
+	deadline := time.Date(parsed.Year(), parsed.Month(), parsed.Day(), 23, 59, 0, 0, time.UTC)
+	return &deadline
 }
 
 // --- Suggestions ---

@@ -361,6 +361,9 @@ func (s *Service) StartEnrollment(ctx context.Context, principal platformauth.Pr
 	if err != nil {
 		return Enrollment{}, err
 	}
+	if item.UserID != principal.UserID && !principal.HasPermission("enrollments.manage") {
+		return Enrollment{}, httpx.Forbidden("forbidden", "only owner or HR/admin can start enrollment")
+	}
 	now := s.clock.Now()
 	if item.StartedAt == nil {
 		item.StartedAt = &now
@@ -375,6 +378,9 @@ func (s *Service) ProgressEnrollment(ctx context.Context, principal platformauth
 	item, err := s.GetEnrollment(ctx, principal, id)
 	if err != nil {
 		return Enrollment{}, err
+	}
+	if item.UserID != principal.UserID && !principal.HasPermission("enrollments.manage") {
+		return Enrollment{}, httpx.Forbidden("forbidden", "only owner or HR/admin can update enrollment progress")
 	}
 	now := s.clock.Now()
 	if err := s.repo.UpsertModuleProgress(ctx, id, req, now); err != nil {
@@ -391,6 +397,9 @@ func (s *Service) CompleteEnrollment(ctx context.Context, principal platformauth
 	item, err := s.GetEnrollment(ctx, principal, id)
 	if err != nil {
 		return Enrollment{}, err
+	}
+	if item.UserID != principal.UserID && !principal.HasPermission("enrollments.manage") {
+		return Enrollment{}, httpx.Forbidden("forbidden", "only owner or HR/admin can complete enrollment")
 	}
 	now := s.clock.Now()
 	item.Status = "completed"

@@ -1,9 +1,10 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 
 import { API_BASE_URL } from '@core/config/api.config';
 import type { Certificate } from '@entities/certificate';
+import { unwrapListResponse } from './list-response.util';
 
 @Injectable({ providedIn: 'root' })
 export class CertificatesApiService {
@@ -12,7 +13,9 @@ export class CertificatesApiService {
   constructor(private readonly http: HttpClient) {}
 
   listMy(): Observable<Certificate[]> {
-    return this.http.get<Certificate[]>(`${this.base}/my`);
+    return this.http
+      .get<Certificate[] | { items: Certificate[] }>(`${this.base}/my`)
+      .pipe(map((response) => unwrapListResponse(response)));
   }
 
   upload(payload: Record<string, unknown>): Observable<Certificate> {
