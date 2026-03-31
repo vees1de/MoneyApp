@@ -232,6 +232,54 @@ type ImportStructureResponse struct {
 	ColumnsImported  int `json:"columnsImported"`
 }
 
+type ListTasksQuery struct {
+	AssignedTo    string `json:"assignedTo,omitempty"`
+	ColumnID      string `json:"columnId,omitempty"`
+	IncludeDeleted bool   `json:"includeDeleted,omitempty"`
+	Limit         int    `json:"limit,omitempty"`
+	Offset        int    `json:"offset,omitempty"`
+	Title         string `json:"title,omitempty"`
+}
+
+type TasksPaging struct {
+	Count  int  `json:"count"`
+	Limit  int  `json:"limit"`
+	Offset int  `json:"offset"`
+	Next   bool `json:"next"`
+}
+
+type TaskDeadline struct {
+	Deadline  *time.Time `json:"deadline,omitempty"`
+	StartDate *time.Time `json:"startDate,omitempty"`
+	WithTime  bool       `json:"withTime"`
+}
+
+type TaskItem struct {
+	ID                 string        `json:"id"`
+	Deleted            bool          `json:"deleted"`
+	Title              string        `json:"title"`
+	Timestamp          *time.Time    `json:"timestamp,omitempty"`
+	ColumnID           string        `json:"columnId"`
+	Description        string        `json:"description,omitempty"`
+	Archived           bool          `json:"archived"`
+	ArchivedTimestamp  *time.Time    `json:"archivedTimestamp,omitempty"`
+	Completed          bool          `json:"completed"`
+	CompletedTimestamp *time.Time    `json:"completedTimestamp,omitempty"`
+	Subtasks           []string      `json:"subtasks,omitempty"`
+	Assigned           []string      `json:"assigned,omitempty"`
+	CreatedBy          string        `json:"createdBy,omitempty"`
+	Deadline           *TaskDeadline `json:"deadline,omitempty"`
+	Color              string        `json:"color,omitempty"`
+	IDTaskCommon       string        `json:"idTaskCommon,omitempty"`
+	IDTaskProject      string        `json:"idTaskProject,omitempty"`
+	Type               string        `json:"type,omitempty"`
+}
+
+type ListTasksResponse struct {
+	Paging  TasksPaging `json:"paging"`
+	Content []TaskItem  `json:"content"`
+}
+
 type AutoMatchResponse struct {
 	Matched           int `json:"matched"`
 	UnmatchedInternal int `json:"unmatchedInternal"`
@@ -820,6 +868,82 @@ func (c *Client) ListColumns(ctx context.Context) ([]map[string]any, error) {
 	return extractItems(payload), nil
 }
 
+func (c *Client) ListTasks(ctx context.Context, query ListTasksQuery) (ListTasksResponse, error) {
+	params := url.Values{}
+	if trimmed := strings.TrimSpace(query.AssignedTo); trimmed != "" {
+		params.Set("assignedTo", trimmed)
+	}
+	if trimmed := strings.TrimSpace(query.ColumnID); trimmed != "" {
+		params.Set("columnId", trimmed)
+	}
+	if query.IncludeDeleted {
+		params.Set("includeDeleted", "true")
+	}
+	limit := query.Limit
+	if limit <= 0 || limit > 1000 {
+		limit = 100
+	}
+	params.Set("limit", fmt.Sprintf("%d", limit))
+	if query.Offset > 0 {
+		params.Set("offset", fmt.Sprintf("%d", query.Offset))
+	}
+	if trimmed := strings.TrimSpace(query.Title); trimmed != "" {
+		params.Set("title", trimmed)
+	}
+
+	path := "/api-v2/task-list"
+	if encoded := params.Encode(); encoded != "" {
+		path += "?" + encoded
+	}
+
+	payload, err := c.doJSON(ctx, http.MethodGet, path, nil, true)
+	if err != nil {
+		return ListTasksResponse{}, err
+	}
+
+	result := ListTasksResponse{
+		Content: []TaskItem{},
+	}
+	if paging, ok := payload["paging"].(map[string]any); ok {
+		result.Paging = TasksPaging{
+			Count:  intFromAny(paging["count"]),
+			Limit:  intFromAny(paging["limit"]),
+			Offset: intFromAny(paging["offset"]),
+			Next:   boolFromAny(paging["next"]),
+		}
+	}
+	for _, raw := range extractItems(payload) {
+		item := TaskItem{
+			ID:            firstString(raw, "id"),
+			Deleted:       boolFromAny(raw["deleted"]),
+			Title:         firstString(raw, "title", "name"),
+			Timestamp:     millisTimeFromAny(raw["timestamp"]),
+			ColumnID:      firstString(raw, "columnId"),
+			Description:   stringFromAny(raw["description"]),
+			Archived:      boolFromAny(raw["archived"]),
+			Completed:     boolFromAny(raw["completed"]),
+			Subtasks:      stringSliceFromAny(raw["subtasks"]),
+			Assigned:      stringSliceFromAny(raw["assigned"]),
+			CreatedBy:     firstString(raw, "createdBy"),
+			Color:         firstString(raw, "color"),
+			IDTaskCommon:  firstString(raw, "idTaskCommon"),
+			IDTaskProject: firstString(raw, "idTaskProject"),
+			Type:          firstString(raw, "type"),
+		}
+		item.ArchivedTimestamp = millisTimeFromAny(raw["archivedTimestamp"])
+		item.CompletedTimestamp = millisTimeFromAny(raw["completedTimestamp"])
+		if deadlinePayload, ok := raw["deadline"].(map[string]any); ok {
+			item.Deadline = &TaskDeadline{
+				Deadline:  millisTimeFromAny(deadlinePayload["deadline"]),
+				StartDate: millisTimeFromAny(deadlinePayload["startDate"]),
+				WithTime:  boolFromAny(deadlinePayload["withTime"]),
+			}
+		}
+		result.Content = append(result.Content, item)
+	}
+	return result, nil
+}
+
 func (c *Client) doJSON(ctx context.Context, method, path string, body any, auth bool) (map[string]any, error) {
 	var reader io.Reader
 	if body != nil {
@@ -1215,6 +1339,17 @@ func (s *Service) ListBoards(ctx context.Context, connectionID uuid.UUID) ([]Boa
 
 func (s *Service) ListColumns(ctx context.Context, connectionID uuid.UUID) ([]Column, error) {
 	return s.repo.ListColumns(ctx, connectionID)
+}
+
+func (s *Service) ListTasks(ctx context.Context, connectionID uuid.UUID, query ListTasksQuery) (ListTasksResponse, error) {
+	conn, err := s.repo.GetConnection(ctx, connectionID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ListTasksResponse{}, httpx.NotFound("yougile_connection_not_found", "yougile connection not found")
+		}
+		return ListTasksResponse{}, err
+	}
+	return NewClient(conn.APIBaseURL, conn.APIKeyEncrypted).ListTasks(ctx, query)
 }
 
 func (s *Service) AutoMatch(ctx context.Context, connectionID uuid.UUID, strategy string) (AutoMatchResponse, error) {
@@ -1750,6 +1885,37 @@ func (h *Handler) ListColumns(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 
+func (h *Handler) ListTasks(w http.ResponseWriter, r *http.Request) {
+	principal, ok := requireYougilePrincipal(w, r)
+	if !ok {
+		return
+	}
+	id, err := parseUUIDParam(chi.URLParam(r, "id"), "invalid_connection_id")
+	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	if _, err := h.service.GetConnection(r.Context(), principal, id); err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	limit, offset := parsePaging(r)
+	query := ListTasksQuery{
+		AssignedTo:     r.URL.Query().Get("assignedTo"),
+		ColumnID:       r.URL.Query().Get("columnId"),
+		IncludeDeleted: r.URL.Query().Get("includeDeleted") == "true" || r.URL.Query().Get("includeDeleted") == "1",
+		Limit:          limit,
+		Offset:         offset,
+		Title:          r.URL.Query().Get("title"),
+	}
+	items, err := h.service.ListTasks(r.Context(), id, query)
+	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, items)
+}
+
 func (h *Handler) AutoMatch(w http.ResponseWriter, r *http.Request) {
 	principal, ok := requireYougilePrincipal(w, r)
 	if !ok {
@@ -2022,6 +2188,27 @@ func normalizeOptionalString(values ...any) *string {
 	return nil
 }
 
+func millisTimeFromAny(value any) *time.Time {
+	switch typed := value.(type) {
+	case float64:
+		timestamp := time.UnixMilli(int64(typed)).UTC()
+		return &timestamp
+	case int64:
+		timestamp := time.UnixMilli(typed).UTC()
+		return &timestamp
+	case int:
+		timestamp := time.UnixMilli(int64(typed)).UTC()
+		return &timestamp
+	case string:
+		var parsed int64
+		if _, err := fmt.Sscanf(strings.TrimSpace(typed), "%d", &parsed); err == nil {
+			timestamp := time.UnixMilli(parsed).UTC()
+			return &timestamp
+		}
+	}
+	return nil
+}
+
 func timeFromAny(value any) *time.Time {
 	if text := stringFromAny(value); text != "" {
 		for _, layout := range []string{time.RFC3339, "2006-01-02T15:04:05", "2006-01-02"} {
@@ -2031,6 +2218,20 @@ func timeFromAny(value any) *time.Time {
 		}
 	}
 	return nil
+}
+
+func stringSliceFromAny(value any) []string {
+	items, ok := value.([]any)
+	if !ok {
+		return nil
+	}
+	result := make([]string, 0, len(items))
+	for _, item := range items {
+		if text := stringFromAny(item); text != "" {
+			result = append(result, text)
+		}
+	}
+	return result
 }
 
 func boolFromAny(value any) bool {

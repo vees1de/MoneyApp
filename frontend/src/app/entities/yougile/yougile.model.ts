@@ -121,6 +121,43 @@ export interface YougileBoard {
   updated_at: string;
 }
 
+export interface YougileTaskDeadline {
+  deadline?: string | null;
+  startDate?: string | null;
+  withTime: boolean;
+}
+
+export interface YougileTask {
+  id: string;
+  deleted: boolean;
+  title: string;
+  timestamp?: string | null;
+  columnId: string;
+  description?: string | null;
+  archived: boolean;
+  archivedTimestamp?: string | null;
+  completed: boolean;
+  completedTimestamp?: string | null;
+  subtasks?: string[];
+  assigned?: string[];
+  createdBy?: string | null;
+  deadline?: YougileTaskDeadline | null;
+  color?: string | null;
+  idTaskCommon?: string | null;
+  idTaskProject?: string | null;
+  type?: string | null;
+}
+
+export interface YougileTasksResponse {
+  paging: {
+    count: number;
+    limit: number;
+    offset: number;
+    next: boolean;
+  };
+  content: YougileTask[];
+}
+
 export interface YougileColumn {
   id: string;
   connection_id: string;

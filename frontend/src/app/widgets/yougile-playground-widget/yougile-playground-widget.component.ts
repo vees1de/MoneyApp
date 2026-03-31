@@ -171,7 +171,6 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
           login: payload.login.trim(),
           password: payload.password,
           companyId: company.id,
-          companyName: company.name,
         }),
       );
 

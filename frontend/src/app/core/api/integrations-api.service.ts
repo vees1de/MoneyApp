@@ -22,6 +22,8 @@ import type {
   YougileMappingView,
   YougileProject,
   YougileStartSyncResponse,
+  YougileTask,
+  YougileTasksResponse,
   YougileSyncJob,
   YougileSyncRequest,
   YougileTestConnectionResponse,
@@ -141,6 +143,32 @@ export class IntegrationsApiService {
   listYougileColumns(id: string): Observable<{ items: YougileColumn[] }> {
     return this.http.get<{ items: YougileColumn[] }>(
       `${this.yougileBase}/connections/${id}/columns`,
+    );
+  }
+
+  listYougileTasks(
+    id: string,
+    query?: {
+      assignedTo?: string;
+      columnId?: string;
+      includeDeleted?: boolean;
+      limit?: number;
+      offset?: number;
+      title?: string;
+    },
+  ): Observable<YougileTasksResponse> {
+    const params = new URLSearchParams();
+    if (query?.assignedTo) params.set('assignedTo', query.assignedTo);
+    if (query?.columnId) params.set('columnId', query.columnId);
+    if (typeof query?.includeDeleted === 'boolean') {
+      params.set('includeDeleted', String(query.includeDeleted));
+    }
+    if (typeof query?.limit === 'number') params.set('limit', String(query.limit));
+    if (typeof query?.offset === 'number') params.set('offset', String(query.offset));
+    if (query?.title) params.set('title', query.title);
+    const suffix = params.toString() ? `?${params.toString()}` : '';
+    return this.http.get<YougileTasksResponse>(
+      `${this.yougileBase}/connections/${id}/tasks${suffix}`,
     );
   }
 
