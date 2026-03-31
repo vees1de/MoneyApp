@@ -1,10 +1,6 @@
 <div class="shell">
   <mat-toolbar class="shell__toolbar">
-    <span class="shell__brand">ИМПУЛЬС</span>
-
-    @if (showBackButton) {
-      <button mat-stroked-button type="button" class="shell__back" (click)="goBack()">Назад</button>
-    }
+    <a class="shell__brand" routerLink="/dashboard">ИМПУЛЬС</a>
 
     <nav class="shell__nav">
       @for (item of navItems; track item.route) {
@@ -50,7 +46,10 @@
     </div>
 
     @if (showTestAdminLink()) {
-      <a mat-stroked-button routerLink="/testadmin" class="shell__admin-link">HR/Admin</a>
+      <a mat-stroked-button routerLink="/testadmin" class="shell__admin-link">
+        <mat-icon>admin_panel_settings</mat-icon>
+        HR/Admin
+      </a>
     }
 
     <a mat-icon-button routerLink="/profile" class="shell__profile-link" aria-label="Профиль">

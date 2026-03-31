@@ -12,7 +12,8 @@
 
 ## Header for protected routes
 - dark top bar
-- back button is hidden on dashboard routes (`/dashboard*`) and shown on inner pages
+- brand (`ИМПУЛЬС`) routes to `/dashboard`
+- back button removed from shell
 - custom notifications panel with mark-as-read action
 - profile link
 
@@ -66,9 +67,9 @@
 - explicit field validation messages are shown under each input
 - auth API service + session storage + bootstrap + auth interceptor are implemented
 - auth persistence on reload is implemented via localStorage (tokens + user snapshot)
-- global `401` handler: clear session + clear user + redirect `/login`
+- global `401` handler now performs refresh-token retry; if refresh fails -> clear session + redirect `/login`
 - redirect after successful login is implemented
-- refresh/logout/tests deferred by request
+- logout/tests deferred by request
 
 ## API layer status
 - API base URL unified: `https://bims.su/api`

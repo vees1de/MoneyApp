@@ -13,7 +13,7 @@ Backend is the source of truth.
 - `user.employee_profile`
 
 ## Implemented Services
-- `AuthApiService` (`login`, `me`)
+- `AuthApiService` (`login`, `me`, `refresh`)
 - `AuthSessionService` (localStorage tokens + user snapshot)
 - `AuthBootstrapService` (restore user from token/snapshot on app start)
 - `authHttpInterceptor` (Bearer token + global `401` handling)
@@ -26,9 +26,9 @@ Backend is the source of truth.
 - `dashboardRedirectGuard`: resolves `/dashboard` to role dashboard.
 
 ## 401 Handling
-- clear session
-- clear current user
-- redirect to `/login`
+- tries `POST /auth/refresh` with `refresh_token`
+- on success: stores new tokens, updates user snapshot and retries failed request
+- on refresh failure: clear session + clear user + redirect to `/login`
 
 ## Login Flow (current)
 1. User submits email/password.
@@ -45,6 +45,5 @@ Backend is the source of truth.
 - Session is cleared only on `401`; transient backend/network errors do not force logout.
 
 ## Deferred
-- refresh-token automation
 - logout API flow integration in UI
 - unit tests

@@ -1,19 +1,21 @@
-﻿:host {
+:host {
   display: block;
 }
 
 .catalog-page {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--space-6);
 }
 
 .catalog-page__header h1 {
-  margin: 0;
+  font-size: 2rem;
+  font-weight: 700;
 }
 
 .catalog-page__header p {
   color: var(--app-muted);
-  margin: var(--space-2) 0 0;
+  font-size: 0.96rem;
+  margin-top: var(--space-2);
 }
 
 .catalog-filters {
@@ -31,25 +33,28 @@
 
 .catalog-grid {
   display: grid;
-  gap: var(--space-3);
+  gap: var(--space-4);
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .course-card {
+  background: #fff;
   height: 100%;
 }
 
 .course-card a {
   color: var(--app-text);
+  font-weight: 700;
   text-decoration: none;
 }
 
 .course-card a:hover {
-  text-decoration: underline;
+  color: var(--app-primary);
 }
 
 .catalog-page__error {
   color: #b42318;
+  font-weight: 600;
 }
 
 @media (max-width: 1280px) {

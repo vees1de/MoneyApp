@@ -1,48 +1,58 @@
-﻿<section class="catalog-page">
+<section class="catalog-page">
   <header class="catalog-page__header">
     <h1>Каталог курсов</h1>
-    <p>Все курсы из backend (`GET /api/v1/courses`).</p>
+    <p>Все курсы из backend (`GET /api/v1/courses`) с фильтрами.</p>
   </header>
 
-  <form class="catalog-filters" [formGroup]="form" (ngSubmit)="submitFilters()">
-    <mat-form-field appearance="outline">
-      <mat-label>Статус</mat-label>
-      <mat-select formControlName="status">
-        @for (item of statusOptions; track item.value) {
-          <mat-option [value]="item.value">{{ item.label }}</mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
+  <mat-card>
+    <mat-card-content>
+      <form class="catalog-filters" [formGroup]="form" (ngSubmit)="submitFilters()">
+        <mat-form-field appearance="outline">
+          <mat-label>Статус</mat-label>
+          <mat-select formControlName="status">
+            @for (item of statusOptions; track item.value) {
+              <mat-option [value]="item.value">{{ item.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
 
-    <mat-form-field appearance="outline">
-      <mat-label>Источник</mat-label>
-      <mat-select formControlName="source_type">
-        @for (item of sourceTypeOptions; track item.value) {
-          <mat-option [value]="item.value">{{ item.label }}</mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Источник</mat-label>
+          <mat-select formControlName="source_type">
+            @for (item of sourceTypeOptions; track item.value) {
+              <mat-option [value]="item.value">{{ item.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
 
-    <mat-form-field appearance="outline">
-      <mat-label>Уровень</mat-label>
-      <input matInput formControlName="level" placeholder="junior/middle/senior" />
-    </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Уровень</mat-label>
+          <input matInput formControlName="level" placeholder="junior/middle/senior" />
+        </mat-form-field>
 
-    <mat-form-field appearance="outline">
-      <mat-label>Лимит</mat-label>
-      <input matInput type="number" min="1" max="200" formControlName="limit" />
-    </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Лимит</mat-label>
+          <input matInput type="number" min="1" max="200" formControlName="limit" />
+        </mat-form-field>
 
-    <mat-form-field appearance="outline">
-      <mat-label>Offset</mat-label>
-      <input matInput type="number" min="0" formControlName="offset" />
-    </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Offset</mat-label>
+          <input matInput type="number" min="0" formControlName="offset" />
+        </mat-form-field>
 
-    <div class="catalog-filters__actions">
-      <button mat-flat-button color="primary" type="submit">Применить</button>
-      <button mat-stroked-button type="button" (click)="resetFilters()">Сбросить</button>
-    </div>
-  </form>
+        <div class="catalog-filters__actions">
+          <button mat-flat-button color="primary" type="submit">
+            <mat-icon>tune</mat-icon>
+            Применить
+          </button>
+          <button mat-stroked-button type="button" (click)="resetFilters()">
+            <mat-icon>restart_alt</mat-icon>
+            Сбросить
+          </button>
+        </div>
+      </form>
+    </mat-card-content>
+  </mat-card>
 
   @if (loading()) {
     <p>Загрузка курсов...</p>

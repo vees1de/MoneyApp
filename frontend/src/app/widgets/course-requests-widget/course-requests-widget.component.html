@@ -3,7 +3,7 @@
   listRoute="/external-requests"
   [loading]="loading()"
   [error]="error()"
-  [empty]="filteredCards().length === 0"
+  [empty]="cards().length === 0"
 >
   <div class="filters">
     @for (status of statuses; track status.key) {
@@ -40,6 +40,8 @@
           <a mat-flat-button [routerLink]="'/external-requests/' + item.id">Перейти к заявлению</a>
         </div>
       </mat-card>
+    } @empty {
+      <p class="rows__empty">По выбранному фильтру заявлений нет.</p>
     }
   </div>
 </app-widget-shell>

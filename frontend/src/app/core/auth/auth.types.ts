@@ -45,6 +45,10 @@ export interface AuthTokens {
   expires_in: number;
 }
 
+export interface RefreshRequest {
+  refresh_token: string;
+}
+
 export interface LoginResponse {
   user: IdentityUserView;
   tokens: AuthTokens;

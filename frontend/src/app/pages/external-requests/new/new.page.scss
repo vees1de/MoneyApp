@@ -1,10 +1,20 @@
-﻿:host {
+:host {
   display: block;
 }
 
 .request-new-page {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--space-6);
+}
+
+.request-new-page__header h1 {
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.request-new-page__header p {
+  color: var(--app-muted);
+  margin-top: var(--space-2);
 }
 
 .request-new-form {
@@ -20,6 +30,7 @@
 
 .request-new-page__error {
   color: #b42318;
+  font-weight: 600;
   grid-column: 1 / -1;
 }
 

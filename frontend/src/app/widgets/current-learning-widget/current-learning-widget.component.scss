@@ -29,9 +29,14 @@
 }
 
 .tabs__item--active {
-  background: var(--app-primary-soft);
-  border-color: var(--app-ring);
-  color: var(--app-primary);
+  background: #566ae6;
+  border-color: #566ae6;
+  color: #fff;
+}
+
+.tabs__item--active span {
+  background: rgb(255 255 255 / 22%);
+  color: #fff;
 }
 
 .cards {
@@ -41,12 +46,16 @@
 }
 
 .cards__item {
-  background: var(--app-surface-soft);
+  background: #f7f8fb;
   border: 1px solid var(--app-border);
   border-radius: var(--radius-md);
   display: grid;
   gap: var(--space-2);
   padding: var(--space-4);
+}
+
+.cards__item:nth-child(odd) {
+  background: #fff;
 }
 
 .cards__item--overdue {
@@ -55,12 +64,12 @@
 
 .cards__title {
   color: var(--app-text);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .cards__percent {
   font-size: 1.85rem;
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .cards__meta {

@@ -2,6 +2,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
 import { forkJoin } from 'rxjs';
 
 import { ExternalRequestsApiService } from '@core/api/external-requests-api.service';
@@ -11,7 +12,7 @@ import { WidgetShellComponent } from '@app/widgets/widget-shell/widget-shell.com
 @Component({
   selector: 'app-quick-actions-widget',
   standalone: true,
-  imports: [CommonModule, RouterLink, MatButtonModule, WidgetShellComponent],
+  imports: [CommonModule, RouterLink, MatButtonModule, MatIconModule, WidgetShellComponent],
   templateUrl: './quick-actions-widget.component.html',
   styleUrl: './quick-actions-widget.component.scss',
 })

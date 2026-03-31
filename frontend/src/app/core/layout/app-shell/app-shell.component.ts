@@ -1,4 +1,4 @@
-import { CommonModule, Location } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink, RouterOutlet } from '@angular/router';
 import { MatBadgeModule } from '@angular/material/badge';
@@ -36,7 +36,6 @@ interface HeaderNavItem {
   styleUrl: './app-shell.component.scss',
 })
 export class AppShellComponent {
-  private readonly location = inject(Location);
   private readonly router = inject(Router);
 
   protected readonly authState = inject(AuthStateService);
@@ -68,10 +67,6 @@ export class AppShellComponent {
   );
   protected readonly showTestAdminLink = computed(() => this.authState.hasAnyRole(['admin', 'hr']));
 
-  protected get showBackButton(): boolean {
-    return !this.router.url.startsWith('/dashboard');
-  }
-
   protected toggleNotifications(): void {
     this.notificationsOpen.update((state) => !state);
   }
@@ -86,7 +81,4 @@ export class AppShellComponent {
     );
   }
 
-  protected goBack(): void {
-    this.location.back();
-  }
 }

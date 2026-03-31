@@ -1,6 +1,7 @@
-﻿<section class="request-new-page">
+<section class="request-new-page">
   <header class="request-new-page__header">
     <h1>Новая заявка на внешний курс</h1>
+    <p>Заполните карточку курса для согласования по workflow.</p>
   </header>
 
   <mat-card>
@@ -67,9 +68,13 @@
 
         <div class="request-new-form__actions">
           <button mat-flat-button color="primary" type="submit" [disabled]="submitting()">
+            <mat-icon>send</mat-icon>
             {{ submitting() ? 'Создание...' : 'Создать заявку' }}
           </button>
-          <a mat-stroked-button routerLink="/external-requests">Отмена</a>
+          <a mat-stroked-button routerLink="/external-requests">
+            <mat-icon>arrow_back</mat-icon>
+            Отмена
+          </a>
         </div>
       </form>
     </mat-card-content>

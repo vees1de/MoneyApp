@@ -21,6 +21,16 @@
 
 .mat-mdc-stroked-button {
   border-color: var(--app-border) !important;
+  color: #161a23 !important;
+  font-weight: 700 !important;
+}
+
+.mat-mdc-stroked-button .mat-icon {
+  color: #161a23;
+  font-size: 18px;
+  height: 18px;
+  margin-right: var(--space-2);
+  width: 18px;
 }
 
 .mat-mdc-unelevated-button {
@@ -55,7 +65,7 @@
 }
 
 .mat-mdc-list-item {
-  background: var(--app-surface-soft);
+  background: #fff;
   border: 1px solid var(--app-border);
   border-radius: var(--radius-sm);
   margin-bottom: var(--space-2);
@@ -63,7 +73,7 @@
 }
 
 .mat-grid-tile .mat-grid-tile-content {
-  background: var(--app-surface-soft);
+  background: #fff;
   border: 1px solid var(--app-border);
   border-radius: var(--radius-sm);
   color: var(--app-text);
@@ -81,6 +91,15 @@
 
 .mat-mdc-tab .mdc-tab__text-label {
   font-weight: 500;
+}
+
+.mat-mdc-tab.mdc-tab--active .mdc-tab__text-label {
+  color: #566ae6 !important;
+  font-weight: 700;
+}
+
+.mat-mdc-tab-group .mdc-tab-indicator__content--underline {
+  border-color: #566ae6 !important;
 }
 
 .mat-mdc-chip {

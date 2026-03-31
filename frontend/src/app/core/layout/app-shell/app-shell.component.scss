@@ -17,14 +17,12 @@
 }
 
 .shell__brand {
+  color: var(--app-header-accent);
   font-size: 1.05rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   margin-right: var(--space-2);
-}
-
-.shell__back {
-  margin-right: var(--space-2);
+  text-decoration: none;
 }
 
 .shell__nav {
