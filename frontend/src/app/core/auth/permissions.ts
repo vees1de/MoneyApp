@@ -5,6 +5,8 @@ export const PERMISSIONS = {
   coursesRead: 'courses.read',
   coursesWrite: 'courses.write',
   coursesAssign: 'courses.assign',
+  intakesManage: 'intakes.manage',
+  intakesApply: 'intakes.apply',
   enrollmentsRead: 'enrollments.read',
   enrollmentsManage: 'enrollments.manage',
   externalRequestsCreate: 'external_requests.create',

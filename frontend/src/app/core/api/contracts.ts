@@ -230,3 +230,60 @@ export interface AppNotification {
   related_entity_id?: string | null;
   created_at: string;
 }
+
+export interface CourseIntake {
+  id: string;
+  course_id?: string | null;
+  title: string;
+  description?: string | null;
+  opened_by: string;
+  approver_id?: string | null;
+  max_participants?: number | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  application_deadline?: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CourseApplication {
+  id: string;
+  intake_id: string;
+  applicant_id: string;
+  motivation?: string | null;
+  status: string;
+  manager_approver_id?: string | null;
+  manager_comment?: string | null;
+  manager_decided_at?: string | null;
+  hr_approver_id?: string | null;
+  hr_comment?: string | null;
+  hr_decided_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CourseSuggestion {
+  id: string;
+  suggested_by: string;
+  title: string;
+  description?: string | null;
+  external_url?: string | null;
+  provider_name?: string | null;
+  price?: string | null;
+  price_currency: string;
+  duration_hours?: string | null;
+  approver_id?: string | null;
+  status: string;
+  reviewed_by?: string | null;
+  review_comment?: string | null;
+  reviewed_at?: string | null;
+  intake_id?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SuggestionOpenIntakeResponse {
+  suggestion: CourseSuggestion;
+  intake: CourseIntake;
+}
