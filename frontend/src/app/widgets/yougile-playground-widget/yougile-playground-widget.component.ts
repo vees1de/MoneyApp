@@ -14,7 +14,7 @@ import type {
 } from '@core/api/contracts';
 import { IntegrationsApiService } from '@core/api/integrations-api.service';
 import { WidgetShellComponent } from '@app/widgets/widget-shell/widget-shell.component';
-import type { YougileConnection } from '@entities/yougile';
+import type { YougileCompanyOption, YougileConnection } from '@entities/yougile';
 
 @Component({
   selector: 'app-yougile-playground-widget',
@@ -41,29 +41,36 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
     timeStyle: 'short',
   });
 
-  protected readonly connectionsLoading = signal(true);
+  protected readonly connectionLoading = signal(true);
+  protected readonly discoveringCompanies = signal(false);
+  protected readonly connectingConnection = signal(false);
+  protected readonly deletingConnection = signal(false);
+  protected readonly syncingConnection = signal(false);
+  protected readonly reconnectMode = signal(false);
+  protected readonly hasCompanySearch = signal(false);
+  protected readonly availableCompanies = signal<YougileCompanyOption[]>([]);
+  protected readonly selectedCompanyId = signal<string | null>(null);
+  protected readonly currentConnection = signal<YougileConnection | null>(null);
+  protected readonly boardOptions = signal<BoardSummaryBoardItem[]>([]);
+  protected readonly selectedBoardId = signal<string | null>(null);
+  protected readonly summary = signal<BoardSummary | null>(null);
   protected readonly summaryLoading = signal(false);
-  protected readonly creatingConnection = signal(false);
-  protected readonly deletingConnectionId = signal<string | null>(null);
-  protected readonly syncingConnectionId = signal<string | null>(null);
+  protected readonly summaryError = signal<string | null>(null);
   protected readonly actionError = signal<string | null>(null);
   protected readonly actionNotice = signal<string | null>(null);
-  protected readonly connections = signal<YougileConnection[]>([]);
-  protected readonly selectedConnectionId = signal<string | null>(null);
-  protected readonly boardOptions = signal<BoardSummaryBoardItem[]>([]);
-  protected readonly summary = signal<BoardSummary | null>(null);
-  protected readonly summaryError = signal<string | null>(null);
-  protected readonly selectedBoardId = signal<string | null>(null);
 
-  protected readonly connectForm = this.fb.nonNullable.group({
-    title: [''],
+  protected readonly credentialsForm = this.fb.nonNullable.group({
     login: ['', [Validators.required]],
     password: ['', [Validators.required]],
-    companyId: ['', [Validators.required]],
+    name: [''],
   });
 
-  protected readonly selectedConnection = computed(() =>
-    this.connections().find((item) => item.id === this.selectedConnectionId()) ?? null,
+  protected readonly showWizard = computed(
+    () => !this.connectionLoading() && (!this.currentConnection() || this.reconnectMode()),
+  );
+
+  protected readonly selectedCompany = computed(
+    () => this.availableCompanies().find((item) => item.id === this.selectedCompanyId()) ?? null,
   );
 
   protected readonly activeBoard = computed(() => {
@@ -76,74 +83,157 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
   });
 
   protected readonly summaryUnavailable = computed(() => {
+    if (!this.currentConnection()) {
+      return false;
+    }
+
     const summary = this.summary();
-    return !this.summaryLoading() && !this.summaryError() && (!summary || summary.status !== 'ready');
+    return (
+      !this.summaryLoading() && !this.summaryError() && (!summary || summary.status !== 'ready')
+    );
   });
 
   ngOnInit(): void {
-    void this.loadConnections();
+    void this.loadCurrentConnection();
   }
 
-  protected async createConnection(): Promise<void> {
-    if (this.connectForm.invalid || this.creatingConnection()) {
-      this.connectForm.markAllAsTouched();
+  protected async discoverCompanies(): Promise<void> {
+    if (this.credentialsForm.invalid || this.discoveringCompanies()) {
+      this.credentialsForm.markAllAsTouched();
       return;
     }
 
     this.clearMessages();
-    this.creatingConnection.set(true);
+    this.discoveringCompanies.set(true);
+    this.hasCompanySearch.set(true);
+    this.availableCompanies.set([]);
+    this.selectedCompanyId.set(null);
 
     try {
-      const payload = this.connectForm.getRawValue();
-      const key = await firstValueFrom(
-        this.integrationsApi.createYougileKey({
+      const payload = this.credentialsForm.getRawValue();
+      const response = await firstValueFrom(
+        this.integrationsApi.discoverYougileCompanies({
           login: payload.login.trim(),
           password: payload.password,
-          companyId: payload.companyId.trim(),
+          name: payload.name.trim() || undefined,
         }),
       );
 
-      const connection = await firstValueFrom(
-        this.integrationsApi.createYougileConnection({
-          title: payload.title.trim() || null,
-          apiBaseUrl: 'https://yougile.com',
-          authMode: 'api_key',
-          yougileCompanyId: key.companyId,
-          apiKey: key.apiKey,
-        }),
-      );
-
-      await this.startSync(connection.id, true);
-
-      this.actionNotice.set(
-        'Подключение создано. Full sync запущен, после завершения обновите summary.',
-      );
-      this.connectForm.reset({
-        title: '',
-        login: '',
-        password: '',
-        companyId: '',
-      });
-      await this.loadConnections(connection.id);
+      this.availableCompanies.set(response.content);
+      if (response.content.length === 1) {
+        this.selectedCompanyId.set(response.content[0].id);
+      }
+      if (!response.content.length) {
+        this.actionNotice.set('Компании не найдены. Уточните фильтр или проверьте доступ.');
+      }
     } catch (error) {
       this.actionError.set(this.describeError(error));
+      this.availableCompanies.set([]);
     } finally {
-      this.creatingConnection.set(false);
+      this.discoveringCompanies.set(false);
     }
   }
 
-  protected async reloadConnections(): Promise<void> {
-    await this.loadConnections(this.selectedConnectionId());
+  protected chooseCompany(companyId: string): void {
+    this.selectedCompanyId.set(companyId);
+    this.clearMessages();
   }
 
-  protected async selectConnection(connectionId: string): Promise<void> {
-    if (this.selectedConnectionId() === connectionId) {
+  protected async connectSelectedCompany(): Promise<void> {
+    const companyId = this.selectedCompanyId();
+    if (!companyId || this.connectingConnection()) {
+      if (!companyId) {
+        this.actionError.set('Выберите компанию YouGile.');
+      }
       return;
     }
 
-    this.selectedConnectionId.set(connectionId);
-    this.selectedBoardId.set(null);
-    await this.loadSummary(connectionId, null, false);
+    this.clearMessages();
+    this.connectingConnection.set(true);
+
+    try {
+      const payload = this.credentialsForm.getRawValue();
+      const connection = await firstValueFrom(
+        this.integrationsApi.connectYougileConnection({
+          login: payload.login.trim(),
+          password: payload.password,
+          companyId,
+        }),
+      );
+
+      let syncMessage = 'Подключение сохранено.';
+      try {
+        await this.runSync(connection.id, true);
+        syncMessage = 'Подключение сохранено. Full sync запущен, summary обновится после импорта.';
+      } catch (syncError) {
+        this.actionError.set(this.describeError(syncError));
+        syncMessage = 'Подключение сохранено. Full sync не стартовал, его можно запустить вручную.';
+      }
+
+      this.resetWizard(true);
+      this.reconnectMode.set(false);
+      this.selectedBoardId.set(null);
+      this.actionNotice.set(syncMessage);
+      await this.loadCurrentConnection(connection.id);
+    } catch (error) {
+      this.actionError.set(this.describeError(error));
+    } finally {
+      this.connectingConnection.set(false);
+    }
+  }
+
+  protected beginReconnect(): void {
+    this.clearMessages();
+    this.resetWizard(true);
+    this.reconnectMode.set(true);
+  }
+
+  protected cancelReconnect(): void {
+    this.clearMessages();
+    this.resetWizard(true);
+    this.reconnectMode.set(false);
+  }
+
+  protected async deleteCurrentConnection(): Promise<void> {
+    const connection = this.currentConnection();
+    if (!connection || this.deletingConnection()) {
+      return;
+    }
+
+    this.clearMessages();
+    this.deletingConnection.set(true);
+
+    try {
+      await firstValueFrom(this.integrationsApi.deleteYougileConnection(connection.id));
+      this.currentConnection.set(null);
+      this.summary.set(null);
+      this.summaryError.set(null);
+      this.boardOptions.set([]);
+      this.selectedBoardId.set(null);
+      this.reconnectMode.set(false);
+      this.resetWizard(true);
+      this.actionNotice.set('Подключение удалено.');
+    } catch (error) {
+      this.actionError.set(this.describeError(error));
+    } finally {
+      this.deletingConnection.set(false);
+    }
+  }
+
+  protected async syncCurrentConnection(): Promise<void> {
+    const connection = this.currentConnection();
+    if (!connection) {
+      return;
+    }
+
+    this.clearMessages();
+
+    try {
+      await this.runSync(connection.id, false);
+      this.actionNotice.set('Full sync запущен. Обновите summary через несколько секунд.');
+    } catch (error) {
+      this.actionError.set(this.describeError(error));
+    }
   }
 
   protected async selectBoard(boardId: string | null): Promise<void> {
@@ -151,62 +241,41 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
       return;
     }
 
-    const connectionId = this.selectedConnectionId();
-    if (!connectionId) {
+    const connection = this.currentConnection();
+    if (!connection) {
       return;
     }
 
     this.selectedBoardId.set(boardId);
-    await this.loadSummary(connectionId, boardId, boardId !== null);
+    await this.loadSummary(connection.id, boardId, boardId !== null);
   }
 
   protected async reloadSummary(): Promise<void> {
-    const connectionId = this.selectedConnectionId();
-    if (!connectionId) {
+    const connection = this.currentConnection();
+    if (!connection) {
       return;
     }
 
-    await this.loadSummary(connectionId, this.selectedBoardId(), this.selectedBoardId() !== null);
-  }
-
-  protected async syncSelectedConnection(): Promise<void> {
-    const connectionId = this.selectedConnectionId();
-    if (!connectionId) {
-      return;
-    }
-
-    this.clearMessages();
-
-    try {
-      await this.startSync(connectionId, false);
-      this.actionNotice.set('Full sync запущен. Обновите summary чуть позже.');
-    } catch (error) {
-      this.actionError.set(this.describeError(error));
-    }
-  }
-
-  protected async deleteSelectedConnection(): Promise<void> {
-    const connection = this.selectedConnection();
-    if (!connection || this.deletingConnectionId()) {
-      return;
-    }
-
-    this.clearMessages();
-    this.deletingConnectionId.set(connection.id);
-
-    try {
-      await firstValueFrom(this.integrationsApi.deleteYougileConnection(connection.id));
-      this.actionNotice.set('Подключение удалено.');
-      await this.loadConnections(null);
-    } catch (error) {
-      this.actionError.set(this.describeError(error));
-    } finally {
-      this.deletingConnectionId.set(null);
-    }
+    await this.loadSummary(connection.id, this.selectedBoardId(), this.selectedBoardId() !== null);
   }
 
   protected connectionLabel(connection: YougileConnection): string {
     return connection.title?.trim() || `Компания ${connection.yougile_company_id}`;
+  }
+
+  protected connectionStatusLabel(status: string): string {
+    switch (status) {
+      case 'active':
+        return 'Активно';
+      case 'invalid':
+        return 'Нужна проверка ключа';
+      case 'sync_error':
+        return 'Ошибка sync';
+      case 'revoked':
+        return 'Удалено';
+      default:
+        return status;
+    }
   }
 
   protected formatDeadline(value?: string | null): string {
@@ -243,40 +312,35 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
     return item.title;
   }
 
-  private async loadConnections(preferredConnectionId = this.selectedConnectionId()): Promise<void> {
-    this.connectionsLoading.set(true);
+  private async loadCurrentConnection(_preferredConnectionId?: string): Promise<void> {
+    this.connectionLoading.set(true);
     this.summaryError.set(null);
 
     try {
       const response = await firstValueFrom(this.integrationsApi.listYougileConnections());
-      const visibleConnections = response.items
-        .filter((item) => item.status !== 'revoked')
-        .sort((left, right) => Date.parse(right.updated_at) - Date.parse(left.updated_at));
+      const connection = response.items.find((item) => item.status !== 'revoked') ?? null;
+      this.currentConnection.set(connection);
 
-      this.connections.set(visibleConnections);
-
-      const nextSelectedId = this.resolveSelectedConnectionId(
-        visibleConnections,
-        preferredConnectionId,
-      );
-
-      this.selectedConnectionId.set(nextSelectedId);
-      this.selectedBoardId.set(null);
-
-      if (nextSelectedId) {
-        await this.loadSummary(nextSelectedId, null, false);
-      } else {
+      if (!connection) {
         this.summary.set(null);
         this.boardOptions.set([]);
+        this.selectedBoardId.set(null);
+        return;
       }
+
+      await this.loadSummary(
+        connection.id,
+        this.selectedBoardId(),
+        this.selectedBoardId() !== null,
+      );
     } catch (error) {
-      this.actionError.set(this.describeError(error));
-      this.connections.set([]);
-      this.selectedConnectionId.set(null);
+      this.currentConnection.set(null);
       this.summary.set(null);
       this.boardOptions.set([]);
+      this.selectedBoardId.set(null);
+      this.actionError.set(this.describeError(error));
     } finally {
-      this.connectionsLoading.set(false);
+      this.connectionLoading.set(false);
     }
   }
 
@@ -297,7 +361,6 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
       );
 
       this.summary.set(summary);
-
       if (!preserveBoardOptions || boardId === null) {
         this.boardOptions.set(summary.boards);
       }
@@ -312,8 +375,8 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
     }
   }
 
-  private async startSync(connectionId: string, preserveNotice: boolean): Promise<void> {
-    this.syncingConnectionId.set(connectionId);
+  private async runSync(connectionId: string, preserveNotice: boolean): Promise<void> {
+    this.syncingConnection.set(true);
 
     try {
       await firstValueFrom(
@@ -325,22 +388,25 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
         }),
       );
     } finally {
-      this.syncingConnectionId.set(null);
+      this.syncingConnection.set(false);
       if (!preserveNotice && this.actionNotice()) {
         this.actionNotice.set(null);
       }
     }
   }
 
-  private resolveSelectedConnectionId(
-    connections: YougileConnection[],
-    preferredConnectionId: string | null,
-  ): string | null {
-    if (preferredConnectionId && connections.some((item) => item.id === preferredConnectionId)) {
-      return preferredConnectionId;
-    }
+  private resetWizard(resetCredentials: boolean): void {
+    this.hasCompanySearch.set(false);
+    this.availableCompanies.set([]);
+    this.selectedCompanyId.set(null);
 
-    return connections[0]?.id ?? null;
+    if (resetCredentials) {
+      this.credentialsForm.reset({
+        login: '',
+        password: '',
+        name: '',
+      });
+    }
   }
 
   private clearMessages(): void {
@@ -350,15 +416,23 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
 
   private describeError(error: unknown): string {
     if (error instanceof HttpErrorResponse) {
+      if (error.status === 401) {
+        return 'Неверный login или password.';
+      }
+      if (error.status === 403) {
+        return 'Доступ к компании запрещён или у пользователя нет нужных прав.';
+      }
+      if (error.status === 429) {
+        return 'YouGile временно ограничил запросы. Повторите позже.';
+      }
+
       const apiMessage = this.extractApiMessage(error.error);
       if (apiMessage) {
         return apiMessage;
       }
+
       if (error.status === 0) {
         return 'Backend недоступен.';
-      }
-      if (error.message) {
-        return error.message;
       }
     }
 
@@ -366,6 +440,10 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
   }
 
   private extractApiMessage(payload: unknown): string | null {
+    if (typeof payload === 'string' && payload.trim()) {
+      return payload;
+    }
+
     if (!payload || typeof payload !== 'object') {
       return null;
     }

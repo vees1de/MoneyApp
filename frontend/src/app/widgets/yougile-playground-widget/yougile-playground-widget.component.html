@@ -1,85 +1,5 @@
 <app-widget-shell title="YouGile Agile">
   <section class="agile">
-    <div class="agile__manage-grid">
-      <form class="agile__panel" [formGroup]="connectForm" (ngSubmit)="createConnection()">
-        <div class="agile__panel-head">
-          <h3>Новое подключение</h3>
-          <p>API key не нужен в UI: backend получает его по login, password и company id.</p>
-        </div>
-
-        <div class="agile__form-grid">
-          <mat-form-field appearance="outline">
-            <mat-label>Название</mat-label>
-            <input matInput formControlName="title" placeholder="Хакатон" />
-          </mat-form-field>
-
-          <mat-form-field appearance="outline">
-            <mat-label>Login</mat-label>
-            <input matInput formControlName="login" />
-            @if (connectForm.controls.login.hasError('required')) {
-              <mat-error>Введите логин.</mat-error>
-            }
-          </mat-form-field>
-
-          <mat-form-field appearance="outline">
-            <mat-label>Password</mat-label>
-            <input matInput type="password" formControlName="password" />
-            @if (connectForm.controls.password.hasError('required')) {
-              <mat-error>Введите пароль.</mat-error>
-            }
-          </mat-form-field>
-
-          <mat-form-field appearance="outline">
-            <mat-label>Company ID</mat-label>
-            <input matInput formControlName="companyId" />
-            @if (connectForm.controls.companyId.hasError('required')) {
-              <mat-error>Введите company id.</mat-error>
-            }
-          </mat-form-field>
-        </div>
-
-        <div class="agile__actions">
-          <button mat-flat-button type="submit" [disabled]="creatingConnection()">
-            {{ creatingConnection() ? 'Подключаю...' : 'Добавить подключение' }}
-          </button>
-        </div>
-      </form>
-
-      <section class="agile__panel">
-        <div class="agile__panel-head">
-          <h3>Подключения</h3>
-          <p>Выберите активное connection для summary или удалите ненужное.</p>
-        </div>
-
-        <div class="agile__actions">
-          <button mat-stroked-button type="button" (click)="reloadConnections()">
-            Обновить список
-          </button>
-        </div>
-
-        @if (connectionsLoading()) {
-          <p class="agile__hint">Загружаю подключения...</p>
-        } @else if (!connections().length) {
-          <p class="agile__hint">Подключений пока нет.</p>
-        } @else {
-          <div class="agile__connections">
-            @for (connection of connections(); track connection.id) {
-              <button
-                class="agile__connection-card"
-                type="button"
-                [class.agile__connection-card--active]="selectedConnectionId() === connection.id"
-                (click)="selectConnection(connection.id)"
-              >
-                <strong>{{ connectionLabel(connection) }}</strong>
-                <span>{{ connection.yougile_company_id }}</span>
-                <span>Последний sync: {{ formatSyncTime(connection.last_success_sync_at) }}</span>
-              </button>
-            }
-          </div>
-        }
-      </section>
-    </div>
-
     @if (actionError()) {
       <p class="agile__message agile__message--error">{{ actionError() }}</p>
     }
@@ -88,8 +8,157 @@
       <p class="agile__message agile__message--success">{{ actionNotice() }}</p>
     }
 
-    @if (selectedConnection(); as connection) {
+    @if (connectionLoading()) {
       <section class="agile__panel">
+        <p class="agile__hint">Загружаю текущее подключение YouGile...</p>
+      </section>
+    }
+
+    @if (showWizard()) {
+      <section class="agile__panel agile__panel--wizard">
+        <div class="agile__panel-head">
+          <h3>{{ reconnectMode() ? 'Переподключение YouGile' : 'Подключение YouGile' }}</h3>
+          <p>Сначала находим компании по login и password, затем сохраняем выбранную компанию.</p>
+        </div>
+
+        <form
+          class="agile__form-grid"
+          [formGroup]="credentialsForm"
+          (ngSubmit)="discoverCompanies()"
+        >
+          <mat-form-field appearance="outline">
+            <mat-label>Login</mat-label>
+            <input matInput formControlName="login" autocomplete="username" />
+            @if (credentialsForm.controls.login.hasError('required')) {
+              <mat-error>Введите login.</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Password</mat-label>
+            <input
+              matInput
+              type="password"
+              formControlName="password"
+              autocomplete="current-password"
+            />
+            @if (credentialsForm.controls.password.hasError('required')) {
+              <mat-error>Введите password.</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="agile__field-wide">
+            <mat-label>Фильтр по названию компании</mat-label>
+            <input matInput formControlName="name" placeholder="Например, Хакатон" />
+          </mat-form-field>
+
+          <div class="agile__actions agile__field-wide">
+            <button mat-flat-button type="submit" [disabled]="discoveringCompanies()">
+              {{ discoveringCompanies() ? 'Ищу компании...' : 'Найти компании' }}
+            </button>
+
+            @if (reconnectMode()) {
+              <button mat-stroked-button type="button" (click)="cancelReconnect()">Отмена</button>
+            }
+          </div>
+        </form>
+
+        @if (discoveringCompanies()) {
+          <p class="agile__hint">Проверяю доступ и загружаю список компаний...</p>
+        } @else if (hasCompanySearch() && !availableCompanies().length) {
+          <p class="agile__hint">
+            Компании не найдены. Попробуйте другой фильтр или проверьте доступ.
+          </p>
+        } @else if (availableCompanies().length) {
+          <div class="agile__panel-head">
+            <h3>Выберите компанию</h3>
+            <p>
+              В UI остаётся только одна активная интеграция, выбранная компания заменит текущую.
+            </p>
+          </div>
+
+          <div class="agile__company-list">
+            @for (company of availableCompanies(); track company.id) {
+              <button
+                class="agile__company-card"
+                type="button"
+                [class.agile__company-card--active]="selectedCompanyId() === company.id"
+                (click)="chooseCompany(company.id)"
+              >
+                <div class="agile__company-copy">
+                  <strong>{{ company.name }}</strong>
+                  <span>{{ company.id }}</span>
+                </div>
+                <span
+                  class="agile__badge"
+                  [class.agile__badge--warning]="!company.isAdmin"
+                  [class.agile__badge--success]="company.isAdmin"
+                >
+                  {{ company.isAdmin ? 'admin' : 'member' }}
+                </span>
+              </button>
+            }
+          </div>
+
+          @if (selectedCompany(); as company) {
+            @if (!company.isAdmin) {
+              <p class="agile__message agile__message--warning">
+                У выбранной компании нет admin-прав. Подключение может завершиться ошибкой.
+              </p>
+            }
+          }
+
+          <div class="agile__actions">
+            <button
+              mat-flat-button
+              type="button"
+              (click)="connectSelectedCompany()"
+              [disabled]="!selectedCompanyId() || connectingConnection()"
+            >
+              {{ connectingConnection() ? 'Подключаю...' : 'Подключить выбранную компанию' }}
+            </button>
+          </div>
+        }
+      </section>
+    }
+
+    @if (currentConnection(); as connection) {
+      <section class="agile__panel">
+        <div class="agile__connection-header">
+          <div class="agile__panel-head">
+            <h3>{{ connectionLabel(connection) }}</h3>
+            <p>Единственное активное YouGile-подключение пользователя в playground.</p>
+          </div>
+
+          <div class="agile__actions">
+            <button mat-stroked-button type="button" (click)="beginReconnect()">
+              Переподключить
+            </button>
+            <button
+              mat-stroked-button
+              type="button"
+              (click)="syncCurrentConnection()"
+              [disabled]="syncingConnection()"
+            >
+              {{ syncingConnection() ? 'Sync...' : 'Full sync' }}
+            </button>
+            <button
+              mat-stroked-button
+              type="button"
+              (click)="deleteCurrentConnection()"
+              [disabled]="deletingConnection()"
+            >
+              {{ deletingConnection() ? 'Удаляю...' : 'Удалить' }}
+            </button>
+          </div>
+        </div>
+
+        <div class="agile__connection-meta">
+          <span>Company ID: {{ connection.yougile_company_id }}</span>
+          <span>Статус: {{ connectionStatusLabel(connection.status) }}</span>
+          <span>Последний sync: {{ formatSyncTime(connection.last_success_sync_at) }}</span>
+        </div>
+
         <div class="agile__toolbar">
           <div class="agile__chips">
             <button
@@ -117,29 +186,7 @@
             <button mat-stroked-button type="button" (click)="reloadSummary()">
               Обновить summary
             </button>
-            <button
-              mat-stroked-button
-              type="button"
-              (click)="syncSelectedConnection()"
-              [disabled]="syncingConnectionId() === connection.id"
-            >
-              {{ syncingConnectionId() === connection.id ? 'Sync...' : 'Full sync' }}
-            </button>
-            <button
-              mat-stroked-button
-              type="button"
-              (click)="deleteSelectedConnection()"
-              [disabled]="deletingConnectionId() === connection.id"
-            >
-              {{ deletingConnectionId() === connection.id ? 'Удаляю...' : 'Удалить' }}
-            </button>
           </div>
-        </div>
-
-        <div class="agile__connection-meta">
-          <span>{{ connectionLabel(connection) }}</span>
-          <span>{{ connection.yougile_company_id }}</span>
-          <span>Последний sync: {{ formatSyncTime(connection.last_success_sync_at) }}</span>
         </div>
 
         @if (summaryLoading()) {
@@ -148,7 +195,8 @@
           <p class="agile__message agile__message--error">{{ summaryError() }}</p>
         } @else if (summaryUnavailable()) {
           <p class="agile__hint">
-            Summary пока недоступен. Обычно это значит, что нужен full sync или данные по доскам ещё не импортированы.
+            Summary пока недоступен. Обычно это значит, что данные ещё не успели импортироваться
+            после full sync.
           </p>
         } @else if (summary(); as summary) {
           <div class="agile__stats">
