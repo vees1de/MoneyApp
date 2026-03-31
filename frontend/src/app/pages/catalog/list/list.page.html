@@ -1,11 +1,89 @@
-﻿<section class="page-shell">
-  <header class="page-header">
-    <h1>CatalogListPageComponent</h1>
-    <p>Route: <code>/catalog/list</code></p>
+﻿<section class="catalog-page">
+  <header class="catalog-page__header">
+    <h1>Каталог курсов</h1>
+    <p>Все курсы из backend (`GET /api/v1/courses`).</p>
   </header>
 
-  <main class="page-content">
-    <p>Page scaffold created. Connect real widgets and data flows next.</p>
-    <a routerLink="/">Go to root</a>
-  </main>
+  <form class="catalog-filters" [formGroup]="form" (ngSubmit)="submitFilters()">
+    <mat-form-field appearance="outline">
+      <mat-label>Статус</mat-label>
+      <mat-select formControlName="status">
+        @for (item of statusOptions; track item.value) {
+          <mat-option [value]="item.value">{{ item.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Источник</mat-label>
+      <mat-select formControlName="source_type">
+        @for (item of sourceTypeOptions; track item.value) {
+          <mat-option [value]="item.value">{{ item.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Уровень</mat-label>
+      <input matInput formControlName="level" placeholder="junior/middle/senior" />
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Лимит</mat-label>
+      <input matInput type="number" min="1" max="200" formControlName="limit" />
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Offset</mat-label>
+      <input matInput type="number" min="0" formControlName="offset" />
+    </mat-form-field>
+
+    <div class="catalog-filters__actions">
+      <button mat-flat-button color="primary" type="submit">Применить</button>
+      <button mat-stroked-button type="button" (click)="resetFilters()">Сбросить</button>
+    </div>
+  </form>
+
+  @if (loading()) {
+    <p>Загрузка курсов...</p>
+  } @else if (error()) {
+    <p class="catalog-page__error">{{ error() }}</p>
+  } @else if (courses().length === 0) {
+    <p>Курсы не найдены.</p>
+  } @else {
+    <section class="catalog-grid">
+      @for (course of courses(); track trackByCourse($index, course)) {
+        <mat-card class="course-card">
+          <mat-card-header>
+            <mat-card-title>
+              <a [routerLink]="'/catalog/' + course.id">{{ course.title }}</a>
+            </mat-card-title>
+            <mat-card-subtitle>{{ course.source_type }} · {{ course.status }}</mat-card-subtitle>
+          </mat-card-header>
+
+          <mat-card-content>
+            @if (course.short_description) {
+              <p>{{ course.short_description }}</p>
+            }
+
+            <p>
+              @if (course.level) {
+                <span>Уровень: {{ course.level }}</span>
+              }
+              @if (course.duration_hours) {
+                <span> · Часы: {{ course.duration_hours }}</span>
+              }
+              @if (course.language) {
+                <span> · Язык: {{ course.language }}</span>
+              }
+            </p>
+
+            @if (course.price) {
+              <p>Цена: {{ course.price }} {{ course.price_currency ?? '' }}</p>
+            }
+          </mat-card-content>
+        </mat-card>
+      }
+    </section>
+  }
 </section>

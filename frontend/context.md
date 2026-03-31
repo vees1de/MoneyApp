@@ -48,6 +48,10 @@
   - my requests (`GET /external-requests/my`)
   - work activity (`GET /notifications`)
 
+## Catalog Page
+- `/catalog` now loads real courses from `GET /api/v1/courses`.
+- Filters sent as query params: `status`, `source_type`, `level`, `limit`, `offset`.
+
 ## Auth implementation status
 - login page with email/password form is implemented
 - explicit field validation messages are shown under each input
