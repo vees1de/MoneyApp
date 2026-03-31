@@ -21,7 +21,8 @@ export const dashboardRedirectGuard: CanActivateFn = () => {
     return router.parseUrl('/login');
   }
 
-  const match = ROLE_DASHBOARD_PRIORITY.find(({ role }) => user.roles.includes(role));
+  const primaryRole = user.roles[0];
+  const match = ROLE_DASHBOARD_PRIORITY.find(({ role }) => role === primaryRole);
   if (!match) {
     return router.parseUrl('/forbidden');
   }

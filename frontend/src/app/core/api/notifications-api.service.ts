@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '@core/config/api.config';
-import type { Notification } from '@entities/notification';
+import type { AppNotification } from './contracts';
 
 @Injectable({ providedIn: 'root' })
 export class NotificationsApiService {
@@ -11,12 +11,12 @@ export class NotificationsApiService {
 
   constructor(private readonly http: HttpClient) {}
 
-  list(): Observable<Notification[]> {
-    return this.http.get<Notification[]>(this.base);
+  list(): Observable<AppNotification[]> {
+    return this.http.get<AppNotification[]>(this.base);
   }
 
-  markRead(id: string): Observable<Notification> {
-    return this.http.post<Notification>(`${this.base}/${id}/read`, {});
+  markRead(id: string): Observable<AppNotification> {
+    return this.http.post<AppNotification>(`${this.base}/${id}/read`, {});
   }
 
   markAllRead(): Observable<Record<string, unknown>> {

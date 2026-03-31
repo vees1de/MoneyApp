@@ -1,8 +1,8 @@
-﻿<app-widget-shell title="Jira">
+﻿<app-widget-shell title="Jira" [loading]="loading()" [error]="error()">
   <mat-grid-list cols="4" rowHeight="80px" gutterSize="8px">
-    <mat-grid-tile>TO DO</mat-grid-tile>
-    <mat-grid-tile>DOING</mat-grid-tile>
-    <mat-grid-tile>IN CHECK</mat-grid-tile>
-    <mat-grid-tile>DONE</mat-grid-tile>
+    <mat-grid-tile>Всего: {{ totals().tasks }}</mat-grid-tile>
+    <mat-grid-tile>Активные: {{ totals().active }}</mat-grid-tile>
+    <mat-grid-tile>Завершено: {{ totals().completed }}</mat-grid-tile>
+    <mat-grid-tile>Просрочено: {{ totals().overdue }}</mat-grid-tile>
   </mat-grid-list>
 </app-widget-shell>

@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '@core/config/api.config';
-import type { CalendarEvent } from '@entities/calendar-event';
+import type { CalendarUpcomingEvent } from './contracts';
 
 @Injectable({ providedIn: 'root' })
 export class CalendarApiService {
@@ -11,8 +11,8 @@ export class CalendarApiService {
 
   constructor(private readonly http: HttpClient) {}
 
-  getUpcoming(limit?: number): Observable<CalendarEvent[]> {
+  getUpcoming(limit?: number): Observable<CalendarUpcomingEvent[]> {
     const suffix = typeof limit === 'number' ? `?limit=${limit}` : '';
-    return this.http.get<CalendarEvent[]>(`${this.base}/events/upcoming${suffix}`);
+    return this.http.get<CalendarUpcomingEvent[]>(`${this.base}/events/upcoming${suffix}`);
   }
 }

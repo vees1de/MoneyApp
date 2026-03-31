@@ -1,4 +1,4 @@
-# Project Context (Widget-Based MVP)
+﻿# Project Context (Widget-Based MVP)
 
 ## Key Navigation Decisions
 - `"" -> /dashboard`
@@ -6,6 +6,9 @@
 - `/login` is guest-only (authorized user is redirected to `/dashboard`)
 - Main exploration goes through dashboard widgets (no sidebar)
 - Protected unknown routes redirect to `/dashboard`
+
+## Role Rule
+- One user has exactly one role (backend still returns array, frontend uses first role as primary).
 
 ## Header for protected routes
 - dark top bar
@@ -30,6 +33,18 @@
 6. Recommendations
 7. Quick actions
 
+## Widget Data Integration Status
+- Connected to backend now:
+  - team overview (`auth/me` + manager dashboard)
+  - upcoming events (`GET /calendar/events/upcoming`)
+  - jira summary (`GET /jira/board-summary`)
+  - course requests (`GET /external-requests/pending-approvals`)
+  - current learning (`GET /learning-plan/my`)
+  - recommendations (`GET /recommendations/courses`)
+  - quick actions counters (`GET /learning-plan/my` + `GET /external-requests/my`)
+  - my requests (`GET /external-requests/my`)
+  - work activity (`GET /notifications`)
+
 ## Auth implementation status
 - login page with email/password form is implemented
 - explicit field validation messages are shown under each input
@@ -41,7 +56,7 @@
 ## API layer status
 - API base URL unified: `https://bims.su/api`
 - Added domain services under `src/app/core/api` aligned to backend reference
-- DTO typing is currently mixed: strict where local entity model exists, fallback to `Record<string, unknown>` for unstable contracts
+- Added typed contracts (`src/app/core/api/contracts.ts`) for dashboard/widget payloads
 
 ## Design baseline
 - corporate clean style
