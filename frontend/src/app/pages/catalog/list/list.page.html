@@ -81,7 +81,9 @@
 
               <span [ngClass]="['course-pill', getDurationPillClass(course)]">
                 <span class="course-pill__label">Часы</span>
-                <span class="course-pill__value">{{ formatDurationHours(course.duration_hours) }}</span>
+                <span class="course-pill__value">{{
+                  formatDurationHours(course.duration_hours)
+                }}</span>
               </span>
 
               <span [ngClass]="['course-pill', getLanguagePillClass(course)]">
@@ -91,8 +93,14 @@
             </div>
 
             <div class="course-card__footer-meta">
-              <p><span class="kv__key">Стоимость:</span> <span class="kv__value">{{ formatPrice(course) }}</span></p>
-              <p><span class="kv__key">Обновлено:</span> <span class="kv__value">{{ course.updated_at | date: 'dd.MM.yyyy HH:mm' }}</span></p>
+              <p>
+                <span class="kv__key">Стоимость:</span>
+                <span class="kv__value">{{ formatPrice(course) }}</span>
+              </p>
+              <p>
+                <span class="kv__key">Обновлено:</span>
+                <span class="kv__value">{{ course.updated_at | date: 'dd.MM.yyyy HH:mm' }}</span>
+              </p>
             </div>
           </mat-card-content>
         </mat-card>
@@ -103,25 +111,41 @@
       <div class="catalog-pagination__summary">
         <span class="catalog-pagination__eyebrow">Каталог</span>
         <strong class="catalog-pagination__range">{{ pageRangeLabel() }}</strong>
-        <span class="catalog-pagination__meta">Страница {{ currentPage() }} · {{ pageMetaLabel() }}</span>
+        <span class="catalog-pagination__meta"
+          >Страница {{ currentPage() }} · {{ pageMetaLabel() }}</span
+        >
       </div>
 
       <div class="catalog-pagination__actions">
         <mat-form-field appearance="outline" class="catalog-pagination__limit">
           <mat-label>На странице</mat-label>
-          <mat-select [value]="form.controls.limit.value" (selectionChange)="changeLimit($event.value)">
+          <mat-select
+            [value]="form.controls.limit.value"
+            (selectionChange)="changeLimit($event.value)"
+          >
             @for (size of pageSizeOptions; track size) {
               <mat-option [value]="size">{{ size }}</mat-option>
             }
           </mat-select>
         </mat-form-field>
 
-        <button mat-stroked-button type="button" (click)="previousPage()" [disabled]="!canGoPrevious()">
+        <button
+          mat-stroked-button
+          type="button"
+          (click)="previousPage()"
+          [disabled]="!canGoPrevious()"
+        >
           <mat-icon>chevron_left</mat-icon>
           Назад
         </button>
 
-        <button mat-flat-button color="primary" type="button" (click)="nextPage()" [disabled]="!canGoNext()">
+        <button
+          mat-flat-button
+          color="primary"
+          type="button"
+          (click)="nextPage()"
+          [disabled]="!canGoNext()"
+        >
           Дальше
           <mat-icon>chevron_right</mat-icon>
         </button>

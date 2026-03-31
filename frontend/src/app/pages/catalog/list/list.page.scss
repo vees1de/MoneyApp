@@ -4,6 +4,7 @@
 
 .catalog-page {
   display: grid;
+  grid-template-rows: auto auto 1fr auto;
   gap: var(--space-6);
   min-height: calc(100vh + 64px);
 }
@@ -37,7 +38,7 @@
   border: 1px solid #d8deea !important;
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: fit-content;
 }
 
 .course-card .mat-mdc-card-title {
@@ -260,6 +261,7 @@
   0% {
     background-position: 100% 0;
   }
+
   100% {
     background-position: -100% 0;
   }
@@ -276,6 +278,7 @@
 }
 
 @media (max-width: 900px) {
+
   .catalog-filters,
   .catalog-grid {
     grid-template-columns: 1fr;
