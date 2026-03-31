@@ -62,6 +62,11 @@ def _build_database_url():
     password = os.getenv("POSTGRES_PASSWORD", "")
     host = os.getenv("POSTGRES_HOST", "localhost")
     port = os.getenv("POSTGRES_PORT", "5432")
+
+    # Если порт указан внутри хоста (POSTGRES_HOST=1.2.3.4:5432)
+    if ":" in host:
+        host, port = host.rsplit(":", 1)
+
     return "postgres://%s:%s@%s:%s/%s?sslmode=disable" % (user, password, host, port, db)
 
 
