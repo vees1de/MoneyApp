@@ -1,10 +1,16 @@
-﻿<app-widget-shell
+<app-widget-shell
   title="Мои заявки"
   listRoute="/external-requests"
   [loading]="loading()"
   [error]="error()"
   [empty]="requests().length === 0"
 >
+  <div widget-loading class="my-requests-skeleton">
+    <div class="my-requests-skeleton__item"></div>
+    <div class="my-requests-skeleton__item"></div>
+    <div class="my-requests-skeleton__item"></div>
+  </div>
+
   <mat-list>
     @for (request of requests(); track request.id) {
       <mat-list-item>

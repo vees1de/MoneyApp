@@ -9,7 +9,14 @@
 
   <mat-card-content class="widget-shell__content">
     @if (loading()) {
-      <p class="widget-shell__state">Загрузка...</p>
+      <div class="widget-shell__skeleton">
+        <ng-content select="[widget-loading]" />
+        <div class="widget-shell__skeleton-default">
+          <div class="widget-shell__shimmer widget-shell__shimmer--line"></div>
+          <div class="widget-shell__shimmer widget-shell__shimmer--line"></div>
+          <div class="widget-shell__shimmer widget-shell__shimmer--line short"></div>
+        </div>
+      </div>
     } @else if (error()) {
       <p class="widget-shell__error">Данные не подгрузились :(</p>
     } @else if (empty()) {

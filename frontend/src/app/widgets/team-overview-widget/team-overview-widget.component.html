@@ -1,9 +1,16 @@
-﻿<app-widget-shell
+<app-widget-shell
   title="Моя команда"
   [loading]="loading()"
   [error]="error()"
   [empty]="!loading() && teamMembers().length === 0 && teamSize() === null"
 >
+  <div widget-loading class="team-skeleton">
+    <div class="team-skeleton__title"></div>
+    <div class="team-skeleton__item"></div>
+    <div class="team-skeleton__item"></div>
+    <div class="team-skeleton__item"></div>
+  </div>
+
   <p><strong>{{ displayName() }}</strong></p>
 
   @if (teamSize() !== null) {

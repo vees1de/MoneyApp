@@ -1,6 +1,6 @@
 .mat-mdc-card {
   background: var(--app-surface);
-  border: 1px solid var(--app-border);
+  border: 1px solid #d5dbe8;
   border-radius: var(--radius-md) !important;
   box-shadow: var(--shadow-card);
   padding: var(--space-5);
@@ -65,7 +65,7 @@
 }
 
 .mat-mdc-list-item {
-  background: #fff;
+  background: #f7f8fb;
   border: 1px solid var(--app-border);
   border-radius: var(--radius-sm);
   margin-bottom: var(--space-2);
@@ -73,7 +73,7 @@
 }
 
 .mat-grid-tile .mat-grid-tile-content {
-  background: #fff;
+  background: #f7f8fb;
   border: 1px solid var(--app-border);
   border-radius: var(--radius-sm);
   color: var(--app-text);

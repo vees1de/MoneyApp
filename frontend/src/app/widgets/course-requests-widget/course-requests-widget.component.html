@@ -5,6 +5,17 @@
   [error]="error()"
   [empty]="cards().length === 0"
 >
+  <div widget-loading class="rows rows--loading">
+    <div class="filters">
+      <span class="filters__skeleton"></span>
+      <span class="filters__skeleton"></span>
+      <span class="filters__skeleton"></span>
+    </div>
+    <div class="rows__item rows__item--skeleton"></div>
+    <div class="rows__item rows__item--skeleton"></div>
+    <div class="rows__item rows__item--skeleton"></div>
+  </div>
+
   <div class="filters">
     @for (status of statuses; track status.key) {
       <button
@@ -23,18 +34,19 @@
     @for (item of filteredCards(); track item.id) {
       <mat-card class="rows__item">
         <div class="rows__identity">
-          <a [routerLink]="'/external-requests/' + item.id">
-            <strong>{{ item.employee }}</strong>
-          </a>
-          <small>{{ item.subtitle }}</small>
+          <p><span class="kv__key">Сотрудник:</span> <a [routerLink]="'/external-requests/' + item.id"><strong class="kv__value">{{ item.employee }}</strong></a></p>
+          <p><span class="kv__key">Провайдер:</span> <span class="kv__value">{{ item.subtitle }}</span></p>
         </div>
 
         <div class="rows__course">
-          <strong>{{ item.title }}</strong>
-          <small>{{ item.status }}</small>
+          <p><span class="kv__key">Курс:</span> <strong class="kv__value">{{ item.title }}</strong></p>
+          <p><span class="kv__key">Статус:</span> <span class="kv__value">{{ item.status }}</span></p>
         </div>
 
-        <div class="rows__amount">{{ item.amount }}</div>
+        <div class="rows__amount">
+          <p><span class="kv__key">Стоимость:</span> <span class="kv__value">{{ item.amount }}</span></p>
+          <p><span class="kv__key">Обновлено:</span> <span class="kv__value">{{ item.updatedAt | date: 'dd.MM.yyyy HH:mm' }}</span></p>
+        </div>
 
         <div class="rows__action">
           <a mat-flat-button [routerLink]="'/external-requests/' + item.id">Перейти к заявлению</a>

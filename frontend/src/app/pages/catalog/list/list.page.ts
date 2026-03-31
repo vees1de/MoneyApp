@@ -58,6 +58,14 @@ export class CatalogListPageComponent {
     { value: 'external', label: 'External' },
   ];
 
+  protected readonly levelOptions = [
+    { value: '', label: 'Все уровни' },
+    { value: 'junior', label: 'Junior' },
+    { value: 'middle', label: 'Middle' },
+    { value: 'senior', label: 'Senior' },
+    { value: 'lead', label: 'Lead' },
+  ];
+
   constructor() {
     this.loadCourses();
   }

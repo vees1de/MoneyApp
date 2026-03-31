@@ -9,10 +9,66 @@
 
 @font-face {
   font-family: 'Inter Impuls';
+  src: url('/Inter_18pt-Thin.ttf') format('truetype');
+  font-display: swap;
+  font-style: normal;
+  font-weight: 100;
+}
+
+@font-face {
+  font-family: 'Inter Impuls';
+  src: url('/Inter_18pt-ExtraLight.ttf') format('truetype');
+  font-display: swap;
+  font-style: normal;
+  font-weight: 200;
+}
+
+@font-face {
+  font-family: 'Inter Impuls';
+  src: url('/Inter_18pt-Light.ttf') format('truetype');
+  font-display: swap;
+  font-style: normal;
+  font-weight: 300;
+}
+
+@font-face {
+  font-family: 'Inter Impuls';
   src: url('/Inter_18pt-Regular.ttf') format('truetype');
   font-display: swap;
   font-style: normal;
-  font-weight: 100 900;
+  font-weight: 400;
+}
+
+@font-face {
+  font-family: 'Inter Impuls';
+  src: url('/Inter_18pt-Medium.ttf') format('truetype');
+  font-display: swap;
+  font-style: normal;
+  font-weight: 500;
+}
+
+@font-face {
+  font-family: 'Inter Impuls';
+  src: url('/Inter_18pt-SemiBold.ttf') format('truetype');
+  font-display: swap;
+  font-style: normal;
+  font-weight: 600;
+}
+
+@font-face {
+  font-family: 'Inter Impuls';
+  src: url('/Inter_18pt-Bold.ttf') format('truetype');
+  font-display: swap;
+  font-style: normal;
+  font-weight: 700;
+}
+
+@font-face {
+  font-family: 'Inter Impuls';
+  src: url('/Inter_18pt-ExtraBold.ttf') format('truetype');
+  font-display: swap;
+  font-style: normal;
+  font-weight: 800;
 }
 
 html {
@@ -27,6 +83,12 @@ html {
       density: 0,
     )
   );
+}
+
+:root {
+  --mat-sys-primary: #566ae6;
+  --mat-sys-on-primary: #ffffff;
+  --mat-sys-primary-container: #e9edff;
 }
 
 body {

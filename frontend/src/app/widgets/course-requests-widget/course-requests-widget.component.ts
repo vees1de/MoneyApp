@@ -17,6 +17,7 @@ interface CourseRequestCard {
   status: string;
   subtitle: string;
   amount: string;
+  updatedAt: string;
 }
 
 @Component({
@@ -97,8 +98,9 @@ export class CourseRequestsWidgetComponent implements OnInit {
       title: item.title,
       employee: item.employee_full_name || item.employee_email || 'Сотрудник не указан',
       status: item.status,
-      subtitle: item.provider_name || item.current_approval_role_code || item.status,
+      subtitle: item.provider_name || item.current_approval_role_code || '—',
       amount: `${item.cost_amount || '0'} ${item.currency || 'RUB'}`,
+      updatedAt: item.updated_at,
     }));
   }
 }

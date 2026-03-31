@@ -1,4 +1,11 @@
-﻿<app-widget-shell title="Jira" [loading]="loading()" [error]="error()">
+<app-widget-shell title="Jira" [loading]="loading()" [error]="error()">
+  <div widget-loading class="jira-skeleton">
+    <div class="jira-skeleton__tile"></div>
+    <div class="jira-skeleton__tile"></div>
+    <div class="jira-skeleton__tile"></div>
+    <div class="jira-skeleton__tile"></div>
+  </div>
+
   <mat-grid-list cols="4" rowHeight="80px" gutterSize="8px">
     <mat-grid-tile>Всего: {{ totals().tasks }}</mat-grid-tile>
     <mat-grid-tile>Активные: {{ totals().active }}</mat-grid-tile>
