@@ -1,4 +1,5 @@
-﻿import { Injectable, inject } from '@angular/core';
+﻿import { HttpErrorResponse } from '@angular/common/http';
+import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 import { AuthApiService } from './auth-api.service';
@@ -18,12 +19,26 @@ export class AuthBootstrapService {
       return;
     }
 
+    const snapshot = this.authSession.getUserSnapshot();
+    if (snapshot) {
+      this.authState.setCurrentUser(snapshot);
+    }
+
     try {
       const me = await firstValueFrom(this.authApi.me());
       this.authState.setCurrentUserFromMe(me);
-    } catch {
-      this.authSession.clear();
-      this.authState.setCurrentUser(null);
+      this.authSession.setUserSnapshot(me.user);
+    } catch (error: unknown) {
+      if (error instanceof HttpErrorResponse && error.status === 401) {
+        this.authSession.clear();
+        this.authState.setCurrentUser(null);
+        return;
+      }
+
+      // Keep last known session snapshot for transient network/backend errors.
+      if (!snapshot) {
+        this.authState.setCurrentUser(null);
+      }
     }
   }
 }

@@ -14,8 +14,8 @@ Backend is the source of truth.
 
 ## Implemented Services
 - `AuthApiService` (`login`, `me`)
-- `AuthSessionService` (localStorage tokens)
-- `AuthBootstrapService` (restore user from token on app start)
+- `AuthSessionService` (localStorage tokens + user snapshot)
+- `AuthBootstrapService` (restore user from token/snapshot on app start)
 - `authHttpInterceptor` (Bearer token + global `401` handling)
 
 ## Guards
@@ -36,7 +36,13 @@ Backend is the source of truth.
 3. Tokens are saved in localStorage.
 4. Frontend calls `GET /auth/me`.
 5. `AuthStateService` receives user payload.
-6. Redirect to `/dashboard` (then role redirect guard).
+6. User snapshot is saved to localStorage for fast restore on reload.
+7. Redirect to `/dashboard` (then role redirect guard).
+
+## Reload Persistence
+- On app init, if access token exists, frontend hydrates user from localStorage snapshot.
+- Then it refreshes user by calling `GET /auth/me`.
+- Session is cleared only on `401`; transient backend/network errors do not force logout.
 
 ## Deferred
 - refresh-token automation
