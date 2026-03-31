@@ -842,13 +842,13 @@ func (c *Client) doJSON(ctx context.Context, method, path string, body any, auth
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, httpx.NewError(http.StatusBadGateway, "yougile_transport_failed", err.Error())
 	}
 	defer resp.Body.Close()
 
 	raw, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return nil, httpx.NewError(http.StatusBadGateway, "yougile_response_read_failed", err.Error())
 	}
 	if resp.StatusCode >= http.StatusBadRequest {
 		return nil, httpx.NewError(resp.StatusCode, "yougile_request_failed", strings.TrimSpace(string(raw)))

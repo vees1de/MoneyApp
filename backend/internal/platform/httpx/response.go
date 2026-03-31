@@ -17,7 +17,13 @@ func DecodeJSON(r *http.Request, dst any) error {
 	decoder.DisallowUnknownFields()
 
 	if err := decoder.Decode(dst); err != nil {
-		return err
+		if errors.Is(err, io.EOF) {
+			return BadRequest("invalid_json", "request body is required")
+		}
+		if appErr, ok := err.(*AppError); ok {
+			return appErr
+		}
+		return BadRequest("invalid_json", err.Error())
 	}
 
 	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
