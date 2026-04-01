@@ -41,16 +41,23 @@ export interface CertificateReviewDialogResult {
       <div class="cert-review__body">
         <div class="cert-review__preview">
           @if (data.fileUrl) {
-            <img
-              [src]="data.fileUrl"
-              alt="Сертификат"
-              class="cert-review__image"
-              (error)="imageError = true"
-            />
-            @if (imageError) {
+            @if (canPreviewAsImage() && !imageError) {
+              <img
+                [src]="data.fileUrl"
+                alt="Сертификат"
+                class="cert-review__image"
+                (error)="imageError = true"
+              />
+            } @else {
               <div class="cert-review__fallback">
                 <mat-icon>description</mat-icon>
-                <p>Не удалось загрузить изображение</p>
+                <p>
+                  {{
+                    imageError
+                      ? 'Не удалось загрузить изображение'
+                      : 'Предпросмотр недоступен для этого типа файла'
+                  }}
+                </p>
                 <a [href]="data.fileUrl" target="_blank" mat-stroked-button>
                   <mat-icon>open_in_new</mat-icon>
                   Открыть файл
@@ -207,9 +214,19 @@ export class CertificateReviewDialogComponent {
       application: CourseApplication;
       userName: string;
       fileUrl: string | null;
+      fileName: string | null;
     },
     private dialogRef: MatDialogRef<CertificateReviewDialogComponent, CertificateReviewDialogResult | null>,
   ) {}
+
+  canPreviewAsImage(): boolean {
+    const fileName = this.data.fileName?.trim();
+    if (!fileName) {
+      return false;
+    }
+
+    return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(fileName);
+  }
 
   close(): void {
     this.dialogRef.close(null);

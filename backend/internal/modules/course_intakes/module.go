@@ -44,25 +44,27 @@ type Intake struct {
 }
 
 type Application struct {
-	ID                    uuid.UUID  `json:"id"`
-	IntakeID              uuid.UUID  `json:"intake_id"`
-	ApplicantID           uuid.UUID  `json:"applicant_id"`
-	Motivation            *string    `json:"motivation,omitempty"`
-	Status                string     `json:"status"`
-	EnrollmentID          *uuid.UUID `json:"enrollment_id,omitempty"`
-	EnrollmentStatus      *string    `json:"enrollment_status,omitempty"`
-	ManagerApproverID     *uuid.UUID `json:"manager_approver_id,omitempty"`
-	ManagerComment        *string    `json:"manager_comment,omitempty"`
-	ManagerDecidedAt      *time.Time `json:"manager_decided_at,omitempty"`
-	HRApproverID          *uuid.UUID `json:"hr_approver_id,omitempty"`
-	HRComment             *string    `json:"hr_comment,omitempty"`
-	HRDecidedAt           *time.Time `json:"hr_decided_at,omitempty"`
-	PaymentStatus         string     `json:"payment_status"`
-	CertificateID         *uuid.UUID `json:"certificate_id,omitempty"`
-	CertificateStatus     *string    `json:"certificate_status,omitempty"`
-	CertificateUploadedAt *time.Time `json:"certificate_uploaded_at,omitempty"`
-	CreatedAt             time.Time  `json:"created_at"`
-	UpdatedAt             time.Time  `json:"updated_at"`
+	ID                          uuid.UUID  `json:"id"`
+	IntakeID                    uuid.UUID  `json:"intake_id"`
+	ApplicantID                 uuid.UUID  `json:"applicant_id"`
+	Motivation                  *string    `json:"motivation,omitempty"`
+	Status                      string     `json:"status"`
+	EnrollmentID                *uuid.UUID `json:"enrollment_id,omitempty"`
+	EnrollmentStatus            *string    `json:"enrollment_status,omitempty"`
+	ManagerApproverID           *uuid.UUID `json:"manager_approver_id,omitempty"`
+	ManagerComment              *string    `json:"manager_comment,omitempty"`
+	ManagerDecidedAt            *time.Time `json:"manager_decided_at,omitempty"`
+	HRApproverID                *uuid.UUID `json:"hr_approver_id,omitempty"`
+	HRComment                   *string    `json:"hr_comment,omitempty"`
+	HRDecidedAt                 *time.Time `json:"hr_decided_at,omitempty"`
+	PaymentStatus               string     `json:"payment_status"`
+	CertificateID               *uuid.UUID `json:"certificate_id,omitempty"`
+	CertificateStatus           *string    `json:"certificate_status,omitempty"`
+	CertificateFileStorageKey   *string    `json:"certificate_file_storage_key,omitempty"`
+	CertificateFileOriginalName *string    `json:"certificate_file_original_name,omitempty"`
+	CertificateUploadedAt       *time.Time `json:"certificate_uploaded_at,omitempty"`
+	CreatedAt                   time.Time  `json:"created_at"`
+	UpdatedAt                   time.Time  `json:"updated_at"`
 }
 
 type Suggestion struct {
@@ -295,14 +297,15 @@ func (r *Repository) GetApplication(ctx context.Context, id uuid.UUID) (*Applica
 			e.status,
 			ca.manager_approver_id, ca.manager_comment, ca.manager_decided_at,
 			ca.hr_approver_id, ca.hr_comment, ca.hr_decided_at, ca.payment_status, ca.created_at, ca.updated_at,
-			cert.id, cert.status, cert.uploaded_at
+			cert.id, cert.status, cert.storage_key, cert.original_name, cert.uploaded_at
 		FROM course_applications ca
 		LEFT JOIN enrollments e ON e.id = ca.enrollment_id
 		LEFT JOIN LATERAL (
-			SELECT id, status, uploaded_at
-			FROM certificates
-			WHERE enrollment_id = ca.enrollment_id
-			ORDER BY uploaded_at DESC
+			SELECT c.id, c.status, fa.storage_key, fa.original_name, c.uploaded_at
+			FROM certificates c
+			LEFT JOIN file_attachments fa ON fa.id = c.file_id
+			WHERE c.enrollment_id = ca.enrollment_id
+			ORDER BY c.uploaded_at DESC
 			LIMIT 1
 		) cert ON true
 		WHERE ca.id = $1
@@ -314,16 +317,17 @@ func (r *Repository) ListApplicationsByIntake(ctx context.Context, intakeID uuid
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT ca.id, ca.intake_id, ca.applicant_id, ca.motivation, ca.status, ca.enrollment_id,
 			e.status,
-			manager_approver_id, manager_comment, manager_decided_at,
+			ca.manager_approver_id, ca.manager_comment, ca.manager_decided_at,
 			ca.hr_approver_id, ca.hr_comment, ca.hr_decided_at, ca.payment_status, ca.created_at, ca.updated_at,
-			cert.id, cert.status, cert.uploaded_at
+			cert.id, cert.status, cert.storage_key, cert.original_name, cert.uploaded_at
 		FROM course_applications ca
 		LEFT JOIN enrollments e ON e.id = ca.enrollment_id
 		LEFT JOIN LATERAL (
-			SELECT id, status, uploaded_at
-			FROM certificates
-			WHERE enrollment_id = ca.enrollment_id
-			ORDER BY uploaded_at DESC
+			SELECT c.id, c.status, fa.storage_key, fa.original_name, c.uploaded_at
+			FROM certificates c
+			LEFT JOIN file_attachments fa ON fa.id = c.file_id
+			WHERE c.enrollment_id = ca.enrollment_id
+			ORDER BY c.uploaded_at DESC
 			LIMIT 1
 		) cert ON true
 		WHERE ca.intake_id = $1
@@ -342,14 +346,15 @@ func (r *Repository) ListMyApplications(ctx context.Context, userID uuid.UUID) (
 			e.status,
 			ca.manager_approver_id, ca.manager_comment, ca.manager_decided_at,
 			ca.hr_approver_id, ca.hr_comment, ca.hr_decided_at, ca.payment_status, ca.created_at, ca.updated_at,
-			cert.id, cert.status, cert.uploaded_at
+			cert.id, cert.status, cert.storage_key, cert.original_name, cert.uploaded_at
 		FROM course_applications ca
 		LEFT JOIN enrollments e ON e.id = ca.enrollment_id
 		LEFT JOIN LATERAL (
-			SELECT id, status, uploaded_at
-			FROM certificates
-			WHERE enrollment_id = ca.enrollment_id
-			ORDER BY uploaded_at DESC
+			SELECT c.id, c.status, fa.storage_key, fa.original_name, c.uploaded_at
+			FROM certificates c
+			LEFT JOIN file_attachments fa ON fa.id = c.file_id
+			WHERE c.enrollment_id = ca.enrollment_id
+			ORDER BY c.uploaded_at DESC
 			LIMIT 1
 		) cert ON true
 		WHERE ca.applicant_id = $1
@@ -368,14 +373,15 @@ func (r *Repository) ListPendingManagerApprovals(ctx context.Context, managerID 
 			e.status,
 			ca.manager_approver_id, ca.manager_comment, ca.manager_decided_at,
 			ca.hr_approver_id, ca.hr_comment, ca.hr_decided_at, ca.payment_status, ca.created_at, ca.updated_at,
-			cert.id, cert.status, cert.uploaded_at
+			cert.id, cert.status, cert.storage_key, cert.original_name, cert.uploaded_at
 		FROM course_applications ca
 		LEFT JOIN enrollments e ON e.id = ca.enrollment_id
 		LEFT JOIN LATERAL (
-			SELECT id, status, uploaded_at
-			FROM certificates
-			WHERE enrollment_id = ca.enrollment_id
-			ORDER BY uploaded_at DESC
+			SELECT c.id, c.status, fa.storage_key, fa.original_name, c.uploaded_at
+			FROM certificates c
+			LEFT JOIN file_attachments fa ON fa.id = c.file_id
+			WHERE c.enrollment_id = ca.enrollment_id
+			ORDER BY c.uploaded_at DESC
 			LIMIT 1
 		) cert ON true
 		WHERE ca.manager_approver_id = $1 AND ca.status = 'pending_manager'
@@ -511,7 +517,7 @@ func scanApplication(row rowScanner, includeCertificate bool) (*Application, err
 			&a.EnrollmentStatus,
 			&a.ManagerApproverID, &a.ManagerComment, &a.ManagerDecidedAt,
 			&a.HRApproverID, &a.HRComment, &a.HRDecidedAt, &a.PaymentStatus,
-			&a.CreatedAt, &a.UpdatedAt, &a.CertificateID, &a.CertificateStatus, &a.CertificateUploadedAt)
+			&a.CreatedAt, &a.UpdatedAt, &a.CertificateID, &a.CertificateStatus, &a.CertificateFileStorageKey, &a.CertificateFileOriginalName, &a.CertificateUploadedAt)
 	} else {
 		err = row.Scan(&a.ID, &a.IntakeID, &a.ApplicantID, &a.Motivation, &a.Status, &a.EnrollmentID,
 			&a.EnrollmentStatus,
@@ -535,7 +541,7 @@ func scanApplications(rows *sql.Rows, includeCertificate bool) ([]Application, e
 				&a.EnrollmentStatus,
 				&a.ManagerApproverID, &a.ManagerComment, &a.ManagerDecidedAt,
 				&a.HRApproverID, &a.HRComment, &a.HRDecidedAt, &a.PaymentStatus,
-				&a.CreatedAt, &a.UpdatedAt, &a.CertificateID, &a.CertificateStatus, &a.CertificateUploadedAt)
+				&a.CreatedAt, &a.UpdatedAt, &a.CertificateID, &a.CertificateStatus, &a.CertificateFileStorageKey, &a.CertificateFileOriginalName, &a.CertificateUploadedAt)
 		} else {
 			err = rows.Scan(&a.ID, &a.IntakeID, &a.ApplicantID, &a.Motivation, &a.Status, &a.EnrollmentID,
 				&a.EnrollmentStatus,

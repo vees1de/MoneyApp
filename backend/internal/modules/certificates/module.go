@@ -130,12 +130,12 @@ func (r *Repository) CreateVerification(ctx context.Context, certificateID, perf
 func (r *Repository) GetCertificate(ctx context.Context, id uuid.UUID, exec ...db.DBTX) (Certificate, error) {
 	var item Certificate
 	err := r.base(exec...).QueryRowContext(ctx, `
-		select id, user_id, course_id, enrollment_id, certificate_no, issued_by, issued_at::timestamptz,
-		       expires_at::timestamptz, status, file_id, uploaded_at, verified_at, verified_by, notes,
+		select certificates.id, certificates.user_id, certificates.course_id, certificates.enrollment_id, certificates.certificate_no, certificates.issued_by, certificates.issued_at::timestamptz,
+		       certificates.expires_at::timestamptz, certificates.status, certificates.file_id, certificates.uploaded_at, certificates.verified_at, certificates.verified_by, certificates.notes,
 		       fa.storage_key, fa.original_name
 		from certificates
 		join file_attachments fa on fa.id = certificates.file_id
-		where id = $1
+		where certificates.id = $1
 	`, id).Scan(&item.ID, &item.UserID, &item.CourseID, &item.EnrollmentID, &item.CertificateNo, &item.IssuedBy,
 		&item.IssuedAt, &item.ExpiresAt, &item.Status, &item.FileID, &item.UploadedAt, &item.VerifiedAt, &item.VerifiedBy, &item.Notes,
 		&item.FileStorageKey, &item.FileOriginalName)
@@ -144,13 +144,13 @@ func (r *Repository) GetCertificate(ctx context.Context, id uuid.UUID, exec ...d
 
 func (r *Repository) ListByUser(ctx context.Context, userID uuid.UUID, exec ...db.DBTX) ([]Certificate, error) {
 	rows, err := r.base(exec...).QueryContext(ctx, `
-		select id, user_id, course_id, enrollment_id, certificate_no, issued_by, issued_at::timestamptz,
-		       expires_at::timestamptz, status, file_id, uploaded_at, verified_at, verified_by, notes,
+		select certificates.id, certificates.user_id, certificates.course_id, certificates.enrollment_id, certificates.certificate_no, certificates.issued_by, certificates.issued_at::timestamptz,
+		       certificates.expires_at::timestamptz, certificates.status, certificates.file_id, certificates.uploaded_at, certificates.verified_at, certificates.verified_by, certificates.notes,
 		       fa.storage_key, fa.original_name
 		from certificates
 		join file_attachments fa on fa.id = certificates.file_id
-		where user_id = $1
-		order by uploaded_at desc
+		where certificates.user_id = $1
+		order by certificates.uploaded_at desc
 	`, userID)
 	if err != nil {
 		return nil, err
@@ -172,13 +172,13 @@ func (r *Repository) ListByUser(ctx context.Context, userID uuid.UUID, exec ...d
 func (r *Repository) GetLatestByEnrollment(ctx context.Context, enrollmentID uuid.UUID, exec ...db.DBTX) (Certificate, error) {
 	var item Certificate
 	err := r.base(exec...).QueryRowContext(ctx, `
-		select id, user_id, course_id, enrollment_id, certificate_no, issued_by, issued_at::timestamptz,
-		       expires_at::timestamptz, status, file_id, uploaded_at, verified_at, verified_by, notes,
+		select certificates.id, certificates.user_id, certificates.course_id, certificates.enrollment_id, certificates.certificate_no, certificates.issued_by, certificates.issued_at::timestamptz,
+		       certificates.expires_at::timestamptz, certificates.status, certificates.file_id, certificates.uploaded_at, certificates.verified_at, certificates.verified_by, certificates.notes,
 		       fa.storage_key, fa.original_name
 		from certificates
 		join file_attachments fa on fa.id = certificates.file_id
-		where enrollment_id = $1
-		order by uploaded_at desc
+		where certificates.enrollment_id = $1
+		order by certificates.uploaded_at desc
 		limit 1
 	`, enrollmentID).Scan(&item.ID, &item.UserID, &item.CourseID, &item.EnrollmentID, &item.CertificateNo, &item.IssuedBy,
 		&item.IssuedAt, &item.ExpiresAt, &item.Status, &item.FileID, &item.UploadedAt, &item.VerifiedAt, &item.VerifiedBy, &item.Notes,

@@ -353,6 +353,8 @@ export interface CourseApplication {
   payment_status: string;
   certificate_id?: string | null;
   certificate_status?: string | null;
+  certificate_file_storage_key?: string | null;
+  certificate_file_original_name?: string | null;
   certificate_uploaded_at?: string | null;
   created_at: string;
   updated_at: string;

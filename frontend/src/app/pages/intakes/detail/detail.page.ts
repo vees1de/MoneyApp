@@ -730,11 +730,16 @@ export class IntakeDetailPageComponent implements OnInit {
       return;
     }
 
-    const storageKey = this.buildCertificateUrl(application);
+    const fileUrl = this.buildCertificateUrl(application);
 
     const dialogRef = this.dialog.open<
       CertificateReviewDialogComponent,
-      { application: CourseApplication; userName: string; fileUrl: string | null },
+      {
+        application: CourseApplication;
+        userName: string;
+        fileUrl: string | null;
+        fileName: string | null;
+      },
       CertificateReviewDialogResult | null
     >(CertificateReviewDialogComponent, {
       width: '100vw',
@@ -744,7 +749,8 @@ export class IntakeDetailPageComponent implements OnInit {
       data: {
         application,
         userName: this.userLabel(application.applicant_id),
-        fileUrl: storageKey,
+        fileUrl,
+        fileName: application.certificate_file_original_name ?? null,
       },
     });
 
@@ -786,10 +792,11 @@ export class IntakeDetailPageComponent implements OnInit {
   }
 
   private buildCertificateUrl(application: CourseApplication): string | null {
-    if (!application.certificate_id) {
+    const storageKey = application.certificate_file_storage_key?.trim();
+    if (!storageKey) {
       return null;
     }
-    return `${API_BASE_URL}/uploads/certificates/${application.certificate_id}`;
+    return `${API_BASE_URL}/uploads/${encodeURI(storageKey)}`;
   }
 
   private load(): void {
