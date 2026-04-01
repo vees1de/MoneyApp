@@ -1,83 +1,80 @@
 <section class="my-learning-page">
+  <header class="my-learning-page__header">
+    <div>
+      <h1>Мое обучение</h1>
+      <p>Следите за прогрессом, дедлайнами и последней активностью по каждому enrollment.</p>
+    </div>
+  </header>
+
   @if (loading()) {
-    <section class="my-learning-page__state my-learning-page__state--loading">
-      <p class="my-learning-page__eyebrow">Моё обучение</p>
-      <h1>Загружаю курсы...</h1>
-      <p>Подтягиваю назначения, сертификаты и дедлайны.</p>
+    <section class="my-learning-state">
+      <p>Загрузка...</p>
     </section>
   } @else if (error()) {
-    <section class="my-learning-page__state my-learning-page__state--error">
-      <p class="my-learning-page__eyebrow">Моё обучение</p>
-      <h1>Не удалось загрузить обучение</h1>
+    <section class="my-learning-state my-learning-state--error">
       <p class="my-learning-page__error">{{ error() }}</p>
     </section>
+  } @else if (enrollments().length === 0) {
+    <section class="my-learning-state">
+      <p>У вас нет активного обучения.</p>
+    </section>
   } @else {
-    <section class="my-learning-page__summary">
-      @for (card of summaryCards(); track card.label) {
-        <article class="summary-card" [attr.data-tone]="card.tone">
-          <span class="summary-card__label">{{ card.label }}</span>
-          <strong class="summary-card__value">{{ card.value }}</strong>
-          <span class="summary-card__hint">{{ card.hint }}</span>
-        </article>
+    <section class="my-learning-grid">
+      @for (item of enrollments(); track trackByEnrollment($index, item)) {
+        <mat-card class="my-learning-card">
+          <mat-card-header class="my-learning-card__header">
+            <div class="my-learning-card__header-main">
+              <mat-card-title>
+                <a [routerLink]="'/learning/' + item.id">Enrollment {{ shortId(item.id) }}</a>
+              </mat-card-title>
+              <mat-card-subtitle>ID: {{ item.id }}</mat-card-subtitle>
+            </div>
+
+            <div class="my-learning-card__badges">
+              <span [ngClass]="['status-chip', statusChipClass(item.status)]">
+                {{ statusLabel(item.status) }}
+              </span>
+              <span class="meta-chip">{{ sourceLabel(item.source) }}</span>
+              <span class="meta-chip meta-chip--soft">{{ mandatoryLabel(item) }}</span>
+            </div>
+          </mat-card-header>
+
+          <mat-card-content class="my-learning-card__content">
+            <section [ngClass]="['progress-block', progressToneClass(item)]">
+              <div class="progress-block__head">
+                <span class="progress-block__label">Прогресс</span>
+                <strong class="progress-block__value">{{ progressValue(item) }}%</strong>
+              </div>
+              <mat-progress-bar mode="determinate" [value]="progressValue(item)"></mat-progress-bar>
+            </section>
+
+            <div class="my-learning-card__meta-grid">
+              <p>
+                <span class="kv__key">Course ID</span>
+                <span class="kv__value kv__value--mono">{{ item.course_id }}</span>
+              </p>
+              <p>
+                <span class="kv__key">Записан</span>
+                <span class="kv__value">{{ item.enrolled_at | date: 'dd.MM.yyyy HH:mm' }}</span>
+              </p>
+              <p>
+                <span class="kv__key">Активность</span>
+                <span class="kv__value">{{ item.last_activity_at ? (item.last_activity_at | date: 'dd.MM.yyyy HH:mm') : '—' }}</span>
+              </p>
+              <p>
+                <span class="kv__key">Дедлайн</span>
+                <span class="kv__value">{{
+                  item.deadline_at ? (item.deadline_at | date: 'dd.MM.yyyy HH:mm') : '—'
+                }}</span>
+              </p>
+            </div>
+
+            <a class="my-learning-card__link" [routerLink]="'/learning/' + item.id">
+              Открыть карточку обучения
+            </a>
+          </mat-card-content>
+        </mat-card>
       }
     </section>
-
-    @if (items().length === 0) {
-      <section class="my-learning-page__empty">
-        <mat-icon>school</mat-icon>
-        <h2>У вас нет активного обучения</h2>
-        <p>Как только HR назначит курс, он появится здесь вместе с сертификатом и сроками.</p>
-      </section>
-    } @else {
-      <section class="my-learning-grid">
-        @for (item of items(); track item.id) {
-          <article
-            class="learning-card"
-            [attr.data-tone]="item.statusTone"
-            [class.learning-card--overdue]="item.overdue"
-          >
-            <div class="learning-card__header">
-              <div>
-                <span class="learning-card__eyebrow">Курс</span>
-                <h2>{{ item.title }}</h2>
-                <p>{{ item.description }}</p>
-              </div>
-
-              <span class="learning-card__status">{{ item.statusLabel }}</span>
-            </div>
-
-            <div class="learning-card__meta">
-              <div>
-                <span>Дедлайн</span>
-                <strong>{{ item.deadlineText }}</strong>
-              </div>
-              <div>
-                <span>Записан</span>
-                <strong>{{ item.enrolledText }}</strong>
-              </div>
-              <div>
-                <span>Активность</span>
-                <strong>{{ item.activityText }}</strong>
-              </div>
-              <div>
-                <span>Сертификат</span>
-                <strong>{{ item.certificateLabel }}</strong>
-              </div>
-            </div>
-
-            <div class="learning-card__footer">
-              <span class="learning-card__badge" [attr.data-tone]="item.certificateTone">
-                {{ item.badgeLabel }}
-              </span>
-
-              <a mat-stroked-button [routerLink]="'/learning/' + item.id">
-                <mat-icon>arrow_forward</mat-icon>
-                Открыть
-              </a>
-            </div>
-          </article>
-        }
-      </section>
-    }
   }
 </section>

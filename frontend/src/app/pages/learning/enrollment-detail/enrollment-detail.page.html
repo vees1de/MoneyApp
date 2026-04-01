@@ -1,5 +1,10 @@
 <section class="enrollment-detail-page">
-  <header class="enrollment-detail-page__topbar">
+  <header class="enrollment-detail-page__header">
+    <div>
+      <h1>Карточка обучения</h1>
+      <p>Сотрудник завершает курс здесь и после завершения загружает сертификат для проверки HR.</p>
+    </div>
+
     <a mat-stroked-button routerLink="/my-learning">
       <mat-icon>arrow_back</mat-icon>
       Мои обучения
@@ -7,180 +12,154 @@
   </header>
 
   @if (loading()) {
-    <section class="enrollment-detail-page__state">
-      <span class="enrollment-detail-page__eyebrow">Карточка обучения</span>
-      <h1>Загружаю данные курса...</h1>
-      <p>Подтягиваю назначение, сертификаты и доступность завершения.</p>
-    </section>
+    <p>Загрузка...</p>
   } @else if (error()) {
-    <section class="enrollment-detail-page__state enrollment-detail-page__state--error">
-      <span class="enrollment-detail-page__eyebrow">Карточка обучения</span>
-      <h1>Не удалось открыть обучение</h1>
-      <p class="enrollment-detail-page__error">{{ error() }}</p>
-    </section>
+    <p class="enrollment-detail-page__error">{{ error() }}</p>
   } @else if (enrollment(); as item) {
-    <header class="enrollment-detail-page__hero">
-      <div class="enrollment-detail-page__hero-copy">
-        <span class="enrollment-detail-page__eyebrow">Карточка обучения</span>
-        <h1>{{ courseTitle() }}</h1>
-        <p>{{ courseDescription() }}</p>
-      </div>
+    <mat-card class="enrollment-detail-card">
+      <mat-card-header>
+        <mat-card-title>Обучение {{ item.id }}</mat-card-title>
+        <mat-card-subtitle>{{ enrollmentStatusLabel(item.status) }}</mat-card-subtitle>
+      </mat-card-header>
 
-      <aside class="enrollment-detail-page__hero-panel">
-        <span class="enrollment-detail-page__status" [attr.data-tone]="enrollmentStatusTone(item.status)">
-          {{ enrollmentStatusLabel(item.status) }}
-        </span>
-        <strong>{{
-          certificateReady() ? 'Сертификат загружен' : 'Сначала загрузите сертификат'
-        }}</strong>
-        <p>{{
-          certificateReady()
-            ? 'После подтверждения HR курс завершится автоматически.'
-            : 'Завершение откроется только после загрузки файла.'
-        }}</p>
-
-        <div class="enrollment-detail-page__hero-meta">
-          <div>
-            <span>Записан</span>
-            <strong>{{ item.enrolled_at | date: 'dd.MM.yyyy' }}</strong>
-          </div>
-          <div>
-            <span>Дедлайн</span>
-            <strong>{{ item.deadline_at ? (item.deadline_at | date: 'dd.MM.yyyy') : '—' }}</strong>
-          </div>
-        </div>
-      </aside>
-    </header>
-
-    <section class="enrollment-detail-page__layout">
-      <mat-card class="enrollment-panel enrollment-panel--certificate">
-        <mat-card-header>
-          <mat-card-title>Сертификат</mat-card-title>
-          <mat-card-subtitle>{{
-            certificateStatusLabel(latestCertificate()?.status)
-          }}</mat-card-subtitle>
-        </mat-card-header>
-
-        <mat-card-content class="enrollment-panel__content">
-          <p class="enrollment-panel__lead">
-            Сначала прикрепите сертификат. После подтверждения HR курс завершится автоматически.
+      <mat-card-content class="enrollment-detail-card__content">
+        <mat-progress-bar mode="determinate" [value]="progressValue(item)"></mat-progress-bar>
+        <div class="enrollment-detail-card__facts">
+          <p>
+            <span class="kv__key">Прогресс:</span>
+            <span class="kv__value">{{ progressValue(item) }}%</span>
           </p>
+          <p>
+            <span class="kv__key">Записан:</span>
+            <span class="kv__value">{{ item.enrolled_at | date: 'dd.MM.yyyy HH:mm' }}</span>
+          </p>
+          <p>
+            <span class="kv__key">Старт:</span>
+            <span class="kv__value">{{
+              item.started_at ? (item.started_at | date: 'dd.MM.yyyy HH:mm') : '—'
+            }}</span>
+          </p>
+          <p>
+            <span class="kv__key">Завершение:</span>
+            <span class="kv__value">{{
+              item.completed_at ? (item.completed_at | date: 'dd.MM.yyyy HH:mm') : '—'
+            }}</span>
+          </p>
+          <p>
+            <span class="kv__key">Дедлайн:</span>
+            <span class="kv__value">{{
+              item.deadline_at ? (item.deadline_at | date: 'dd.MM.yyyy HH:mm') : '—'
+            }}</span>
+          </p>
+        </div>
 
-          @if (latestCertificate(); as certificate) {
-            <div class="certificate-summary" [attr.data-status]="certificate.status">
-              <div class="certificate-summary__head">
-                <strong>{{ certificateStatusLabel(certificate.status) }}</strong>
-                <span>{{ certificate.uploaded_at | date: 'dd.MM.yyyy HH:mm' }}</span>
-              </div>
-              <p>
-                {{
-                  certificate.status === 'rejected'
-                    ? 'Предыдущий сертификат отклонён. Загрузите новый файл.'
-                    : certificate.status === 'verified'
-                      ? 'Сертификат подтверждён HR.'
-                      : 'Файл загружен и ждёт проверки HR.'
-                }}
-              </p>
-            </div>
-          } @else {
-            <div class="enrollment-panel__empty">
-              <mat-icon>description</mat-icon>
-              <p>Сертификат ещё не загружен.</p>
-            </div>
-          }
+        <div class="enrollment-detail-page__actions">
+          <button
+            mat-flat-button
+            color="primary"
+            type="button"
+            (click)="complete()"
+            [disabled]="acting() || !canWorkOnCourse()"
+          >
+            <mat-icon>task_alt</mat-icon>
+            Завершить курс
+          </button>
+        </div>
 
-          @if (canUploadCertificate()) {
-            <div class="certificate-upload">
-              <div class="certificate-upload__picker">
-                <input
-                  #certificateFileInput
-                  class="certificate-upload__input"
-                  type="file"
-                  (change)="onCertificateFileSelected($event, certificateFileInput)"
-                />
+        @if (!canWorkOnCourse() && item.status !== 'completed') {
+          <p class="certificate-card__hint">
+            Курс стартует для всего набора через HR. После общего старта можно обновлять прогресс и
+            завершать обучение.
+          </p>
+        }
 
-                <button
-                  mat-stroked-button
-                  type="button"
-                  (click)="certificateFileInput.click()"
-                >
-                  <mat-icon>attach_file</mat-icon>
-                  Выбрать файл сертификата
-                </button>
+        <mat-form-field appearance="outline" class="enrollment-detail-page__wide">
+          <mat-label>Комментарий к завершению</mat-label>
+          <textarea matInput rows="3" [formControl]="completionForm.controls.notes"></textarea>
+        </mat-form-field>
 
-                <span class="certificate-upload__hint">PDF, JPG или PNG</span>
+        @if (canWorkOnCourse()) {
+          <form
+            class="enrollment-detail-page__progress-form"
+            [formGroup]="progressForm"
+            (ngSubmit)="updateProgress()"
+          >
+            <mat-form-field appearance="outline">
+              <mat-label>Course module id</mat-label>
+              <input matInput formControlName="course_module_id" />
+            </mat-form-field>
 
-                @if (selectedCertificateFile(); as file) {
-                  <span class="certificate-upload__filename">{{ file.name }}</span>
-                }
-              </div>
+            <mat-form-field appearance="outline">
+              <mat-label>Прогресс %</mat-label>
+              <input matInput type="number" min="0" max="100" formControlName="progress_percent" />
+            </mat-form-field>
 
-              <button
-                mat-flat-button
-                color="primary"
-                type="button"
-                (click)="uploadCertificate()"
-                [disabled]="acting() || !selectedCertificateFile()"
-              >
-                <mat-icon>upload_file</mat-icon>
-                Загрузить сертификат
-              </button>
-            </div>
-          } @else {
-            <p class="enrollment-panel__hint">
-              @if (latestCertificate()?.status === 'uploaded') {
-                Сертификат уже загружен и ждёт проверки HR.
-              } @else if (latestCertificate()?.status === 'verified') {
-                Сертификат уже подтверждён HR.
-              } @else if (latestCertificate()?.status === 'rejected') {
-                Предыдущий сертификат отклонён. Загрузите новый файл.
-              } @else if (item.status === 'completed') {
-                Курс уже завершён, сертификат можно только просматривать.
-              } @else {
-                Сертификат можно загрузить после старта курса.
-              }
+            <button mat-stroked-button type="submit" [disabled]="acting() || progressForm.invalid">
+              Обновить прогресс
+            </button>
+          </form>
+        }
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="certificate-card">
+      <mat-card-header>
+        <mat-card-title>Сертификат</mat-card-title>
+        <mat-card-subtitle>{{
+          certificateStatusLabel(latestCertificate()?.status)
+        }}</mat-card-subtitle>
+      </mat-card-header>
+
+      <mat-card-content class="certificate-card__content">
+        @if (latestCertificate(); as certificate) {
+          <div class="certificate-card__facts">
+            <p>
+              <span class="kv__key">Загружен:</span>
+              <span class="kv__value">{{ certificate.uploaded_at | date: 'dd.MM.yyyy HH:mm' }}</span>
             </p>
-          }
-        </mat-card-content>
-      </mat-card>
+            <p>
+              <span class="kv__key">Проверен:</span>
+              <span class="kv__value">{{ certificate.verified_at ? (certificate.verified_at | date: 'dd.MM.yyyy HH:mm') : '—' }}</span>
+            </p>
+          </div>
+        } @else {
+          <p class="certificate-card__hint">Сертификат ещё не загружен.</p>
+        }
 
-      <mat-card class="enrollment-panel enrollment-panel--completion">
-        <mat-card-header>
-          <mat-card-title>Автозавершение курса</mat-card-title>
-          <mat-card-subtitle>Шаг 2. Курс закроется сам после апрува сертификата</mat-card-subtitle>
-        </mat-card-header>
+        @if (canUploadCertificate()) {
+          <div class="certificate-upload">
+            <label class="certificate-upload__picker">
+              <span>Выберите файл сертификата</span>
+              <input type="file" (change)="onCertificateFileSelected($event)" />
+            </label>
 
-        <mat-card-content class="enrollment-panel__content">
-          <ol class="completion-steps">
-            <li>Загрузите сертификат</li>
-            <li>Дождитесь подтверждения HR</li>
-            <li>Курс завершится автоматически</li>
-          </ol>
+            <p class="certificate-upload__filename">{{ selectedCertificateFileName() }}</p>
 
-          @if (item.status === 'completed') {
-            <p class="enrollment-panel__hint enrollment-panel__hint--success">
-              Курс уже завершён автоматически после подтверждения сертификата.
-            </p>
-          } @else if (latestCertificate()?.status === 'verified') {
-            <p class="enrollment-panel__hint enrollment-panel__hint--success">
-              Сертификат подтверждён HR. Курс должен завершиться автоматически.
-            </p>
-          } @else if (latestCertificate()?.status === 'uploaded') {
-            <p class="enrollment-panel__hint">
-              Сертификат загружен. Как только HR его подтвердит, курс завершится автоматически.
-            </p>
-          } @else if (latestCertificate()?.status === 'rejected') {
-            <p class="enrollment-panel__hint enrollment-panel__hint--warning">
-              Предыдущий сертификат отклонён. Загрузите новый файл, чтобы запустить автозавершение.
-            </p>
-          } @else {
-            <p class="enrollment-panel__hint">
-              После загрузки сертификата этот курс завершится автоматически, когда HR его
-              подтвердит.
-            </p>
-          }
-        </mat-card-content>
-      </mat-card>
-    </section>
+            <button
+              mat-flat-button
+              color="primary"
+              type="button"
+              (click)="uploadCertificate()"
+              [disabled]="acting() || !selectedCertificateFile()"
+            >
+              <mat-icon>upload_file</mat-icon>
+              Загрузить сертификат
+            </button>
+          </div>
+        } @else {
+          <p class="certificate-card__hint">
+            @if (item.status !== 'completed') {
+              Сначала завершите курс, затем можно будет загрузить сертификат.
+            } @else if (latestCertificate()?.status === 'uploaded') {
+              Сертификат уже загружен и ждёт проверки HR.
+            } @else if (latestCertificate()?.status === 'verified') {
+              Сертификат уже подтверждён HR.
+            } @else {
+              Доступна повторная загрузка только после отклонения предыдущего сертификата.
+            }
+          </p>
+        }
+      </mat-card-content>
+    </mat-card>
   }
 </section>

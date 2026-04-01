@@ -1,20 +1,20 @@
-<section class="employees-page">
+﻿<section class="employees-page">
   <div class="employees-page__main">
     <section class="employees-card employees-summary">
       <div class="employees-summary__header">
         <h1>Сотрудники</h1>
-        <button mat-flat-button type="button" color="primary">
+        <button class="employees-summary__assign" mat-flat-button type="button" color="primary">
           Назначить
           <mat-icon>north_east</mat-icon>
         </button>
       </div>
 
       <div class="employees-summary__stats">
-        <span>
+        <span class="employees-summary__stat">
           <mat-icon>person</mat-icon>
           Сотрудников {{ totalEmployees }}
         </span>
-        <span>
+        <span class="employees-summary__stat">
           <mat-icon>school</mat-icon>
           Сотрудников прошли курсы {{ completedEmployees }}
         </span>
@@ -46,40 +46,40 @@
               <p class="employees-state">Сотрудники не найдены</p>
             } @else {
               <div class="employees-table-wrap">
-                <table matSort (matSortChange)="sortData($event)">
-                  <tr>
-                    <th class="employees-cell-checkbox"></th>
-                    <th mat-sort-header="name">Сотрудник</th>
-                    <th mat-sort-header="department">Отдел</th>
-                    <th mat-sort-header="inProgress">В процессе</th>
-                    <th mat-sort-header="completed">Прошел</th>
-                    <th mat-sort-header="overdue">Просрочено</th>
-                  </tr>
-
-                  @for (employee of sortedData; track trackByUserId($index, employee)) {
+                <table class="employees-table" matSort (matSortChange)="sortData($event)">
+                  <thead>
                     <tr>
-                      <td class="employees-cell-checkbox">
-                        <mat-checkbox color="primary"></mat-checkbox>
-                      </td>
-                      <td>
-                        <div class="employee-cell">
-                          <div class="employee-cell__avatar">
-                            {{ employee.full_name.slice(0, 1).toUpperCase() }}
-                          </div>
-                          <div>
-                            <div class="employee-cell__name">{{ employee.full_name }}</div>
-                            <div class="employee-cell__position">
-                              {{ employee.position_title || 'Должность не указана' }}
+                      <th class="employees-col employees-col--employee" mat-sort-header="name">Сотрудник</th>
+                      <th class="employees-col employees-col--department" mat-sort-header="department">Отдел</th>
+                      <th class="employees-col employees-col--metric" mat-sort-header="inProgress">В процессе</th>
+                      <th class="employees-col employees-col--metric" mat-sort-header="completed">Прошел</th>
+                      <th class="employees-col employees-col--metric" mat-sort-header="overdue">Просрочено</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    @for (employee of sortedData; track trackByUserId($index, employee)) {
+                      <tr>
+                        <td class="employees-col employees-col--employee">
+                          <div class="employee-cell">
+                            <div class="employee-cell__avatar">
+                              {{ employee.full_name.slice(0, 1).toUpperCase() }}
+                            </div>
+                            <div>
+                              <div class="employee-cell__name">{{ employee.full_name }}</div>
+                              <div class="employee-cell__position">
+                                {{ employee.position_title || 'Должность не указана' }}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </td>
-                      <td>{{ employee.department_name || '—' }}</td>
-                      <td>{{ employee.in_progress_count }}</td>
-                      <td>{{ employee.completed_count }}</td>
-                      <td>{{ employee.overdue_count }}</td>
-                    </tr>
-                  }
+                        </td>
+                        <td class="employees-col employees-col--department">{{ employee.department_name || '—' }}</td>
+                        <td class="employees-col employees-col--metric">{{ employee.in_progress_count }}</td>
+                        <td class="employees-col employees-col--metric">{{ employee.completed_count }}</td>
+                        <td class="employees-col employees-col--metric">{{ employee.overdue_count }}</td>
+                      </tr>
+                    }
+                  </tbody>
                 </table>
               </div>
             }

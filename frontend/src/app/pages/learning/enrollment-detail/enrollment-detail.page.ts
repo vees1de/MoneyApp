@@ -4,14 +4,20 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
-import { catchError, forkJoin, of, switchMap } from 'rxjs';
+import { MatInputModule } from '@angular/material/input';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { ReactiveFormsModule, FormBuilder } from '@angular/forms';
+import { catchError, forkJoin, of } from 'rxjs';
 
 import { CertificatesApiService } from '@core/api/certificates-api.service';
-import { CoursesApiService } from '@core/api/courses-api.service';
 import { EnrollmentsApiService } from '@core/api/enrollments-api.service';
 import type { Certificate } from '@entities/certificate';
-import type { Course } from '@entities/course';
 import type { Enrollment } from '@entities/enrollment';
+
+function normalizeText(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed || null;
+}
 
 @Component({
   selector: 'app-page-learning-enrollment-detail',
@@ -19,9 +25,12 @@ import type { Enrollment } from '@entities/enrollment';
   imports: [
     CommonModule,
     RouterLink,
+    ReactiveFormsModule,
     MatButtonModule,
     MatCardModule,
     MatIconModule,
+    MatInputModule,
+    MatProgressBarModule,
   ],
   templateUrl: './enrollment-detail.page.html',
   styleUrl: './enrollment-detail.page.scss',
@@ -29,16 +38,24 @@ import type { Enrollment } from '@entities/enrollment';
 export class LearningEnrollmentDetailPageComponent implements OnInit {
   private readonly enrollmentsApi = inject(EnrollmentsApiService);
   private readonly certificatesApi = inject(CertificatesApiService);
-  private readonly coursesApi = inject(CoursesApiService);
   private readonly route = inject(ActivatedRoute);
+  private readonly fb = inject(FormBuilder);
 
   protected readonly loading = signal(true);
   protected readonly acting = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly enrollment = signal<Enrollment | null>(null);
-  protected readonly course = signal<Course | null>(null);
   protected readonly certificates = signal<Certificate[]>([]);
   protected readonly selectedCertificateFile = signal<File | null>(null);
+
+  protected readonly completionForm = this.fb.group({
+    notes: [''],
+  });
+
+  protected readonly progressForm = this.fb.group({
+    course_module_id: [''],
+    progress_percent: [0],
+  });
 
   protected readonly latestCertificate = computed<Certificate | null>(() => {
     const item = this.enrollment();
@@ -60,35 +77,22 @@ export class LearningEnrollmentDetailPageComponent implements OnInit {
   protected readonly canUploadCertificate = computed(() => {
     const item = this.enrollment();
     const certificate = this.latestCertificate();
-    if (!item) {
+    if (!item || item.status !== 'completed') {
       return false;
     }
 
-    if (item.status === 'completed') {
-      return !certificate || certificate.status === 'rejected';
-    }
-
-    return item.status === 'in_progress';
+    return !certificate || certificate.status === 'rejected';
   });
 
-  protected readonly certificateReady = computed(() => {
-    const certificate = this.latestCertificate();
-    return !!certificate && certificate.status !== 'rejected';
-  });
-  protected readonly courseTitle = computed(() => {
-    const course = this.course();
-    return course?.title?.trim() || this.enrollment()?.course_id || 'Карточка обучения';
-  });
-  protected readonly courseDescription = computed(() => {
-    const course = this.course();
-    return (
-      course?.short_description?.trim() ||
-      'Сначала загрузите сертификат. После апрува HR курс завершится автоматически.'
-    );
-  });
+  protected readonly canWorkOnCourse = computed(() => this.enrollment()?.status === 'in_progress');
 
   ngOnInit(): void {
     this.load();
+  }
+
+  protected progressValue(item: Enrollment): number {
+    const value = Number(item.completion_percent);
+    return Number.isNaN(value) ? 0 : Math.max(0, Math.min(100, value));
   }
 
   protected enrollmentStatusLabel(status: string): string {
@@ -116,24 +120,70 @@ export class LearningEnrollmentDetailPageComponent implements OnInit {
     return labels[status] ?? status;
   }
 
-  protected enrollmentStatusTone(status: string): 'info' | 'success' | 'warning' | 'muted' {
-    switch (status) {
-      case 'completed':
-        return 'success';
-      case 'in_progress':
-        return 'info';
-      case 'enrolled':
-        return 'warning';
-      default:
-        return 'muted';
-    }
+  protected selectedCertificateFileName(): string {
+    return this.selectedCertificateFile()?.name ?? 'Файл не выбран';
   }
 
-  protected onCertificateFileSelected(event: Event, fileInput: HTMLInputElement): void {
+  protected updateProgress(): void {
+    const item = this.enrollment();
+    if (!item || this.acting() || this.progressForm.invalid || item.status !== 'in_progress') {
+      return;
+    }
+
+    this.acting.set(true);
+    this.error.set(null);
+    const value = this.progressForm.getRawValue();
+
+    this.enrollmentsApi
+      .updateProgress(item.id, {
+        course_module_id: value.course_module_id,
+        status: 'in_progress',
+        progress_percent: String(value.progress_percent ?? 0),
+      })
+      .subscribe({
+        next: (updated) => {
+          this.enrollment.set(updated);
+          this.acting.set(false);
+        },
+        error: () => {
+          this.error.set('Не удалось обновить прогресс.');
+          this.acting.set(false);
+        },
+      });
+  }
+
+  protected complete(): void {
+    const item = this.enrollment();
+    if (!item || this.acting() || item.status !== 'in_progress') {
+      return;
+    }
+
+    this.acting.set(true);
+    this.error.set(null);
+
+    this.enrollmentsApi
+      .complete(item.id, {
+        completion_type: 'manual',
+        notes:
+          normalizeText(this.completionForm.controls.notes.value) ??
+          'Завершено сотрудником вручную',
+      })
+      .subscribe({
+        next: (updated) => {
+          this.enrollment.set(updated);
+          this.acting.set(false);
+        },
+        error: () => {
+          this.error.set('Не удалось завершить обучение.');
+          this.acting.set(false);
+        },
+      });
+  }
+
+  protected onCertificateFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement | null;
     const file = input?.files?.[0] ?? null;
     this.selectedCertificateFile.set(file);
-    fileInput.value = '';
   }
 
   protected uploadCertificate(): void {
@@ -183,28 +233,19 @@ export class LearningEnrollmentDetailPageComponent implements OnInit {
     this.loading.set(true);
     this.error.set(null);
 
-    this.enrollmentsApi
-      .getById(id)
-      .pipe(
-        switchMap((enrollment) =>
-          forkJoin({
-            enrollment: of(enrollment),
-            course: this.coursesApi.getById(enrollment.course_id).pipe(catchError(() => of(null))),
-            certificates: this.certificatesApi.listMy().pipe(catchError(() => of([]))),
-          }),
-        ),
-      )
-      .subscribe({
-        next: ({ enrollment, course, certificates }) => {
-          this.enrollment.set(enrollment);
-          this.course.set(course);
-          this.certificates.set(certificates ?? []);
-          this.loading.set(false);
-        },
-        error: () => {
-          this.error.set('Не удалось загрузить карточку обучения.');
-          this.loading.set(false);
-        },
-      });
+    forkJoin({
+      enrollment: this.enrollmentsApi.getById(id),
+      certificates: this.certificatesApi.listMy().pipe(catchError(() => of([]))),
+    }).subscribe({
+      next: ({ enrollment, certificates }) => {
+        this.enrollment.set(enrollment);
+        this.certificates.set(certificates ?? []);
+        this.loading.set(false);
+      },
+      error: () => {
+        this.error.set('Не удалось загрузить карточку обучения.');
+        this.loading.set(false);
+      },
+    });
   }
 }

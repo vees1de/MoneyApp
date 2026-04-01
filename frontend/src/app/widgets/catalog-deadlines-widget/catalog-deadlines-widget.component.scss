@@ -1,0 +1,44 @@
+.deadlines-widget {
+  display: grid;
+  gap: var(--space-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.deadlines-widget__item {
+  background: #f8faff;
+  border: 1px solid #e6ebfb;
+  border-radius: 12px;
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.58rem 0.66rem;
+}
+
+.deadlines-widget__date {
+  align-items: center;
+  color: var(--app-muted);
+  display: inline-flex;
+  font-size: 0.74rem;
+  font-weight: 600;
+  gap: 6px;
+}
+
+.deadlines-widget__date .mat-icon {
+  color: var(--app-primary);
+  font-size: 16px;
+  height: 16px;
+  width: 16px;
+}
+
+.deadlines-widget__item strong {
+  color: var(--app-text);
+  font-size: 0.85rem;
+  line-height: 1.3;
+}
+
+.deadlines-widget__item p {
+  color: var(--app-muted);
+  font-size: 0.74rem;
+  margin: 0;
+}

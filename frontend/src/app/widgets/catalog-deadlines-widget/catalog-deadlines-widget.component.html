@@ -1,0 +1,14 @@
+<app-widget-shell title="Ближайшие потоки">
+  <ul class="deadlines-widget">
+    @for (point of intakePoints; track point.title) {
+      <li class="deadlines-widget__item">
+        <div class="deadlines-widget__date">
+          <mat-icon>event</mat-icon>
+          <span>{{ point.dateLabel }}</span>
+        </div>
+        <strong>{{ point.title }}</strong>
+        <p>{{ point.placesLeft }}</p>
+      </li>
+    }
+  </ul>
+</app-widget-shell>

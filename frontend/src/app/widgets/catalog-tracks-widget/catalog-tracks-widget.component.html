@@ -1,0 +1,18 @@
+<app-widget-shell title="Треки развития">
+  <ul class="tracks-widget">
+    @for (track of tracks; track track.name) {
+      <li class="tracks-widget__item">
+        <div class="tracks-widget__head">
+          <strong>{{ track.name }}</strong>
+          <span>{{ track.progress }}%</span>
+        </div>
+
+        <div class="tracks-widget__bar">
+          <div class="tracks-widget__bar-fill" [style.width.%]="track.progress"></div>
+        </div>
+
+        <p>{{ track.courses }} курса в подборке</p>
+      </li>
+    }
+  </ul>
+</app-widget-shell>
