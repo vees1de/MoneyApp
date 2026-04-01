@@ -109,13 +109,19 @@ type RecommendOptions struct {
 }
 
 type yandexRequest struct {
-	Model           string             `json:"model"`
-	Temperature     float64            `json:"temperature"`
-	Instructions    string             `json:"instructions"`
-	Input           string             `json:"input"`
-	MaxOutputTokens int                `json:"max_output_tokens"`
-	Text            *yandexRequestText `json:"text,omitempty"`
+	Model           string                `json:"model"`
+	Temperature     float64               `json:"temperature"`
+	Instructions    string                `json:"instructions"`
+	Input           string                `json:"input"`
+	MaxOutputTokens int                   `json:"max_output_tokens"`
+	Text            *yandexRequestText    `json:"text,omitempty"`
+	Reasoning       *yandexReasoningParam `json:"reasoning,omitempty"`
 }
+
+type yandexReasoningParam struct {
+	Effort string `json:"effort"`
+}
+
 
 type yandexRequestText struct {
 	Format yandexTextResponseFormat `json:"format"`
@@ -890,8 +896,8 @@ func recommendHeuristically(tasks []yougilemodule.TaskItem, courses []catalogmod
 			AIRawResponse:  "fallback_reason: " + reason,
 			AIModelURI:     "fallback://heuristic",
 			TasksSummary:   taskText,
-			CoursesSummary: buildCoursesSummary(courses),
-			IntakesSummary: buildIntakesSummary(intakes),
+			CoursesSummary: buildCoursesSummaryCompact(courses),
+			IntakesSummary: buildIntakesSummaryCompact(intakes),
 		},
 	}
 }
@@ -1395,6 +1401,7 @@ func (s *Service) callYandexAI(
 		Input:           input,
 		MaxOutputTokens: options.maxOutputTokens,
 		Text:            &responseTextFormat,
+		Reasoning:       &yandexReasoningParam{Effort: "none"},
 	}
 
 	fullPrompt := fmt.Sprintf("=== ATTEMPT ===\n%s\n\n=== INSTRUCTIONS ===\n%s\n\n=== INPUT ===\n%s", options.attemptLabel, instructions, input)

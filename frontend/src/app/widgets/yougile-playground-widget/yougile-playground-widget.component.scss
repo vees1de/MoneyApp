@@ -289,12 +289,30 @@
   z-index: 10;
 }
 
+.agile__modal-backdrop--fullscreen {
+  align-items: stretch;
+  justify-content: stretch;
+  padding: 0;
+  position: fixed;
+  z-index: 1000;
+}
+
 .agile__modal {
   box-shadow: 0 20px 54px rgb(11 19 27 / 18%);
   max-height: 100%;
   max-width: 100%;
   overflow: auto;
   width: min(100%, 760px);
+}
+
+.agile__modal--connect {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  height: 100%;
+  max-height: none;
+  max-width: none;
+  width: 100%;
 }
 
 .agile__modal--tasks {
@@ -343,5 +361,9 @@
 
   .agile__modal-backdrop {
     padding: 12px;
+  }
+
+  .agile__modal-backdrop--fullscreen {
+    padding: 0;
   }
 }

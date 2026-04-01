@@ -127,8 +127,8 @@
   }
 
   @if (modalOpen()) {
-    <div class="agile__modal-backdrop" (click)="closeConnectModal()">
-      <section class="agile__modal" (click)="$event.stopPropagation()">
+    <div class="agile__modal-backdrop agile__modal-backdrop--fullscreen" (click)="closeConnectModal()">
+      <section class="agile__modal agile__modal--connect" (click)="$event.stopPropagation()">
         <div class="agile__modal-head">
           <h3>
             {{
