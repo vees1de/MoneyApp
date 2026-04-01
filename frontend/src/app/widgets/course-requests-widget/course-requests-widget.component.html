@@ -34,21 +34,39 @@
     @for (item of filteredCards(); track item.id) {
       <mat-card class="rows__item">
         <div class="rows__identity">
-          <p><span class="kv__key">Сотрудник:</span> <a [routerLink]="'/external-requests/' + item.id"><strong class="kv__value">{{ item.employee }}</strong></a></p>
-          <p><span class="kv__key">Провайдер:</span> <span class="kv__value">{{ item.subtitle }}</span></p>
+          <p>
+            <span class="kv__key">Сотрудник: </span>
+            <a [routerLink]="'/external-requests/' + item.id"
+              ><strong class="kv__value">{{ item.employee }}</strong></a
+            >
+          </p>
+          <p>
+            <span class="kv__key">Провайдер: </span>
+            <span class="kv__value">{{ item.subtitle }}</span>
+          </p>
         </div>
 
-        <div class="rows__course">
-          <p><span class="kv__key">Курс:</span> <strong class="kv__value">{{ item.title }}</strong></p>
-          <p><span class="kv__key">Статус:</span> <span class="kv__value">{{ item.status }}</span></p>
+        <div class="rows__identity">
+          <p>
+            <span class="kv__key">Курс: </span> <strong class="kv__value">{{ item.title }}</strong>
+          </p>
+          <p>
+            <span class="kv__key">Статус: </span> <span class="kv__value">{{ item.status }}</span>
+          </p>
         </div>
 
-        <div class="rows__amount">
-          <p><span class="kv__key">Стоимость:</span> <span class="kv__value">{{ item.amount }}</span></p>
-          <p><span class="kv__key">Обновлено:</span> <span class="kv__value">{{ item.updatedAt | date: 'dd.MM.yyyy HH:mm' }}</span></p>
+        <div class="rows__identity">
+          <p>
+            <span class="kv__key">Стоимость: </span>
+            <span class="kv__value">{{ item.amount }}</span>
+          </p>
+          <p>
+            <span class="kv__key">Обновлено: </span>
+            <span class="kv__value">{{ item.updatedAt | date: 'dd.MM.yyyy HH:mm' }}</span>
+          </p>
         </div>
 
-                <div class="rows__action">
+        <div class="rows__identity">
           <a mat-flat-button class="rows__open" [routerLink]="'/external-requests/' + item.id">
             <mat-icon>north_east</mat-icon>
           </a>

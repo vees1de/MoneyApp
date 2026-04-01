@@ -50,7 +50,9 @@
 
         <div class="intakes-ai-banner__text">
           <h2>Подобрать курс с помощью ИИ</h2>
-          <p>Запустите AI-рекомендации и получите список курсов и открытых наборов под ваши задачи.</p>
+          <p>
+            Запустите AI-рекомендации и получите список курсов и открытых наборов под ваши задачи.
+          </p>
         </div>
       </div>
 
@@ -76,10 +78,15 @@
       @for (item of intakes(); track item.id) {
         <mat-card class="intake-card">
           <mat-card-header>
-            <mat-card-title>
-              <a [routerLink]="'/intakes/' + item.id">{{ item.title }}</a>
+            <mat-card-title [routerLink]="'/intakes/' + item.id" class="intake-card__title">
+              <a>{{ item.title }}</a>
+              <div class="intake-card__arrow">
+                <img src="arrow-icon.svg" alt="" />
+              </div>
             </mat-card-title>
-            <mat-card-subtitle>{{ statusLabel(item.status) }}</mat-card-subtitle>
+            <mat-card-subtitle class="intake-card__subtitle">{{
+              statusLabel(item.status)
+            }}</mat-card-subtitle>
           </mat-card-header>
 
           <mat-card-content class="intake-card__content">

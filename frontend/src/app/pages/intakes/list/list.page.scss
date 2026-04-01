@@ -176,3 +176,33 @@
     grid-template-columns: 1fr;
   }
 }
+
+::ng-deep .intake-card__title {
+  font-size: 24px;
+  font-weight: 600;
+
+  a {
+    display: block;
+    width: 70%;
+    color: #000;
+  }
+}
+
+::ng-deep .intake-card__subtitle {
+  font-size: 16px;
+  font-weight: 400;
+  color: #000;
+}
+
+.intake-card__arrow {
+  position: absolute;
+  right: 16px;
+  top: 16px;
+  padding: 6px;
+  background-color: #566AE6;
+  border-radius: 60px;
+  width: 29px;
+  height: 29px;
+  display: grid;
+  place-items: center;
+}
