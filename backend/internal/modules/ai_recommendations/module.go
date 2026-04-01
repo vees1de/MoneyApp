@@ -30,6 +30,9 @@ import (
 )
 
 const aiPoolLimit = 50
+const aiPromptCourseLimit = 20
+const aiPromptIntakeLimit = 10
+const aiMaxOutputTokens = 1024
 const yandexAIKeyIssueMessage = "YANDEX_AI_API_KEY не найден в env или не подходит для Yandex AI API"
 const (
 	aiResponseSourceAI        = "ai"
@@ -406,7 +409,16 @@ func (s *Service) Recommend(ctx context.Context, principal platformauth.Principa
 		"intakes_count", len(intakes),
 		"api_key_configured", true,
 	)
-	result, err := s.callYandexAI(ctx, activeTasks, courses, intakes)
+	coursesForAI, intakesForAI := selectAIPromptPools(activeTasks, courses, intakes)
+	s.logInfo(
+		"ai recommendations prompt pools selected",
+		"user_id", principal.UserID.String(),
+		"courses_prompt_count", len(coursesForAI),
+		"intakes_prompt_count", len(intakesForAI),
+		"courses_pool_count", len(courses),
+		"intakes_pool_count", len(intakes),
+	)
+	result, err := s.callYandexAI(ctx, activeTasks, coursesForAI, intakesForAI)
 	result.debug.CoursesSource = "/api/v1/courses?limit=50&offset=0"
 	result.debug.IntakesSource = "/api/v1/intakes?status=open"
 	if coursesErr != nil {
@@ -499,6 +511,67 @@ func (s *Service) listCoursePool(ctx context.Context, principal platformauth.Pri
 		filters.Statuses = nil
 	}
 	return s.catalogService.ListCourses(ctx, principal, filters)
+}
+
+func selectAIPromptPools(
+	tasks []yougilemodule.TaskItem,
+	courses []catalogmodule.Course,
+	intakes []courseintakesmodule.Intake,
+) ([]catalogmodule.Course, []courseintakesmodule.Intake) {
+	taskTokens := tokenizeForMatch(buildTasksSummary(tasks))
+
+	type rankedCourse struct {
+		item  catalogmodule.Course
+		score int
+	}
+	type rankedIntake struct {
+		item  courseintakesmodule.Intake
+		score int
+	}
+
+	rankedCourses := make([]rankedCourse, 0, len(courses))
+	for _, course := range courses {
+		score, _ := scoreTextAgainstTaskTokens(
+			taskTokens,
+			course.Title,
+			nullableString(course.ShortDescription),
+			nullableString(course.Description),
+		)
+		rankedCourses = append(rankedCourses, rankedCourse{item: course, score: score})
+	}
+	sort.SliceStable(rankedCourses, func(i, j int) bool {
+		if rankedCourses[i].score == rankedCourses[j].score {
+			return rankedCourses[i].item.ID.String() < rankedCourses[j].item.ID.String()
+		}
+		return rankedCourses[i].score > rankedCourses[j].score
+	})
+
+	rankedIntakes := make([]rankedIntake, 0, len(intakes))
+	for _, intake := range intakes {
+		score, _ := scoreTextAgainstTaskTokens(taskTokens, intake.Title, nullableString(intake.Description))
+		rankedIntakes = append(rankedIntakes, rankedIntake{item: intake, score: score})
+	}
+	sort.SliceStable(rankedIntakes, func(i, j int) bool {
+		if rankedIntakes[i].score == rankedIntakes[j].score {
+			return rankedIntakes[i].item.ID.String() < rankedIntakes[j].item.ID.String()
+		}
+		return rankedIntakes[i].score > rankedIntakes[j].score
+	})
+
+	courseLimit := minInt(aiPromptCourseLimit, len(rankedCourses))
+	intakeLimit := minInt(aiPromptIntakeLimit, len(rankedIntakes))
+
+	selectedCourses := make([]catalogmodule.Course, 0, courseLimit)
+	for _, ranked := range rankedCourses[:courseLimit] {
+		selectedCourses = append(selectedCourses, ranked.item)
+	}
+
+	selectedIntakes := make([]courseintakesmodule.Intake, 0, intakeLimit)
+	for _, ranked := range rankedIntakes[:intakeLimit] {
+		selectedIntakes = append(selectedIntakes, ranked.item)
+	}
+
+	return selectedCourses, selectedIntakes
 }
 
 type scoredMatch struct {
@@ -879,7 +952,7 @@ func (s *Service) callYandexAI(ctx context.Context, tasks []yougilemodule.TaskIt
 		Temperature:     0.2,
 		Instructions:    instructions,
 		Input:           input,
-		MaxOutputTokens: 256,
+		MaxOutputTokens: aiMaxOutputTokens,
 		Text:            &responseTextFormat,
 	}
 
