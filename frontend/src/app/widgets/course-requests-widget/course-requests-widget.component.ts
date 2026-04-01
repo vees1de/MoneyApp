@@ -3,6 +3,7 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
+import { MatIconModule } from '@angular/material/icon';
 import { catchError, map } from 'rxjs';
 
 import { ExternalRequestsApiService } from '@core/api/external-requests-api.service';
@@ -23,7 +24,7 @@ interface CourseRequestCard {
 @Component({
   selector: 'app-course-requests-widget',
   standalone: true,
-  imports: [CommonModule, RouterLink, MatCardModule, MatButtonModule, WidgetShellComponent],
+  imports: [CommonModule, RouterLink, MatCardModule, MatButtonModule, MatIconModule, WidgetShellComponent],
   templateUrl: './course-requests-widget.component.html',
   styleUrl: './course-requests-widget.component.scss',
 })

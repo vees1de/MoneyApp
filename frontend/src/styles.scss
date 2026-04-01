@@ -74,38 +74,36 @@
 html {
   height: 100%;
   overflow-y: scroll;
-  @include mat.theme(
-    (
-      color: (
-        primary: mat.$cyan-palette,
+  @include mat.theme((color: (primary: mat.$cyan-palette,
         tertiary: mat.$blue-palette,
       ),
       typography: var(--font-family),
       density: 0,
-    )
-  );
+    ));
 }
 
 :root {
-  --mat-sys-primary: #566ae6;
+  --mat-sys-primary: var(--app-primary);
   --mat-sys-on-primary: #ffffff;
-  --mat-sys-primary-container: #e9edff;
+  --mat-sys-primary-container: var(--app-primary-soft);
+  --mat-sys-surface: var(--app-surface);
+  --mat-sys-surface-container: var(--app-bg);
+  --mat-sys-on-surface: var(--app-text);
 }
 
 body {
   color-scheme: light;
-  background:
-    radial-gradient(1200px 600px at -10% -20%, rgb(181 199 255 / 22%), transparent 60%),
-    radial-gradient(900px 540px at 110% -30%, rgb(190 205 255 / 18%), transparent 62%),
-    var(--app-bg);
+  background: var(--app-bg);
   color: var(--app-text);
   font-size: 16px;
   font-family: var(--font-family);
   font-weight: 400;
-  letter-spacing: 0.01em;
+  letter-spacing: 0;
   margin: 0;
   min-width: 320px;
   height: 100%;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
 }
 
 *,
@@ -127,7 +125,7 @@ h1,
 h2,
 h3,
 h4 {
-  letter-spacing: 0.01em;
+  letter-spacing: 0;
   margin: 0;
 }
 
@@ -216,6 +214,7 @@ p {
 }
 
 @media (max-width: 1200px) {
+
   .calendar-page .fc,
   .calendar-page .calendar-stage__calendar full-calendar {
     min-width: 0;

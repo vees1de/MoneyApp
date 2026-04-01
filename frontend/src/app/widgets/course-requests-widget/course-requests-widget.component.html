@@ -48,8 +48,10 @@
           <p><span class="kv__key">Обновлено:</span> <span class="kv__value">{{ item.updatedAt | date: 'dd.MM.yyyy HH:mm' }}</span></p>
         </div>
 
-        <div class="rows__action">
-          <a mat-flat-button [routerLink]="'/external-requests/' + item.id">Перейти к заявлению</a>
+                <div class="rows__action">
+          <a mat-flat-button class="rows__open" [routerLink]="'/external-requests/' + item.id">
+            <mat-icon>north_east</mat-icon>
+          </a>
         </div>
       </mat-card>
     } @empty {

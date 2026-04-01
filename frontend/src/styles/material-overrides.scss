@@ -1,68 +1,76 @@
 @use '@angular/material' as mat;
 
 :root {
-  @include mat.button-overrides((filled-container-shape: 999px,
+  @include mat.button-overrides((
+      filled-container-shape: 999px,
       outlined-container-shape: 999px,
       protected-container-shape: 999px,
       text-container-shape: 999px,
     ));
 
-  @include mat.card-overrides((elevated-container-color: #fff,
-      filled-container-color: #fff,
-      outlined-container-color: #fff,
+  @include mat.card-overrides((
+      elevated-container-color: var(--app-surface),
+      filled-container-color: var(--app-surface),
+      outlined-container-color: var(--app-surface),
       elevated-container-shape: var(--radius-md),
       filled-container-shape: var(--radius-md),
       outlined-container-shape: var(--radius-md),
     ));
 
-  @include mat.form-field-overrides((outlined-container-shape: 16px,
-      filled-container-shape: 16px,
+  @include mat.form-field-overrides((
+      outlined-container-shape: var(--radius-md),
+      filled-container-shape: var(--radius-md),
     ));
 
-  @include mat.menu-overrides((container-color: #fff,
-      container-shape: 16px,
+  @include mat.menu-overrides((
+      container-color: var(--app-surface),
+      container-shape: var(--radius-md),
     ));
 }
 
 .mat-mdc-card {
-  background: #fff;
-  border: 1px solid #d5dbe8;
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
   border-radius: var(--radius-md) !important;
   box-shadow: var(--shadow-card);
   line-height: 1.45;
   padding: var(--space-5);
   transition:
-    box-shadow 0.2s ease,
-    transform 0.2s ease,
-    border-color 0.2s ease;
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .mat-mdc-card:hover {
-  border-color: #c3cfeb;
-  box-shadow: 0 4px 8px rgb(16 24 40 / 10%);
-  transform: translateY(-1px);
+  border-color: #cbd2de;
+  box-shadow: var(--shadow-soft);
+  transform: none;
 }
 
 .mat-toolbar.mat-primary,
 .mat-toolbar {
   --mat-toolbar-container-background-color: var(--app-header);
   --mat-toolbar-container-text-color: var(--app-header-accent);
-  border-bottom: 1px solid var(--app-border);
+  border-bottom: 1px solid #e4e7ee;
 }
 
 .mat-mdc-button-base {
   font-family: var(--font-family);
   font-weight: 500;
+  letter-spacing: 0;
 }
 
 .mat-mdc-stroked-button {
-  border-color: var(--app-border) !important;
-  color: #161a23 !important;
-  font-weight: 700 !important;
+  border-color: #a2a2a2 !important;
+  color: #464646 !important;
+  font-weight: 500 !important;
+}
+
+.mat-mdc-stroked-button:hover {
+  background: #f5f6fa !important;
 }
 
 .mat-mdc-stroked-button .mat-icon {
-  color: #161a23;
+  color: #464646;
   font-size: 18px;
   height: 18px;
   margin-right: var(--space-2);
@@ -72,6 +80,7 @@
 .mat-mdc-unelevated-button {
   --mdc-filled-button-container-color: var(--app-primary);
   --mdc-filled-button-label-text-color: #fff;
+  box-shadow: none !important;
 }
 
 .mat-mdc-unelevated-button:hover {
@@ -81,8 +90,8 @@
 .mat-mdc-progress-bar {
   border-radius: 999px;
   overflow: hidden;
-  --mdc-linear-progress-active-indicator-color: #62be68;
-  --mdc-linear-progress-track-color: #d9dfeb;
+  --mdc-linear-progress-active-indicator-color: var(--status-success);
+  --mdc-linear-progress-track-color: #dfe4ec;
 }
 
 .mat-mdc-card-header {
@@ -95,27 +104,28 @@
 
 .mat-mdc-card-title {
   color: var(--app-text);
-  font-size: 1.3rem !important;
+  font-size: 1.25rem !important;
   font-weight: 600 !important;
   line-height: 1.3;
   margin-bottom: 0.45rem !important;
 }
 
 .mat-mdc-card-subtitle {
+  color: var(--app-muted) !important;
   line-height: 1.35 !important;
-  font-weight: 300;
+  font-weight: 400;
 }
 
 .mat-mdc-list-item {
-  background: #f7f8fb;
-  border: 1px solid var(--app-border);
+  background: var(--app-surface-soft);
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
   margin-bottom: var(--space-2);
   min-height: 56px !important;
 }
 
 .mat-grid-tile .mat-grid-tile-content {
-  background: #f7f8fb;
+  background: var(--app-surface-soft);
   border: 1px solid var(--app-border);
   border-radius: var(--radius-sm);
   color: var(--app-text);
@@ -128,34 +138,40 @@
 
 .mat-mdc-tab-group,
 .mat-mdc-tab-nav-bar {
-  --mdc-secondary-navigation-tab-container-height: 38px;
+  --mdc-secondary-navigation-tab-container-height: 40px;
 }
 
 .mat-mdc-tab .mdc-tab__text-label {
-  font-weight: 500;
+  color: var(--app-text);
+  font-weight: 600;
 }
 
 .mat-mdc-tab.mdc-tab--active .mdc-tab__text-label {
-  color: #566ae6 !important;
-  font-weight: 700;
+  color: var(--app-primary) !important;
+  font-weight: 600;
 }
 
 .mat-mdc-tab-group .mdc-tab-indicator__content--underline {
-  border-color: #566ae6 !important;
+  border-color: var(--app-primary) !important;
 }
 
 .mat-mdc-chip {
+  background: var(--app-surface) !important;
+  border: 1px solid var(--app-border) !important;
   border-radius: 999px !important;
   font-family: var(--font-family);
 }
 
 .mat-mdc-icon-button.mat-mdc-button-base {
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   padding: 8px;
+  border-radius: 999px;
 }
 
 .mat-mdc-menu-panel,
 .mat-mdc-select-panel {
+  border: 1px solid var(--app-border);
+  box-shadow: var(--shadow-soft);
   border-radius: var(--radius-md) !important;
 }

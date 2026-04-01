@@ -1,20 +1,21 @@
-:host {
+﻿:host {
   display: block;
 }
 
 .calendar-mini {
-  --calendar-mini-shell: #f2f3f7;
-  --calendar-mini-ink: #111111;
-  --calendar-mini-muted: #5f6472;
-  --calendar-mini-accent: #566ae6;
-  --calendar-mini-danger: #ef4444;
+  --calendar-mini-shell: var(--app-surface-soft);
+  --calendar-mini-ink: var(--app-text);
+  --calendar-mini-muted: var(--app-muted);
+  --calendar-mini-accent: var(--app-primary);
+  --calendar-mini-danger: var(--status-error);
+
   display: grid;
-  gap: 18px;
+  gap: 16px;
 }
 
 .calendar-mini__skeleton {
   display: grid;
-  gap: 14px;
+  gap: 12px;
 }
 
 .calendar-mini__skeleton-strip,
@@ -22,7 +23,7 @@
   animation: calendar-mini-shimmer 1.3s ease-in-out infinite;
   background: linear-gradient(90deg, #edf1f8 25%, #f9fbff 50%, #edf1f8 75%);
   background-size: 300% 100%;
-  border-radius: 24px;
+  border-radius: var(--radius-lg);
 }
 
 .calendar-mini__skeleton-strip {
@@ -30,11 +31,11 @@
 }
 
 .calendar-mini__skeleton-card {
-  height: 156px;
+  height: 152px;
 }
 
 .calendar-mini__skeleton-card--compact {
-  height: 132px;
+  height: 126px;
 }
 
 .calendar-mini__week,
@@ -54,26 +55,23 @@
 }
 
 .calendar-mini__day {
+  align-items: center;
   background: transparent;
   border: 0;
-  border-radius: 24px;
+  border-radius: var(--radius-lg);
   color: var(--calendar-mini-ink);
   cursor: pointer;
   display: grid;
   gap: 12px;
   justify-items: center;
-  min-width: 59px;
+  min-width: 56px;
   padding: 8px 4px 10px;
   position: relative;
-  transition:
-    background-color 0.18s ease,
-    color 0.18s ease,
-    transform 0.18s ease;
+  transition: background-color 0.18s ease;
 }
 
 .calendar-mini__day:hover {
   background: rgb(17 17 17 / 4%);
-  transform: translateY(-1px);
 }
 
 .calendar-mini__day--active {
@@ -82,12 +80,12 @@
 }
 
 .calendar-mini__day-name {
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 700;
 }
 
 .calendar-mini__day-number {
-  font-size: 0.95rem;
+  font-size: 0.88rem;
   font-weight: 500;
 }
 
@@ -106,7 +104,7 @@
 
 .calendar-mini__cards {
   display: grid;
-  gap: 14px;
+  gap: 12px;
 }
 
 .calendar-mini__card,
@@ -114,129 +112,123 @@
 .calendar-mini__empty {
   background: var(--calendar-mini-shell);
   border: 1px solid rgb(17 17 17 / 6%);
-  border-radius: 24px;
+  border-radius: var(--radius-lg);
 }
 
 .calendar-mini__card {
   display: grid;
   gap: 12px;
-  grid-template-columns: minmax(0, 1fr) 124px;
+  grid-template-columns: minmax(0, 1fr) 112px;
   overflow: hidden;
-  padding: 16px;
+  padding: 14px;
 }
 
 .calendar-mini__card-copy {
   display: grid;
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
 }
 
 .calendar-mini__card-title {
   color: var(--calendar-mini-ink);
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
 }
 
+.calendar-mini__card-title mat-icon {
+  color: #5f6778;
+}
+
 .calendar-mini__card-title strong {
-  font-size: clamp(1.05rem, 2vw, 1.15rem);
+  font-size: 1.12rem;
+  font-weight: 600;
   line-height: 1.2;
 }
 
 .calendar-mini__card-time {
   color: var(--calendar-mini-ink);
-  font-size: 1rem;
+  font-size: 0.95rem;
   margin: 0;
 }
 
 .calendar-mini__meta-grid {
   align-items: stretch;
-  gap: 12px 18px;
+  gap: 12px;
 }
 
 .calendar-mini__meta-item {
   display: grid;
   flex: 1 1 132px;
-  gap: 4px;
+  gap: 2px;
 }
 
 .calendar-mini__meta-item span,
 .calendar-mini__conflict-copy span {
   color: var(--calendar-mini-muted);
+  font-size: 0.82rem;
 }
 
 .calendar-mini__meta-item strong {
   color: var(--calendar-mini-ink);
-  font-size: 0.96rem;
+  font-size: 0.9rem;
+  font-weight: 500;
 }
 
 .calendar-mini__visual {
   align-items: flex-end;
   background:
-    radial-gradient(circle at 20% 24%, rgb(87 116 247 / 35%), transparent 42%),
-    linear-gradient(140deg, rgb(86 106 230 / 20%), rgb(86 106 230 / 6%));
-  border-radius: 20px;
+    radial-gradient(circle at 25% 24%, rgb(86 106 230 / 28%), transparent 44%),
+    linear-gradient(145deg, rgb(86 106 230 / 14%), rgb(86 106 230 / 6%));
+  border-radius: 18px;
   display: flex;
   justify-content: flex-end;
   overflow: hidden;
-  padding: 16px 12px 12px;
-  position: relative;
-}
-
-.calendar-mini__visual::after {
-  background: radial-gradient(circle, rgb(255 255 255 / 92%), transparent 64%);
-  content: '';
-  height: 110px;
-  position: absolute;
-  right: -16px;
-  top: -16px;
-  width: 110px;
+  padding: 12px 10px;
 }
 
 .calendar-mini__visual span {
   color: var(--calendar-mini-accent);
-  font-size: clamp(2.8rem, 8vw, 4.4rem);
+  font-size: 2.45rem;
   font-weight: 800;
-  letter-spacing: -0.06em;
-  line-height: 0.88;
-  position: relative;
-  z-index: 1;
+  letter-spacing: -0.04em;
+  line-height: 0.92;
 }
 
 .calendar-mini__card--all-day .calendar-mini__visual {
   background:
-    radial-gradient(circle at 20% 24%, rgb(124 58 237 / 26%), transparent 42%),
-    linear-gradient(140deg, rgb(124 58 237 / 16%), rgb(124 58 237 / 5%));
+    radial-gradient(circle at 25% 24%, rgb(234 179 8 / 26%), transparent 44%),
+    linear-gradient(145deg, rgb(234 179 8 / 14%), rgb(234 179 8 / 6%));
 }
 
 .calendar-mini__card--all-day .calendar-mini__visual span {
-  color: #7c3aed;
+  color: #b88900;
 }
 
 .calendar-mini__card--completed .calendar-mini__visual {
   background:
-    radial-gradient(circle at 20% 24%, rgb(22 163 74 / 24%), transparent 42%),
-    linear-gradient(140deg, rgb(22 163 74 / 14%), rgb(22 163 74 / 5%));
+    radial-gradient(circle at 25% 24%, rgb(48 204 0 / 24%), transparent 44%),
+    linear-gradient(145deg, rgb(48 204 0 / 14%), rgb(48 204 0 / 6%));
 }
 
 .calendar-mini__card--completed .calendar-mini__visual span {
-  color: #15803d;
+  color: #2ba900;
 }
 
 .calendar-mini__conflict,
 .calendar-mini__empty {
   display: grid;
-  gap: 16px;
-  padding: 16px;
+  gap: 12px;
+  padding: 14px;
 }
 
 .calendar-mini__conflict-copy {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .calendar-mini__conflict-head {
   color: var(--calendar-mini-ink);
-  gap: 10px;
+  gap: 8px;
 }
 
 .calendar-mini__conflict-head mat-icon {
@@ -246,26 +238,28 @@
 .calendar-mini__conflict-copy p,
 .calendar-mini__empty p {
   color: var(--calendar-mini-ink);
+  font-size: 0.9rem;
   margin: 0;
 }
 
 .calendar-mini__conflict-actions .mat-mdc-unelevated-button {
   border-radius: 999px;
-  min-height: 44px;
-  padding-inline: 22px;
+  min-height: 40px;
+  padding-inline: 18px;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 920px) {
   .calendar-mini__card {
     grid-template-columns: 1fr;
   }
 
   .calendar-mini__visual {
-    min-height: 120px;
+    min-height: 104px;
   }
 
   .calendar-mini__week {
     display: grid;
+    gap: 6px;
     grid-template-columns: repeat(7, minmax(0, 1fr));
     justify-content: stretch;
   }
@@ -281,10 +275,6 @@
     flex-direction: column;
   }
 
-  .calendar-mini__week {
-    gap: 6px;
-  }
-
   .calendar-mini__day {
     border-radius: 18px;
     gap: 8px;
@@ -296,6 +286,7 @@
   0% {
     background-position: 100% 0;
   }
+
   100% {
     background-position: -100% 0;
   }

@@ -1,13 +1,15 @@
-<mat-card class="widget-shell">
+﻿<mat-card class="widget-shell">
   <mat-card-header class="widget-shell__header">
-    @if (listRoute()) {
-      <a class="widget-shell__title-link" [routerLink]="listRoute()">{{ title() }}</a>
-    } @else {
-      <mat-card-title class="widget-shell__title">{{ title() }}</mat-card-title>
-    }
+    <mat-card-title class="widget-shell__title">{{ title() }}</mat-card-title>
 
     @if (actionLabel() && actionRoute()) {
-      <a class="widget-shell__action-link" [routerLink]="actionRoute()">{{ actionLabel() }}</a>
+      <a mat-stroked-button class="widget-shell__action" [routerLink]="actionRoute()">
+        {{ actionLabel() }}
+      </a>
+    } @else if (listRoute()) {
+      <a mat-stroked-button class="widget-shell__action" [routerLink]="listRoute()">
+        {{ listActionLabel() }}
+      </a>
     }
   </mat-card-header>
 

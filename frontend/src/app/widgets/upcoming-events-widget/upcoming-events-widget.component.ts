@@ -1,4 +1,4 @@
-import { HttpErrorResponse } from '@angular/common/http';
+﻿import { HttpErrorResponse } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
@@ -103,6 +103,7 @@ export class UpcomingEventsWidgetComponent implements OnInit {
   protected readonly emptyDay = computed(
     () => !this.selectedDayEvents().length && !this.selectedDayConflict(),
   );
+
   protected readonly unscheduledCount = computed(
     () => this.tasks().filter((task) => !resolveYougileTaskWindow(task)).length,
   );
@@ -125,30 +126,6 @@ export class UpcomingEventsWidgetComponent implements OnInit {
     const currentIndex = allConflicts.findIndex((item) => item.dayKey === currentKey);
     const next = allConflicts[(currentIndex + 1 + allConflicts.length) % allConflicts.length];
     this.selectedDayKey.set(next.dayKey);
-  }
-
-  private alignSelection(): void {
-    const current = this.selectedDayKey();
-    if (
-      this.calendarEvents().some((event) => event.dayKey === current) ||
-      this.conflicts().some((conflict) => conflict.dayKey === current)
-    ) {
-      return;
-    }
-
-    const firstConflict = this.conflicts()[0];
-    if (firstConflict) {
-      this.selectedDayKey.set(firstConflict.dayKey);
-      return;
-    }
-
-    const nextEvent = this.calendarEvents()[0];
-    if (nextEvent) {
-      this.selectedDayKey.set(nextEvent.dayKey);
-      return;
-    }
-
-    this.selectedDayKey.set(this.formatDateKey(new Date()));
   }
 
   private async loadCalendar(): Promise<void> {
@@ -182,6 +159,30 @@ export class UpcomingEventsWidgetComponent implements OnInit {
     }
   }
 
+  private alignSelection(): void {
+    const current = this.selectedDayKey();
+    if (
+      this.calendarEvents().some((event) => event.dayKey === current) ||
+      this.conflicts().some((conflict) => conflict.dayKey === current)
+    ) {
+      return;
+    }
+
+    const firstConflict = this.conflicts()[0];
+    if (firstConflict) {
+      this.selectedDayKey.set(firstConflict.dayKey);
+      return;
+    }
+
+    const nextEvent = this.calendarEvents()[0];
+    if (nextEvent) {
+      this.selectedDayKey.set(nextEvent.dayKey);
+      return;
+    }
+
+    this.selectedDayKey.set(this.formatDateKey(new Date()));
+  }
+
   private normalizeTasks(items: YougileTask[]): MiniCalendarEvent[] {
     return items
       .flatMap((task) => {
@@ -197,7 +198,9 @@ export class UpcomingEventsWidgetComponent implements OnInit {
             start: window.start,
             end: window.end,
             dayKey: this.formatDateKey(window.start),
-            timeLabel: window.allDay ? 'Весь день' : this.formatTimeRange(window.start, window.end),
+            timeLabel: window.allDay
+              ? 'Весь день'
+              : this.formatTimeRange(window.start, window.end),
             primaryMetaLabel: 'Колонка',
             primaryMetaValue: this.taskColumnLabel(task),
             secondaryMetaLabel: 'Доска',
