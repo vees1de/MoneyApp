@@ -1,4 +1,4 @@
-﻿import { CommonModule } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, ParamMap, Router, RouterLink } from '@angular/router';
@@ -7,13 +7,23 @@ import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
+import { MatTabsModule } from '@angular/material/tabs';
 import { Subscription } from 'rxjs';
 
+import { CatalogDeadlinesWidgetComponent } from '@app/widgets/catalog-deadlines-widget/catalog-deadlines-widget.component';
+import { CatalogFocusWidgetComponent } from '@app/widgets/catalog-focus-widget/catalog-focus-widget.component';
+import { CatalogTracksWidgetComponent } from '@app/widgets/catalog-tracks-widget/catalog-tracks-widget.component';
 import { CoursesApiService } from '@core/api/courses-api.service';
 import type { Course } from '@entities/course';
 
 const DEFAULT_LIMIT = 50;
 const PAGE_SIZE_OPTIONS = [5, 10, 20, 50];
+const CATALOG_TAB_PRESETS = [
+  { label: 'Все курсы', status: '', source_type: '' },
+  { label: 'Внутренние', status: '', source_type: 'internal' },
+  { label: 'Внешние', status: '', source_type: 'external' },
+  { label: 'Архив', status: 'archived', source_type: '' },
+] as const;
 
 type CatalogQueryState = {
   status: string;
@@ -35,6 +45,10 @@ type CatalogQueryState = {
     MatFormFieldModule,
     MatIconModule,
     MatSelectModule,
+    MatTabsModule,
+    CatalogFocusWidgetComponent,
+    CatalogTracksWidgetComponent,
+    CatalogDeadlinesWidgetComponent,
   ],
   templateUrl: './list.page.html',
   styleUrl: './list.page.scss',
@@ -50,6 +64,8 @@ export class CatalogListPageComponent implements OnInit, OnDestroy {
   protected readonly error = signal<string | null>(null);
   protected readonly courses = signal<Course[]>([]);
   protected readonly pageSizeOptions = PAGE_SIZE_OPTIONS;
+  protected readonly tabPresets = CATALOG_TAB_PRESETS;
+  protected readonly activeTabIndex = signal(0);
 
   protected readonly form = this.fb.group({
     status: [''],
@@ -61,15 +77,15 @@ export class CatalogListPageComponent implements OnInit, OnDestroy {
 
   protected readonly statusOptions = [
     { value: '', label: 'Все статусы' },
-    { value: 'draft', label: 'Draft' },
-    { value: 'published', label: 'Published' },
-    { value: 'archived', label: 'Archived' },
+    { value: 'draft', label: 'Черновик' },
+    { value: 'published', label: 'Опубликован' },
+    { value: 'archived', label: 'Архив' },
   ];
 
   protected readonly sourceTypeOptions = [
     { value: '', label: 'Все источники' },
-    { value: 'internal', label: 'Internal' },
-    { value: 'external', label: 'External' },
+    { value: 'internal', label: 'Внутренний' },
+    { value: 'external', label: 'Внешний' },
   ];
 
   protected readonly levelOptions = [
@@ -79,12 +95,14 @@ export class CatalogListPageComponent implements OnInit, OnDestroy {
     { value: 'senior', label: 'Senior' },
     { value: 'lead', label: 'Lead' },
   ];
+
   ngOnInit(): void {
     this.subscriptions.add(
       this.route.queryParamMap.subscribe((params) => {
         const state = this.readStateFromQuery(params);
 
         this.form.patchValue(state, { emitEvent: false });
+        this.activeTabIndex.set(this.resolveTabPresetIndex(state));
         this.loadCourses(state);
       }),
     );
@@ -101,6 +119,22 @@ export class CatalogListPageComponent implements OnInit, OnDestroy {
 
   protected resetFilters(): void {
     this.updateQueryParams(this.getDefaultState());
+  }
+
+  protected selectTabPreset(index: number): void {
+    const preset = this.tabPresets[index];
+
+    if (!preset) {
+      return;
+    }
+
+    const state = this.readStateFromForm();
+    this.updateQueryParams({
+      ...state,
+      status: preset.status,
+      source_type: preset.source_type,
+      offset: 0,
+    });
   }
 
   protected trackByCourse(_: number, course: Course): string {
@@ -336,5 +370,13 @@ export class CatalogListPageComponent implements OnInit, OnDestroy {
       default:
         return value?.trim() ?? '';
     }
+  }
+
+  private resolveTabPresetIndex(state: CatalogQueryState): number {
+    const index = this.tabPresets.findIndex((preset) => {
+      return preset.status === state.status && preset.source_type === state.source_type;
+    });
+
+    return index >= 0 ? index : 0;
   }
 }

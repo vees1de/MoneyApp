@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+﻿import { CommonModule } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -7,14 +7,13 @@ import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { catchError, forkJoin, of, switchMap } from 'rxjs';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { catchError, forkJoin, of } from 'rxjs';
 
 import { CertificatesApiService } from '@core/api/certificates-api.service';
-import { CoursesApiService } from '@core/api/courses-api.service';
 import { EnrollmentsApiService } from '@core/api/enrollments-api.service';
 import { normalizeText } from '@core/domain/course-intake-form.util';
 import type { Certificate } from '@entities/certificate';
-import type { Course } from '@entities/course';
 import type { Enrollment } from '@entities/enrollment';
 
 @Component({
@@ -29,6 +28,7 @@ import type { Enrollment } from '@entities/enrollment';
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
+    MatProgressBarModule,
   ],
   templateUrl: './enrollment-detail.page.html',
   styleUrl: './enrollment-detail.page.scss',
@@ -36,7 +36,6 @@ import type { Enrollment } from '@entities/enrollment';
 export class LearningEnrollmentDetailPageComponent implements OnInit {
   private readonly enrollmentsApi = inject(EnrollmentsApiService);
   private readonly certificatesApi = inject(CertificatesApiService);
-  private readonly coursesApi = inject(CoursesApiService);
   private readonly route = inject(ActivatedRoute);
   private readonly fb = inject(FormBuilder);
 
@@ -44,7 +43,6 @@ export class LearningEnrollmentDetailPageComponent implements OnInit {
   protected readonly acting = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly enrollment = signal<Enrollment | null>(null);
-  protected readonly course = signal<Course | null>(null);
   protected readonly certificates = signal<Certificate[]>([]);
   protected readonly selectedCertificateFile = signal<File | null>(null);
 
@@ -83,39 +81,22 @@ export class LearningEnrollmentDetailPageComponent implements OnInit {
   protected readonly canUploadCertificate = computed(() => {
     const item = this.enrollment();
     const certificate = this.latestCertificate();
-    if (!item) {
+    if (!item || item.status !== 'completed') {
       return false;
     }
 
-    if (item.status === 'completed') {
-      return !certificate || certificate.status === 'rejected';
-    }
-
-    return item.status === 'in_progress';
+    return !certificate || certificate.status === 'rejected';
   });
 
   protected readonly canWorkOnCourse = computed(() => this.enrollment()?.status === 'in_progress');
-  protected readonly certificateReady = computed(() => {
-    const certificate = this.latestCertificate();
-    return !!certificate && certificate.status !== 'rejected';
-  });
-  protected readonly canCompleteCourse = computed(
-    () => this.canWorkOnCourse() && this.certificateReady(),
-  );
-  protected readonly courseTitle = computed(() => {
-    const course = this.course();
-    return course?.title?.trim() || this.enrollment()?.course_id || 'Карточка обучения';
-  });
-  protected readonly courseDescription = computed(() => {
-    const course = this.course();
-    return (
-      course?.short_description?.trim() ||
-      'Сначала загрузите сертификат, затем завершите курс. После этого HR проверит документ.'
-    );
-  });
 
   ngOnInit(): void {
     this.load();
+  }
+
+  protected progressValue(item: Enrollment): number {
+    const value = Number(item.completion_percent);
+    return Number.isNaN(value) ? 0 : Math.max(0, Math.min(100, value));
   }
 
   protected enrollmentStatusLabel(status: string): string {
@@ -141,19 +122,6 @@ export class LearningEnrollmentDetailPageComponent implements OnInit {
     }
 
     return labels[status] ?? status;
-  }
-
-  protected enrollmentStatusTone(status: string): 'info' | 'success' | 'warning' | 'muted' {
-    switch (status) {
-      case 'completed':
-        return 'success';
-      case 'in_progress':
-        return 'info';
-      case 'enrolled':
-        return 'warning';
-      default:
-        return 'muted';
-    }
   }
 
   protected selectedCertificateFileName(): string {
@@ -190,12 +158,7 @@ export class LearningEnrollmentDetailPageComponent implements OnInit {
 
   protected complete(): void {
     const item = this.enrollment();
-    if (!item || this.acting()) {
-      return;
-    }
-
-    if (!this.canCompleteCourse()) {
-      this.error.set('Сначала загрузите сертификат.');
+    if (!item || this.acting() || item.status !== 'in_progress') {
       return;
     }
 
@@ -282,28 +245,19 @@ export class LearningEnrollmentDetailPageComponent implements OnInit {
     this.loading.set(true);
     this.error.set(null);
 
-    this.enrollmentsApi
-      .getById(id)
-      .pipe(
-        switchMap((enrollment) =>
-          forkJoin({
-            enrollment: of(enrollment),
-            course: this.coursesApi.getById(enrollment.course_id).pipe(catchError(() => of(null))),
-            certificates: this.certificatesApi.listMy().pipe(catchError(() => of([]))),
-          }),
-        ),
-      )
-      .subscribe({
-        next: ({ enrollment, course, certificates }) => {
-          this.enrollment.set(enrollment);
-          this.course.set(course);
-          this.certificates.set(certificates ?? []);
-          this.loading.set(false);
-        },
-        error: () => {
-          this.error.set('Не удалось загрузить карточку обучения.');
-          this.loading.set(false);
-        },
-      });
+    forkJoin({
+      enrollment: this.enrollmentsApi.getById(id),
+      certificates: this.certificatesApi.listMy().pipe(catchError(() => of([]))),
+    }).subscribe({
+      next: ({ enrollment, certificates }) => {
+        this.enrollment.set(enrollment);
+        this.certificates.set(certificates ?? []);
+        this.loading.set(false);
+      },
+      error: () => {
+        this.error.set('Не удалось загрузить карточку обучения.');
+        this.loading.set(false);
+      },
+    });
   }
 }
