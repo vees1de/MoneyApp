@@ -24,32 +24,34 @@
 
       <mat-card-content class="enrollment-detail-card__content">
         <mat-progress-bar mode="determinate" [value]="progressValue(item)"></mat-progress-bar>
-        <p>
-          <span class="kv__key">Прогресс:</span>
-          <span class="kv__value">{{ progressValue(item) }}%</span>
-        </p>
-        <p>
-          <span class="kv__key">Записан:</span>
-          <span class="kv__value">{{ item.enrolled_at | date: 'dd.MM.yyyy HH:mm' }}</span>
-        </p>
-        <p>
-          <span class="kv__key">Старт:</span>
-          <span class="kv__value">{{
-            item.started_at ? (item.started_at | date: 'dd.MM.yyyy HH:mm') : '—'
-          }}</span>
-        </p>
-        <p>
-          <span class="kv__key">Завершение:</span>
-          <span class="kv__value">{{
-            item.completed_at ? (item.completed_at | date: 'dd.MM.yyyy HH:mm') : '—'
-          }}</span>
-        </p>
-        <p>
-          <span class="kv__key">Дедлайн:</span>
-          <span class="kv__value">{{
-            item.deadline_at ? (item.deadline_at | date: 'dd.MM.yyyy HH:mm') : '—'
-          }}</span>
-        </p>
+        <div class="enrollment-detail-card__facts">
+          <p>
+            <span class="kv__key">Прогресс:</span>
+            <span class="kv__value">{{ progressValue(item) }}%</span>
+          </p>
+          <p>
+            <span class="kv__key">Записан:</span>
+            <span class="kv__value">{{ item.enrolled_at | date: 'dd.MM.yyyy HH:mm' }}</span>
+          </p>
+          <p>
+            <span class="kv__key">Старт:</span>
+            <span class="kv__value">{{
+              item.started_at ? (item.started_at | date: 'dd.MM.yyyy HH:mm') : '—'
+            }}</span>
+          </p>
+          <p>
+            <span class="kv__key">Завершение:</span>
+            <span class="kv__value">{{
+              item.completed_at ? (item.completed_at | date: 'dd.MM.yyyy HH:mm') : '—'
+            }}</span>
+          </p>
+          <p>
+            <span class="kv__key">Дедлайн:</span>
+            <span class="kv__value">{{
+              item.deadline_at ? (item.deadline_at | date: 'dd.MM.yyyy HH:mm') : '—'
+            }}</span>
+          </p>
+        </div>
 
         <div class="enrollment-detail-page__actions">
           <button
@@ -110,22 +112,24 @@
 
       <mat-card-content class="certificate-card__content">
         @if (latestCertificate(); as certificate) {
-          <p>
-            <span class="kv__key">Загружен:</span>
-            <span class="kv__value">{{ certificate.uploaded_at | date: 'dd.MM.yyyy HH:mm' }}</span>
-          </p>
-          <p>
-            <span class="kv__key">Номер:</span>
-            <span class="kv__value">{{ certificate.certificate_no || '—' }}</span>
-          </p>
-          <p>
-            <span class="kv__key">Кем выдан:</span>
-            <span class="kv__value">{{ certificate.issued_by || '—' }}</span>
-          </p>
-          <p>
-            <span class="kv__key">Комментарий HR:</span>
-            <span class="kv__value">{{ certificate.notes || '—' }}</span>
-          </p>
+          <div class="certificate-card__facts">
+            <p>
+              <span class="kv__key">Загружен:</span>
+              <span class="kv__value">{{ certificate.uploaded_at | date: 'dd.MM.yyyy HH:mm' }}</span>
+            </p>
+            <p>
+              <span class="kv__key">Номер:</span>
+              <span class="kv__value">{{ certificate.certificate_no || '—' }}</span>
+            </p>
+            <p>
+              <span class="kv__key">Кем выдан:</span>
+              <span class="kv__value">{{ certificate.issued_by || '—' }}</span>
+            </p>
+            <p>
+              <span class="kv__key">Комментарий HR:</span>
+              <span class="kv__value">{{ certificate.notes || '—' }}</span>
+            </p>
+          </div>
         } @else {
           <p class="certificate-card__hint">Сертификат ещё не загружен.</p>
         }
