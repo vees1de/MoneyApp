@@ -32,7 +32,6 @@ import type { IdentityUserView } from '@core/auth/auth.types';
 import type { Course } from '@entities/course';
 
 import { CoursePickerDialogComponent } from '../../intakes/course-picker-dialog/course-picker-dialog.component';
-import { MatChipSet, MatChip } from '@angular/material/chips';
 import { toSignal } from '@angular/core/rxjs-interop';
 
 @Component({
@@ -48,8 +47,6 @@ import { toSignal } from '@angular/core/rxjs-interop';
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
-    MatChipSet,
-    MatChip,
   ],
   templateUrl: './detail.page.html',
   styleUrl: './detail.page.scss',
