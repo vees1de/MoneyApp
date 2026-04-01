@@ -33,8 +33,6 @@
           <a [routerLink]="'/learning/' + item.id" class="cards__title">
             {{ item.title }}
           </a>
-          <strong class="cards__percent">{{ item.progress }}%</strong>
-          <mat-progress-bar mode="determinate" [value]="item.progress"></mat-progress-bar>
           <div class="cards__meta">
             <span>{{ item.deadlineText }}</span>
             <span>{{ item.status }}</span>

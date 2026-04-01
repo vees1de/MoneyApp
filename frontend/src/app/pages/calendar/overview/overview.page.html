@@ -31,7 +31,7 @@
         <p>Загружаю задачи и статус связи.</p>
       </div>
     </section>
-  } @else if (yougileConnection(); as currentConnection) {
+  } @else if (showYougileConnection() && yougileConnection(); as currentConnection) {
     <section class="calendar-connection">
       <div class="calendar-connection__copy">
         <span class="calendar-connection__label">Yougile</span>
@@ -77,16 +77,6 @@
 
   @if (anyBusy()) {
     <mat-progress-bar mode="indeterminate"></mat-progress-bar>
-  }
-
-  @if (overviewNotice()) {
-    <section class="calendar-banner calendar-banner--success">
-      <div>
-        <strong>Готово.</strong>
-        <span>{{ overviewNotice() }}</span>
-      </div>
-      <button mat-button type="button" (click)="clearNotice()">Скрыть</button>
-    </section>
   }
 
   @if (issueMessages().length > 0) {
@@ -178,11 +168,9 @@
                     <span>{{ item.statusLabel }}</span>
                   </div>
 
-                  <mat-progress-bar mode="determinate" [value]="item.progress"></mat-progress-bar>
-
                   <div class="learning-item__footer">
                     <span>{{ item.deadlineLabel }}</span>
-                    <span>{{ item.progress }}%</span>
+                    <span>{{ item.statusLabel }}</span>
                   </div>
                 </article>
               }
@@ -220,46 +208,6 @@
             <div class="calendar-empty">
               <mat-icon>verified</mat-icon>
               <p>Пересечений не найдено.</p>
-            </div>
-          }
-        </mat-card-content>
-      </mat-card>
-
-      <mat-card class="calendar-panel">
-        <mat-card-header>
-          <mat-card-title>Yougile без времени</mat-card-title>
-          <mat-card-subtitle>{{ backlogCount() }} задач без окон</mat-card-subtitle>
-        </mat-card-header>
-
-        <mat-card-content class="calendar-panel__content">
-          @if (yougileConnection()) {
-            @if (unscheduledYougileTasksPreview().length > 0) {
-              <div class="task-list">
-                @for (task of unscheduledYougileTasksPreview(); track task.id) {
-                  <article class="task-item">
-                    <div class="task-item__head">
-                      <strong>{{ task.title }}</strong>
-                      <span>{{ task.windowLabel }}</span>
-                    </div>
-                    <p>{{ task.boardLabel }} · {{ task.columnLabel }}</p>
-                    <div class="task-item__footer">
-                      <span>{{ task.identifier }}</span>
-                      <span>{{ task.createdLabel }}</span>
-                    </div>
-                  </article>
-                }
-              </div>
-            } @else {
-              <div class="calendar-empty">
-                <mat-icon>task_alt</mat-icon>
-                <p>Все актуальные Yougile задачи уже имеют временные окна.</p>
-              </div>
-            }
-          } @else {
-            <div class="calendar-empty calendar-empty--connect">
-              <mat-icon>link</mat-icon>
-              <p>Подключите Yougile, чтобы увидеть задачи без времени.</p>
-              <a mat-stroked-button routerLink="/playground">Подключить Yougile</a>
             </div>
           }
         </mat-card-content>

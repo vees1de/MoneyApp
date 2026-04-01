@@ -214,72 +214,6 @@ export class CatalogListPageComponent implements OnInit, OnDestroy {
     return [price, currency].filter(Boolean).join(' ');
   }
 
-  protected getLevelPillClass(course: Course): string {
-    const level = course.level?.trim().toLowerCase();
-
-    if (!level) {
-      return 'course-pill--neutral';
-    }
-
-    if (['beginner', 'junior', 'intern', 'starter'].includes(level)) {
-      return 'course-pill--mint';
-    }
-
-    if (['middle', 'intermediate'].includes(level)) {
-      return 'course-pill--sky';
-    }
-
-    if (['senior', 'advanced', 'expert'].includes(level)) {
-      return 'course-pill--violet';
-    }
-
-    if (['lead', 'principal', 'staff'].includes(level)) {
-      return 'course-pill--coral';
-    }
-
-    return 'course-pill--sky';
-  }
-
-  protected getDurationPillClass(course: Course): string {
-    const hours = this.parseHours(course.duration_hours);
-
-    if (hours === null) {
-      return 'course-pill--neutral';
-    }
-
-    if (hours <= 20) {
-      return 'course-pill--mint';
-    }
-
-    if (hours <= 60) {
-      return 'course-pill--amber';
-    }
-
-    return 'course-pill--coral';
-  }
-
-  protected getLanguagePillClass(course: Course): string {
-    const language = course.language?.trim().toLowerCase();
-
-    if (!language) {
-      return 'course-pill--neutral';
-    }
-
-    if (language.includes('ru') || language.includes('рус')) {
-      return 'course-pill--sky';
-    }
-
-    if (language.includes('en') || language.includes('англ')) {
-      return 'course-pill--violet';
-    }
-
-    if (language.includes('/') || language.includes(',')) {
-      return 'course-pill--amber';
-    }
-
-    return 'course-pill--mint';
-  }
-
   private loadCourses(state: CatalogQueryState): void {
     this.loading.set(true);
     this.error.set(null);
@@ -303,19 +237,6 @@ export class CatalogListPageComponent implements OnInit, OnDestroy {
         this.loading.set(false);
       },
     });
-  }
-
-  private parseHours(duration?: string | null): number | null {
-    const normalized = duration?.trim();
-
-    if (!normalized) {
-      return null;
-    }
-
-    const match = normalized.replace(',', '.').match(/\d+(\.\d+)?/);
-    const hours = match ? Number(match[0]) : Number.NaN;
-
-    return Number.isFinite(hours) ? hours : null;
   }
 
   private readStateFromForm(): CatalogQueryState {

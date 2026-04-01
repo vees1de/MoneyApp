@@ -2,7 +2,6 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { forkJoin } from 'rxjs';
 
 import { CoursesApiService } from '@core/api/courses-api.service';
@@ -14,7 +13,6 @@ import { WidgetShellComponent } from '@app/widgets/widget-shell/widget-shell.com
 interface ProcessItem {
   id: string;
   title: string;
-  progress: number;
   status: string;
   deadlineText: string;
   overdue: boolean;
@@ -23,7 +21,7 @@ interface ProcessItem {
 @Component({
   selector: 'app-current-learning-widget',
   standalone: true,
-  imports: [CommonModule, RouterLink, MatButtonModule, MatProgressBarModule, WidgetShellComponent],
+  imports: [CommonModule, RouterLink, MatButtonModule, WidgetShellComponent],
   templateUrl: './current-learning-widget.component.html',
   styleUrl: './current-learning-widget.component.scss',
 })
@@ -86,7 +84,6 @@ export class CurrentLearningWidgetComponent implements OnInit {
     const courseMap = new Map(courses.map((course) => [course.id, course.title]));
 
     return enrollments.map((item) => {
-      const progress = this.progressValue(item.completion_percent);
       const deadline = this.deadlineText(item.deadline_at);
       const isOverdue =
         item.status !== 'completed' &&
@@ -97,20 +94,11 @@ export class CurrentLearningWidgetComponent implements OnInit {
       return {
         id: item.id,
         title: courseMap.get(item.course_id) || `Курс ${item.course_id.slice(0, 8)}`,
-        progress,
         status: item.status,
         deadlineText: deadline,
         overdue: isOverdue,
       };
     });
-  }
-
-  private progressValue(value: string): number {
-    const normalized = Number(value);
-    if (Number.isNaN(normalized)) {
-      return 0;
-    }
-    return Math.max(0, Math.min(100, normalized));
   }
 
   private deadlineText(date: string | null | undefined): string {

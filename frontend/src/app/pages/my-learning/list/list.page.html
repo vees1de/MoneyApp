@@ -1,36 +1,109 @@
-﻿<section class="my-learning-page">
+<section class="my-learning-page">
   @if (loading()) {
-    <p>Загрузка...</p>
+    <section class="my-learning-page__state my-learning-page__state--loading">
+      <p class="my-learning-page__eyebrow">Моё обучение</p>
+      <h1>Загружаю курсы...</h1>
+      <p>Подтягиваю назначения, сертификаты и дедлайны.</p>
+    </section>
   } @else if (error()) {
-    <p class="my-learning-page__error">{{ error() }}</p>
-  } @else if (enrollments().length === 0) {
-    <p>У вас нет активного обучения.</p>
+    <section class="my-learning-page__state my-learning-page__state--error">
+      <p class="my-learning-page__eyebrow">Моё обучение</p>
+      <h1>Не удалось загрузить обучение</h1>
+      <p class="my-learning-page__error">{{ error() }}</p>
+    </section>
   } @else {
-    <section class="my-learning-grid">
-      @for (item of enrollments(); track item.id) {
-        <mat-card class="my-learning-card">
-          <mat-card-header>
-            <mat-card-title>
-              <a [routerLink]="'/learning/' + item.id">Enrollment {{ item.id }}</a>
-            </mat-card-title>
-            <mat-card-subtitle>{{ item.status }}</mat-card-subtitle>
-          </mat-card-header>
+    <header class="my-learning-page__hero">
+      <div class="my-learning-page__hero-copy">
+        <span class="my-learning-page__eyebrow">Моё обучение</span>
+        <h1>Курсы, сертификаты и завершение</h1>
+        <p>
+          Сначала загрузите сертификат в карточке курса, затем завершите обучение. Ниже показаны
+          активные назначения и то, что ещё требует внимания.
+        </p>
+      </div>
 
-          <mat-card-content class="my-learning-card__content">
-            <mat-progress-bar mode="determinate" [value]="progressValue(item)"></mat-progress-bar>
-            <p>
-              <span class="kv__key">Прогресс:</span
-              ><span class="kv__value">{{ progressValue(item) }}%</span>
-            </p>
-            @if (item.deadline_at) {
-              <p>
-                <span class="kv__key">Дедлайн:</span
-                ><span class="kv__value">{{ item.deadline_at }}</span>
-              </p>
-            }
-          </mat-card-content>
-        </mat-card>
+      <aside class="my-learning-page__focus">
+        <span class="my-learning-page__focus-label">Следующее действие</span>
+        @if (focusItem(); as focus) {
+          <strong>{{ focus.title }}</strong>
+          <p>{{ focus.description }}</p>
+          <div class="my-learning-page__focus-meta">
+            <span>{{ focus.statusLabel }}</span>
+            <span>{{ focus.deadlineText }}</span>
+          </div>
+          <a mat-stroked-button [routerLink]="'/learning/' + focus.id">
+            <mat-icon>arrow_forward</mat-icon>
+            Открыть карточку
+          </a>
+        } @else {
+          <strong>Пока нет активных курсов</strong>
+          <p>Когда появится назначение, здесь будет быстрый переход в карточку обучения.</p>
+        }
+      </aside>
+    </header>
+
+    <section class="my-learning-page__summary">
+      @for (card of summaryCards(); track card.label) {
+        <article class="summary-card" [attr.data-tone]="card.tone">
+          <span class="summary-card__label">{{ card.label }}</span>
+          <strong class="summary-card__value">{{ card.value }}</strong>
+          <span class="summary-card__hint">{{ card.hint }}</span>
+        </article>
       }
     </section>
+
+    @if (items().length === 0) {
+      <section class="my-learning-page__empty">
+        <mat-icon>school</mat-icon>
+        <h2>У вас нет активного обучения</h2>
+        <p>Как только HR назначит курс, он появится здесь вместе с сертификатом и сроками.</p>
+      </section>
+    } @else {
+      <section class="my-learning-grid">
+        @for (item of items(); track item.id) {
+          <article class="learning-card" [attr.data-tone]="item.statusTone" [class.learning-card--overdue]="item.overdue">
+            <div class="learning-card__header">
+              <div>
+                <span class="learning-card__eyebrow">Курс</span>
+                <h2>{{ item.title }}</h2>
+                <p>{{ item.description }}</p>
+              </div>
+
+              <span class="learning-card__status">{{ item.statusLabel }}</span>
+            </div>
+
+            <div class="learning-card__meta">
+              <div>
+                <span>Дедлайн</span>
+                <strong>{{ item.deadlineText }}</strong>
+              </div>
+              <div>
+                <span>Записан</span>
+                <strong>{{ item.enrolledText }}</strong>
+              </div>
+              <div>
+                <span>Активность</span>
+                <strong>{{ item.activityText }}</strong>
+              </div>
+              <div>
+                <span>Сертификат</span>
+                <strong>{{ item.certificateLabel }}</strong>
+              </div>
+            </div>
+
+            <div class="learning-card__footer">
+              <span class="learning-card__badge" [attr.data-tone]="item.certificateTone">
+                {{ item.needsCertificate ? 'Нужен сертификат' : 'Готово к завершению' }}
+              </span>
+
+              <a mat-stroked-button [routerLink]="'/learning/' + item.id">
+                <mat-icon>arrow_forward</mat-icon>
+                Открыть
+              </a>
+            </div>
+          </article>
+        }
+      </section>
+    }
   }
 </section>

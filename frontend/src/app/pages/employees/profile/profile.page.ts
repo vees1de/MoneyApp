@@ -4,7 +4,6 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTabsModule } from '@angular/material/tabs';
 
@@ -23,7 +22,6 @@ import type {
     MatButtonModule,
     MatCardModule,
     MatIconModule,
-    MatProgressBarModule,
     MatProgressSpinnerModule,
     MatTabsModule,
   ],
@@ -87,11 +85,6 @@ export class EmployeeProfilePageComponent implements OnInit {
     const date = new Date(value);
     if (isNaN(date.getTime())) return value;
     return date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  }
-
-  protected formatProgress(value: string): number {
-    const n = parseFloat(value);
-    return isFinite(n) ? Math.round(n) : 0;
   }
 
   protected statusLabel(status: string): string {

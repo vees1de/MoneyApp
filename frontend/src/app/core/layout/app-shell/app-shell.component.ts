@@ -49,7 +49,7 @@ export class AppShellComponent {
         visible: this.authState.hasPermission(PERMISSIONS.coursesRead),
       },
       {
-        label: 'Назначения',
+        label: 'Набор',
         route: '/intakes',
         visible: true,
       },

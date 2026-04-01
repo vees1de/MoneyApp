@@ -164,17 +164,6 @@
                       }
                     </div>
 
-                    <div class="emp-course-card__progress">
-                      <div class="emp-progress-row">
-                        <span>Прогресс</span>
-                        <strong>{{ formatProgress(enrollment.completion_percent) }}%</strong>
-                      </div>
-                      <mat-progress-bar
-                        mode="determinate"
-                        [value]="formatProgress(enrollment.completion_percent)"
-                      ></mat-progress-bar>
-                    </div>
-
                     <div class="emp-course-card__dates">
                       <span>Записан: {{ formatDate(enrollment.enrolled_at) }}</span>
                       @if (enrollment.started_at) {

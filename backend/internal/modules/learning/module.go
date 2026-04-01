@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"moneyapp/backend/internal/modules/catalog"
+	"moneyapp/backend/internal/modules/certificates"
 	"moneyapp/backend/internal/modules/org"
 	platformauth "moneyapp/backend/internal/platform/auth"
 	"moneyapp/backend/internal/platform/clock"
@@ -233,22 +234,32 @@ func (r *Repository) CreateCompletionRecord(ctx context.Context, enrollmentID, a
 }
 
 type Service struct {
-	db         *sql.DB
-	repo       *Repository
-	orgService *org.Service
-	catalog    *catalog.Service
-	outbox     *outbox.Service
-	clock      clock.Clock
+	db               *sql.DB
+	repo             *Repository
+	certificatesRepo *certificates.Repository
+	orgService       *org.Service
+	catalog          *catalog.Service
+	outbox           *outbox.Service
+	clock            clock.Clock
 }
 
-func NewService(database *sql.DB, repo *Repository, orgService *org.Service, catalogService *catalog.Service, outboxService *outbox.Service, appClock clock.Clock) *Service {
+func NewService(
+	database *sql.DB,
+	repo *Repository,
+	certificatesRepo *certificates.Repository,
+	orgService *org.Service,
+	catalogService *catalog.Service,
+	outboxService *outbox.Service,
+	appClock clock.Clock,
+) *Service {
 	return &Service{
-		db:         database,
-		repo:       repo,
-		orgService: orgService,
-		catalog:    catalogService,
-		outbox:     outboxService,
-		clock:      appClock,
+		db:               database,
+		repo:             repo,
+		certificatesRepo: certificatesRepo,
+		orgService:       orgService,
+		catalog:          catalogService,
+		outbox:           outboxService,
+		clock:            appClock,
 	}
 }
 
@@ -409,6 +420,22 @@ func (s *Service) CompleteEnrollment(ctx context.Context, principal platformauth
 	}
 	if item.UserID != principal.UserID && !principal.HasPermission("enrollments.manage") {
 		return Enrollment{}, httpx.Forbidden("forbidden", "only owner or HR/admin can complete enrollment")
+	}
+	if s.certificatesRepo != nil {
+		certificate, err := s.certificatesRepo.GetLatestByEnrollment(ctx, item.ID)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return Enrollment{}, httpx.Conflict("certificate_missing", "upload a certificate before completing the course")
+			}
+			return Enrollment{}, err
+		}
+		switch certificate.Status {
+		case "uploaded", "verified":
+		case "rejected":
+			return Enrollment{}, httpx.Conflict("certificate_rejected", "upload a new certificate before completing the course")
+		default:
+			return Enrollment{}, httpx.Conflict("certificate_missing", "upload a certificate before completing the course")
+		}
 	}
 	now := s.clock.Now()
 	item.Status = "completed"

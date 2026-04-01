@@ -40,7 +40,6 @@ interface LearningDeadlinePoint {
   title: string;
   status: string;
   statusLabel: string;
-  progress: number;
   deadline: Date;
   deadlineLabel: string;
 }
@@ -59,19 +58,8 @@ interface LearningSetCard {
   status: string;
   statusLabel: string;
   bucket: 'in_progress' | 'upcoming';
-  progress: number;
   deadlineLabel: string;
   deadlineMs: number | null;
-}
-
-interface YougileTaskCard {
-  id: string;
-  title: string;
-  identifier: string;
-  boardLabel: string;
-  columnLabel: string;
-  createdLabel: string;
-  windowLabel: string;
 }
 
 @Component({
@@ -111,7 +99,6 @@ export class CalendarOverviewPageComponent implements OnInit {
   protected readonly calendarLoading = signal(true);
   protected readonly yougileLoading = signal(true);
   protected readonly learningLoading = signal(true);
-  protected readonly overviewNotice = signal<string | null>(null);
   protected readonly yougileError = signal<string | null>(null);
   protected readonly learningError = signal<string | null>(null);
   protected readonly yougileConnection = signal<YougileConnection | null>(null);
@@ -121,6 +108,14 @@ export class CalendarOverviewPageComponent implements OnInit {
   protected readonly anyBusy = computed(
     () => this.calendarLoading() || this.yougileLoading() || this.learningLoading(),
   );
+  protected readonly showYougileConnection = computed(() => {
+    const connection = this.yougileConnection();
+    if (!connection) {
+      return true;
+    }
+
+    return connection.status !== 'active' || !!connection.last_error;
+  });
   protected readonly issueMessages = computed(() => {
     const messages = [this.yougileError(), this.learningError()].filter(
       (value): value is string => !!value,
@@ -131,15 +126,10 @@ export class CalendarOverviewPageComponent implements OnInit {
   protected readonly learningDeadlinePoints = computed(() => this.mapLearningDeadlinePoints());
   protected readonly learningSets = computed(() => this.mapLearningSets());
   protected readonly riskBlocks = computed(() => this.buildRiskBlocks());
-  protected readonly unscheduledYougileTasks = computed(() => this.mapUnscheduledYougileTasks());
-  protected readonly unscheduledYougileTasksPreview = computed(() =>
-    this.unscheduledYougileTasks().slice(0, 5),
-  );
   protected readonly calendarEvents = computed<EventInput[]>(() => this.buildCalendarEvents());
   protected readonly timeblockCount = computed(() => this.timelineRanges().length);
   protected readonly currentSetsCount = computed(() => this.learningSets().length);
   protected readonly riskCount = computed(() => this.riskBlocks().length);
-  protected readonly backlogCount = computed(() => this.unscheduledYougileTasks().length);
   protected readonly calendarOptions: CalendarOptions = {
     plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
     locale: ruLocale,
@@ -184,14 +174,10 @@ export class CalendarOverviewPageComponent implements OnInit {
 
   protected async refreshOverview(): Promise<void> {
     this.calendarLoading.set(true);
-    this.overviewNotice.set(null);
     this.clearLocalIssues();
 
     try {
       await Promise.all([this.loadYougileOverview(), this.loadLearningPlan()]);
-      if (this.issueMessages().length === 0) {
-        this.overviewNotice.set('Календарь обновлён.');
-      }
     } finally {
       this.calendarLoading.set(false);
     }
@@ -200,10 +186,6 @@ export class CalendarOverviewPageComponent implements OnInit {
   protected clearError(): void {
     this.yougileError.set(null);
     this.learningError.set(null);
-  }
-
-  protected clearNotice(): void {
-    this.overviewNotice.set(null);
   }
 
   protected yougileConnectionStatusLabel(status: string | null | undefined): string {
@@ -270,19 +252,6 @@ export class CalendarOverviewPageComponent implements OnInit {
     }
 
     return 'Без колонки';
-  }
-
-  protected taskIdentifier(task: YougileTask): string {
-    return task.idTaskProject?.trim() || task.idTaskCommon?.trim() || task.id;
-  }
-
-  protected progressValue(value: string | number | null | undefined): number {
-    const normalized = Number(value);
-    if (Number.isNaN(normalized)) {
-      return 0;
-    }
-
-    return Math.max(0, Math.min(100, normalized));
   }
 
   protected formatRiskSeverity(severity: 'high' | 'medium'): string {
@@ -404,29 +373,6 @@ export class CalendarOverviewPageComponent implements OnInit {
     });
   }
 
-  private mapUnscheduledYougileTasks(): YougileTaskCard[] {
-    return this.yougileTasks()
-      .filter((task) => !resolveYougileTaskWindow(task))
-      .slice()
-      .sort((left, right) => {
-        const leftTimestamp = this.parseDate(left.timestamp)?.getTime() ?? Number.POSITIVE_INFINITY;
-        const rightTimestamp =
-          this.parseDate(right.timestamp)?.getTime() ?? Number.POSITIVE_INFINITY;
-        return leftTimestamp - rightTimestamp;
-      })
-      .map((task) => ({
-        id: task.id,
-        title: task.title?.trim() || task.id,
-        identifier: this.taskIdentifier(task),
-        boardLabel: this.taskBoardLabel(task),
-        columnLabel: this.taskColumnLabel(task),
-        createdLabel: task.timestamp
-          ? this.formatDateTime(task.timestamp)
-          : 'Дата создания недоступна',
-        windowLabel: 'Без срока',
-      }));
-  }
-
   private buildCalendarEvents(): EventInput[] {
     const events: EventInput[] = [];
 
@@ -462,7 +408,7 @@ export class CalendarOverviewPageComponent implements OnInit {
         textColor: '#ffffff',
         extendedProps: {
           badge: 'Набор',
-          meta: `${point.statusLabel} · ${point.progress}%`,
+          meta: point.statusLabel,
           source: 'learning',
         },
       });
@@ -548,7 +494,6 @@ export class CalendarOverviewPageComponent implements OnInit {
       title: item.title,
       status: item.status,
       statusLabel: this.learningStatusLabel(item.status),
-      progress: this.progressValue(item.completion_percent),
       deadline,
       deadlineLabel: this.formatLearningDate(deadline),
     };
@@ -566,7 +511,6 @@ export class CalendarOverviewPageComponent implements OnInit {
       status: item.status,
       statusLabel: this.learningStatusLabel(item.status),
       bucket,
-      progress: this.progressValue(item.completion_percent),
       deadlineLabel: deadline ? this.formatLearningDate(deadline) : 'Без дедлайна',
       deadlineMs: deadline?.getTime() ?? null,
     };
@@ -653,7 +597,6 @@ export class CalendarOverviewPageComponent implements OnInit {
   private clearLocalIssues(): void {
     this.yougileError.set(null);
     this.learningError.set(null);
-    this.overviewNotice.set(null);
   }
 
   private parseDate(value: string | null | undefined): Date | null {
