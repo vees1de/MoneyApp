@@ -298,6 +298,12 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'employees',
+        canActivate: [roleGuard(['hr', 'manager'])],
+        loadComponent: () =>
+          import('@pages/employees/list/list.page').then((m) => m.EmployeesListPageComponent),
+      },
+      {
         path: 'employees/:userId',
         loadComponent: () =>
           import('@pages/employees/profile/profile.page').then(

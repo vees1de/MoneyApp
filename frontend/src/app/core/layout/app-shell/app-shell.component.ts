@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+﻿import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatButtonModule } from '@angular/material/button';
@@ -70,6 +70,11 @@ export class AppShellComponent {
         label: 'Календарь',
         route: '/calendar/overview',
         visible: this.authState.hasPermission(PERMISSIONS.enrollmentsRead),
+      },
+      {
+        label: 'Сотрудники',
+        route: '/employees',
+        visible: this.authState.hasAnyRole(['hr', 'manager']),
       },
       {
         label: 'Аналитика',
