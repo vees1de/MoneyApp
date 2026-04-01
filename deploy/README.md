@@ -5,6 +5,7 @@ Deployment is reduced to one Docker Compose stack:
 - `postgres`
 - `migrate`
 - `backend`
+- `worker`
 
 For host nginx, the deploy flow expects the built frontend to be uploaded to `/opt/moneyapp/frontend/dist`.
 
@@ -33,7 +34,7 @@ The local build runs directly from the checked out project with `npm`, without D
 5. Run on the server:
 
 ```bash
-docker compose up --build -d
+docker compose up --build -d backend worker
 ```
 
 This matches a host nginx config that:

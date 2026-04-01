@@ -1,20 +1,4 @@
 <section class="my-learning-page">
-  <header class="my-learning-header">
-    <div class="my-learning-header__copy">
-      <p class="my-learning-header__eyebrow">Моё обучение</p>
-      <h1>Список курсов</h1>
-      <p class="my-learning-header__description">
-        Фильтры сверху, единые карточки ниже. Фокус только на сроках, статусе и открытии курса.
-      </p>
-    </div>
-
-    @if (primaryEnrollment(); as item) {
-      <a class="app-button app-button--primary" [routerLink]="'/learning/' + item.id">
-        {{ primaryActionLabel() }}
-      </a>
-    }
-  </header>
-
   @if (loading()) {
     <section class="my-learning-state">
       <p>Загрузка...</p>

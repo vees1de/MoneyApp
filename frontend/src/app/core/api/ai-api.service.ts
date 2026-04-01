@@ -83,6 +83,10 @@ export class AIApiService {
     return this.http.post<AIRecommendationJob>(`${this.base}/recommendations`, {});
   }
 
+  deleteRecommendationJob(jobId: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/recommendations/${jobId}`);
+  }
+
   listRecommendationJobs(limit = 10): Observable<AIRecommendationJob[]> {
     const params = new HttpParams().set('limit', String(limit));
     return this.http.get<AIRecommendationJob[]>(`${this.base}/recommendations/jobs`, { params });

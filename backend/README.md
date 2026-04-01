@@ -66,7 +66,7 @@ go run ./cmd/worker
 Or start the whole stack:
 
 ```bash
-docker compose up --build -d
+docker compose up --build -d backend worker
 ```
 
 ## API

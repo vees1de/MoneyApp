@@ -10,7 +10,6 @@
   width: 100%;
 }
 
-.my-learning-header,
 .my-learning-toolbar,
 .my-learning-state,
 .learning-card {
@@ -18,45 +17,6 @@
   border: 1px solid var(--app-border);
   border-radius: 12px;
   box-shadow: var(--shadow-soft);
-}
-
-.my-learning-header {
-  align-items: center;
-  display: flex;
-  gap: 24px;
-  justify-content: space-between;
-  padding: 24px;
-}
-
-.my-learning-header__copy {
-  display: grid;
-  gap: 8px;
-  max-width: 720px;
-}
-
-.my-learning-header__eyebrow {
-  color: var(--app-muted);
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  margin: 0;
-  text-transform: uppercase;
-}
-
-.my-learning-header h1 {
-  color: var(--app-text);
-  font-size: clamp(1.75rem, 2.2vw, 2.25rem);
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1.1;
-  margin: 0;
-}
-
-.my-learning-header__description {
-  color: var(--app-muted);
-  font-size: 0.95rem;
-  line-height: 1.5;
-  margin: 0;
 }
 
 .app-button {
@@ -73,17 +33,6 @@
     background-color 0.18s ease,
     border-color 0.18s ease,
     color 0.18s ease;
-}
-
-.app-button--primary {
-  background: var(--app-primary);
-  border: 1px solid var(--app-primary);
-  color: #ffffff;
-}
-
-.app-button--primary:hover {
-  background: var(--app-primary-hover);
-  border-color: var(--app-primary-hover);
 }
 
 .app-button--secondary {
@@ -331,7 +280,6 @@
 }
 
 @media (max-width: 960px) {
-  .my-learning-header,
   .my-learning-toolbar {
     align-items: flex-start;
     flex-direction: column;
@@ -351,14 +299,12 @@
     gap: 16px;
   }
 
-  .my-learning-header,
   .my-learning-toolbar,
   .my-learning-state,
   .learning-card {
     padding: 16px;
   }
 
-  .my-learning-header,
   .my-learning-toolbar,
   .my-learning-state,
   .learning-card,
@@ -368,8 +314,7 @@
 
   .app-button,
   .learning-card__actions,
-  .app-button--secondary,
-  .app-button--primary {
+  .app-button--secondary {
     width: 100%;
   }
 

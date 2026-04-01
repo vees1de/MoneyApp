@@ -14,11 +14,13 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { catchError, forkJoin, of } from 'rxjs';
 
+import { CertificatesApiService } from '@core/api/certificates-api.service';
 import { CourseApplicationsApiService } from '@core/api/course-applications-api.service';
 import { CourseIntakesApiService } from '@core/api/course-intakes-api.service';
 import { EnrollmentsApiService } from '@core/api/enrollments-api.service';
 import { UsersApiService } from '@core/api/users-api.service';
 import type { CourseApplication, CourseIntake } from '@core/api/contracts';
+import { API_BASE_URL } from '@core/config/api.config';
 import { AuthStateService } from '@core/auth/auth-state.service';
 import type { IdentityUserView, RoleCode } from '@core/auth/auth.types';
 import { PERMISSIONS } from '@core/auth/permissions';
@@ -46,6 +48,10 @@ import {
   IntakeSettingsDialogComponent,
   type IntakeSettingsDialogResult,
 } from './intake-settings-dialog.component';
+import {
+  CertificateReviewDialogComponent,
+  type CertificateReviewDialogResult,
+} from './certificate-review-dialog.component';
 
 type HrApplicationFilter = 'all' | 'pending' | 'accepted' | 'rejected';
 
@@ -73,6 +79,7 @@ export class IntakeDetailPageComponent implements OnInit {
   private readonly applicationsApi = inject(CourseApplicationsApiService);
   private readonly enrollmentsApi = inject(EnrollmentsApiService);
   private readonly usersApi = inject(UsersApiService);
+  private readonly certificatesApi = inject(CertificatesApiService);
   private readonly authState = inject(AuthStateService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -140,6 +147,31 @@ export class IntakeDetailPageComponent implements OnInit {
       toPositiveNumber(this.editForm.controls.duration_weeks.value) ?? null,
     ),
   );
+  protected readonly isCourseStarted = computed(() =>
+    this.applications().some(
+      (a) =>
+        a.enrollment_status === 'in_progress' ||
+        a.enrollment_status === 'completed',
+    ),
+  );
+
+  protected readonly poolApplicants = computed(() =>
+    this.applications().filter(
+      (a) =>
+        a.status === 'pending' ||
+        a.status === 'pending_manager' ||
+        a.status === 'approved_by_manager' ||
+        a.status === 'approved' ||
+        a.status === 'rejected_by_hr' ||
+        a.status === 'rejected_by_manager' ||
+        a.status === 'withdrawn',
+    ),
+  );
+
+  protected readonly poolLearning = computed(() =>
+    this.applications().filter((a) => a.status === 'enrolled'),
+  );
+
   protected readonly hrFilterOptions: ReadonlyArray<{
     value: HrApplicationFilter;
     label: string;
@@ -656,6 +688,115 @@ export class IntakeDetailPageComponent implements OnInit {
         this.acting.set(false);
       },
     });
+  }
+
+  protected learningStatusLabel(application: CourseApplication): string {
+    if (application.certificate_status === 'verified') {
+      return 'Завершён';
+    }
+    if (application.certificate_status === 'uploaded') {
+      return 'Сертификат предоставлен';
+    }
+    if (application.certificate_status === 'rejected') {
+      return 'Сертификат отклонён';
+    }
+    if (application.enrollment_status === 'in_progress') {
+      return 'В процессе';
+    }
+    if (application.enrollment_status === 'completed') {
+      return 'Завершено';
+    }
+    return 'Ожидает старта';
+  }
+
+  protected learningStatusClass(application: CourseApplication): string {
+    if (application.certificate_status === 'verified') {
+      return 'pool-status--success';
+    }
+    if (application.certificate_status === 'uploaded') {
+      return 'pool-status--info';
+    }
+    if (application.certificate_status === 'rejected') {
+      return 'pool-status--error';
+    }
+    if (application.enrollment_status === 'in_progress') {
+      return 'pool-status--warning';
+    }
+    return 'pool-status--neutral';
+  }
+
+  protected openCertificateReview(application: CourseApplication): void {
+    if (!application.certificate_id) {
+      return;
+    }
+
+    const fileUrl = this.buildCertificateUrl(application);
+
+    const dialogRef = this.dialog.open<
+      CertificateReviewDialogComponent,
+      {
+        application: CourseApplication;
+        userName: string;
+        fileUrl: string | null;
+        fileName: string | null;
+      },
+      CertificateReviewDialogResult | null
+    >(CertificateReviewDialogComponent, {
+      width: '100vw',
+      maxWidth: '100vw',
+      height: '100vh',
+      panelClass: 'certificate-review-fullscreen',
+      data: {
+        application,
+        userName: this.userLabel(application.applicant_id),
+        fileUrl,
+        fileName: application.certificate_file_original_name ?? null,
+      },
+    });
+
+    dialogRef.afterClosed().subscribe((result) => {
+      if (!result || !application.certificate_id) {
+        return;
+      }
+
+      this.acting.set(true);
+      this.error.set(null);
+
+      const request$ =
+        result.action === 'approve'
+          ? this.certificatesApi.verify(application.certificate_id, { comment: result.comment })
+          : this.certificatesApi.reject(application.certificate_id, { comment: result.comment });
+
+      request$.subscribe({
+        next: () => {
+          const newCertStatus = result.action === 'approve' ? 'verified' : 'rejected';
+          this.applications.update((items) =>
+            items.map((item) =>
+              item.id === application.id
+                ? { ...item, certificate_status: newCertStatus }
+                : item,
+            ),
+          );
+          this.acting.set(false);
+        },
+        error: () => {
+          this.error.set(
+            result.action === 'approve'
+              ? 'Не удалось подтвердить сертификат.'
+              : 'Не удалось отклонить сертификат.',
+          );
+          this.acting.set(false);
+        },
+      });
+    });
+  }
+
+  private buildCertificateUrl(application: CourseApplication): string | null {
+    const storageKey = application.certificate_file_storage_key?.trim();
+    if (!storageKey) {
+      return null;
+    }
+    return `${API_BASE_URL}/uploads/${encodeURI(storageKey)}`;
   }
 
   private load(): void {

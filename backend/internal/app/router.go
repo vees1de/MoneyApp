@@ -352,6 +352,7 @@ func NewRouter(container *Container) http.Handler {
 				r.Post("/recommendations", container.AIRecommendationsHandler.Start)
 				r.Get("/recommendations/jobs", container.AIRecommendationsHandler.ListJobs)
 				r.Get("/recommendations/{jobId}", container.AIRecommendationsHandler.GetJob)
+				r.Delete("/recommendations/{jobId}", container.AIRecommendationsHandler.DeleteJob)
 			})
 		})
 	})

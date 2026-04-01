@@ -81,6 +81,21 @@ export class LearningEnrollmentDetailPageComponent implements OnInit {
     return labels[status] ?? status;
   }
 
+  protected enrollmentStatusPillClass(status: string): string {
+    switch (status) {
+      case 'completed':
+        return 'status-pill--success';
+      case 'in_progress':
+        return 'status-pill--info';
+      case 'enrolled':
+        return 'status-pill--warning';
+      case 'canceled':
+        return 'status-pill--critical';
+      default:
+        return 'status-pill--default';
+    }
+  }
+
   protected sourceLabel(source: string): string {
     const labels: Record<string, string> = {
       intake: 'Intake',
@@ -95,6 +110,77 @@ export class LearningEnrollmentDetailPageComponent implements OnInit {
 
   protected mandatoryLabel(item: Enrollment): string {
     return item.is_mandatory ? 'Обязательное' : 'По выбору';
+  }
+
+  protected deadlinePillClass(item: Enrollment): string {
+    if (!this.parseDate(item.deadline_at)) {
+      return 'status-pill--default';
+    }
+    if (item.status === 'completed') {
+      return 'status-pill--success';
+    }
+    if (this.isOverdue(item)) {
+      return 'status-pill--critical';
+    }
+    if (this.isDueSoon(item)) {
+      return 'status-pill--warning';
+    }
+    return 'status-pill--info';
+  }
+
+  protected deadlinePillLabel(item: Enrollment): string {
+    const date = this.parseDate(item.deadline_at);
+    if (!date) {
+      return 'Дедлайн: не задан';
+    }
+    if (item.status === 'completed') {
+      return 'Дедлайн закрыт';
+    }
+    if (this.isOverdue(item)) {
+      return 'Дедлайн просрочен';
+    }
+    if (this.isDueSoon(item)) {
+      return 'Дедлайн скоро';
+    }
+    return 'Дедлайн в норме';
+  }
+
+  protected deadlineValueClass(item: Enrollment): string {
+    if (!this.parseDate(item.deadline_at)) {
+      return 'kv__value--muted';
+    }
+    if (item.status === 'completed') {
+      return 'kv__value--success';
+    }
+    if (this.isOverdue(item)) {
+      return 'kv__value--critical';
+    }
+    if (this.isDueSoon(item)) {
+      return 'kv__value--warning';
+    }
+    return 'kv__value--info';
+  }
+
+  protected deadlineHint(item: Enrollment): string {
+    const date = this.parseDate(item.deadline_at);
+    if (!date) {
+      return 'Без ограничения по сроку';
+    }
+    if (item.status === 'completed') {
+      return 'Срок закрыт';
+    }
+
+    const days = Math.ceil((date.getTime() - Date.now()) / 86_400_000);
+    if (days < 0) {
+      return `Просрочено на ${Math.abs(days)} дн.`;
+    }
+    if (days === 0) {
+      return 'Требует действия сегодня';
+    }
+    if (days <= 7) {
+      return `Осталось ${days} дн.`;
+    }
+    return 'Срок в норме';
   }
 
   protected certificateStatusLabel(status?: string | null): string {
@@ -219,5 +305,33 @@ export class LearningEnrollmentDetailPageComponent implements OnInit {
         this.loading.set(false);
       },
     });
+  }
+
+  private isOverdue(item: Enrollment): boolean {
+    const date = this.parseDate(item.deadline_at);
+    if (!date || item.status === 'completed') {
+      return false;
+    }
+
+    return date.getTime() < Date.now();
+  }
+
+  private isDueSoon(item: Enrollment): boolean {
+    const date = this.parseDate(item.deadline_at);
+    if (!date || item.status === 'completed') {
+      return false;
+    }
+
+    const days = Math.ceil((date.getTime() - Date.now()) / 86_400_000);
+    return days >= 0 && days <= 7;
+  }
+
+  private parseDate(value?: string | null): Date | null {
+    if (!value) {
+      return null;
+    }
+
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
   }
 }
