@@ -1,26 +1,26 @@
 :root {
-  --app-bg: #f1f3f7;
+  --app-bg: #f2f3f7;
   --app-surface: #ffffff;
-  --app-surface-soft: #ffffff;
-  --app-surface-muted: #eceef3;
+  --app-surface-soft: #f2f3f7;
+  --app-surface-muted: #e8ebf2;
   --app-header: #ffffff;
-  --app-header-accent: #3a475d;
-  --app-text: #1f242d;
-  --app-muted: #6d7483;
-  --app-border: #dfe3ea;
+  --app-header-accent: #111318;
+  --app-text: #111318;
+  --app-muted: #969fa8;
+  --app-border: #d9dee8;
   --app-primary: #566ae6;
   --app-primary-soft: #e9edff;
-  --app-primary-hover: #4a5dd6;
-  --app-ring: rgb(86 106 230 / 30%);
+  --app-primary-hover: #4c60dd;
+  --app-ring: rgb(86 106 230 / 26%);
 
-  --status-success: #2e7d32;
-  --status-warning: #d39200;
-  --status-error: #c62828;
-  --status-info: #3f51b5;
+  --status-success: #30cc00;
+  --status-warning: #e9bf00;
+  --status-error: #e4332c;
+  --status-info: #566ae6;
 
-  --radius-sm: 12px;
-  --radius-md: 24px;
-  --radius-lg: 40px;
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
 
   --space-1: 4px;
   --space-2: 8px;
@@ -32,6 +32,6 @@
   --space-8: 32px;
 
   --font-family: 'Inter Impuls', 'Inter', 'Segoe UI', Arial, sans-serif;
-  --shadow-card: 0 10px 30px rgb(17 24 39 / 6%);
-  --shadow-soft: 0 4px 16px rgb(17 24 39 / 4%);
+  --shadow-card: 0 1px 2px rgb(15 23 42 / 8%);
+  --shadow-soft: 0 1px 2px rgb(15 23 42 / 6%);
 }

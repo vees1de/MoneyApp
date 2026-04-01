@@ -2,20 +2,40 @@
   title="Ближайшие события"
   listRoute="/calendar"
   [loading]="loading()"
-  [error]="error()"
-  [empty]="events().length === 0"
->
+  [error]="error()">
   <div widget-loading class="upcoming-skeleton">
     <div class="upcoming-skeleton__item"></div>
     <div class="upcoming-skeleton__item"></div>
     <div class="upcoming-skeleton__item"></div>
   </div>
 
-  <mat-list>
-    <!-- @for (event of events(); track event.id) {
-      <mat-list-item>
-        <a routerLink="/calendar"><strong>{{ event.title }}</strong> ({{ eventSubtitle(event) }})</a>
-      </mat-list-item>
-    } -->
-  </mat-list>
+  <div class="upcoming-calendar">
+    @for (day of weekDays(); track day.date) {
+      <button
+        type="button"
+        class="upcoming-calendar__day"
+        [class.upcoming-calendar__day--active]="isDayActive(day.date)"
+        (click)="setActiveDate(day.date)"
+      >
+        <span>{{ day.weekday }}</span>
+        <strong>{{ day.dayNumber }}</strong>
+      </button>
+    }
+  </div>
+
+  <div class="upcoming-events">
+    @for (event of filteredEvents(); track event.id) {
+      <article class="upcoming-events__item">
+        <a class="upcoming-events__title" routerLink="/calendar/overview">{{ event.title }}</a>
+        <p class="upcoming-events__time">{{ eventSubtitle(event) }}</p>
+      </article>
+    } @empty {
+      <p class="upcoming-events__empty">Событий на выбранный день нет.</p>
+    }
+  </div>
+
+  <div class="upcoming-events__actions">
+    <a mat-flat-button routerLink="/calendar/conflicts">Перенести событие</a>
+    <a mat-flat-button routerLink="/calendar/overview">Открыть календарь</a>
+  </div>
 </app-widget-shell>

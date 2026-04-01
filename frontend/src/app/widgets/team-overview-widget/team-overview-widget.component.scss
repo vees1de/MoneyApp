@@ -2,6 +2,35 @@
   display: block;
 }
 
+:host p {
+  margin: 0;
+}
+
+:host p strong {
+  color: var(--app-text);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+:host p + p {
+  color: var(--app-muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+:host mat-list {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+:host .mat-mdc-list-item {
+  background: var(--app-surface-soft);
+  border-radius: var(--radius-md);
+  min-height: 48px !important;
+  padding-inline: var(--space-3);
+}
+
 .team-skeleton {
   display: grid;
   gap: var(--space-2);

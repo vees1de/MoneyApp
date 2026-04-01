@@ -5,21 +5,28 @@
 .employee-dashboard {
   align-items: start;
   display: grid;
-  gap: var(--space-6);
-  grid-template-columns: minmax(0, 2.05fr) minmax(280px, 0.85fr);
+  gap: var(--space-4);
+  grid-template-columns: minmax(0, 1.78fr) minmax(340px, 0.9fr);
   margin-inline: auto;
   min-height: calc(100vh - 156px);
+  width: 100%;
 }
 
 .employee-dashboard__main {
   align-content: start;
   display: grid;
-  gap: var(--space-6);
+  gap: var(--space-4);
 }
 
 .employee-dashboard__side {
   display: grid;
-  gap: var(--space-6);
+  gap: var(--space-4);
+}
+
+@media (max-width: 1400px) {
+  .employee-dashboard {
+    grid-template-columns: minmax(0, 1.58fr) minmax(320px, 0.9fr);
+  }
 }
 
 @media (max-width: 1100px) {

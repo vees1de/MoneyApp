@@ -2,6 +2,84 @@
   display: block;
 }
 
+.upcoming-calendar {
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: repeat(7, minmax(38px, 1fr));
+}
+
+.upcoming-calendar__day {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-lg);
+  color: var(--app-text);
+  cursor: pointer;
+  display: grid;
+  font: inherit;
+  gap: var(--space-2);
+  min-height: 78px;
+  padding: 8px 4px;
+  place-content: center;
+}
+
+.upcoming-calendar__day span {
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.upcoming-calendar__day strong {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.upcoming-calendar__day--active {
+  background: #343436;
+  color: #fff;
+}
+
+.upcoming-events {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.upcoming-events__item {
+  background: var(--app-surface-soft);
+  border-radius: var(--radius-lg);
+  display: grid;
+  gap: var(--space-1);
+  padding: 12px 14px;
+}
+
+.upcoming-events__title {
+  color: var(--app-text);
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.upcoming-events__time {
+  color: var(--app-text);
+  font-size: 0.95rem;
+}
+
+.upcoming-events__empty {
+  color: var(--app-muted);
+  font-size: 0.9rem;
+}
+
+.upcoming-events__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.upcoming-events__actions .mat-mdc-unelevated-button {
+  border-radius: 999px !important;
+  min-height: 34px !important;
+  padding-inline: 14px !important;
+}
+
 .upcoming-skeleton {
   display: grid;
   gap: var(--space-2);
@@ -21,5 +99,11 @@
   }
   100% {
     background-position: -100% 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .upcoming-calendar {
+    grid-template-columns: repeat(4, minmax(48px, 1fr));
   }
 }
