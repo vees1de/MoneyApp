@@ -391,3 +391,35 @@ export interface EmployeeProfileResponse {
   profile: EmployeePublicProfile;
   enrollments: EmployeeEnrollmentItem[];
 }
+
+export type EmployeesScope = 'team' | 'all';
+
+export interface EmployeeLearningStats {
+  user_id: string;
+  first_name: string;
+  last_name: string;
+  middle_name: string | null;
+  full_name: string;
+  email: string;
+  position_title: string | null;
+  department_id: string | null;
+  department_name: string | null;
+  in_progress_count: number;
+  completed_count: number;
+  overdue_count: number;
+}
+
+export interface EmployeesLearningStatsResponse {
+  items: EmployeeLearningStats[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface EmployeesLearningStatsQuery {
+  scope?: EmployeesScope;
+  department_id?: string;
+  search?: string;
+  limit?: number;
+  offset?: number;
+}

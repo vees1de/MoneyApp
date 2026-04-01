@@ -1,0 +1,107 @@
+<section class="employees-page">
+  <div class="employees-page__main">
+    <section class="employees-card employees-summary">
+      <div class="employees-summary__header">
+        <h1>Сотрудники</h1>
+        <button mat-flat-button type="button" color="primary">
+          Назначить
+          <mat-icon>north_east</mat-icon>
+        </button>
+      </div>
+
+      <div class="employees-summary__stats">
+        <span>
+          <mat-icon>person</mat-icon>
+          Сотрудников {{ totalEmployees }}
+        </span>
+        <span>
+          <mat-icon>school</mat-icon>
+          Сотрудников прошли курсы {{ completedEmployees }}
+        </span>
+      </div>
+    </section>
+
+    <section class="employees-card employees-table-card">
+      <div class="employees-table-card__header">
+        <mat-tab-group class="employees-tabs" animationDuration="150ms">
+          <mat-tab [label]="'Все ' + tabCounts.all">
+            <div class="employees-table-card__controls">
+              <mat-form-field appearance="outline" class="employees-search">
+                <mat-label>Поиск сотрудника</mat-label>
+                <mat-icon matPrefix>search</mat-icon>
+                <input matInput type="text" (input)="onSearchChange($event)" />
+              </mat-form-field>
+
+              <button mat-stroked-button type="button">
+                <mat-icon>filter_alt</mat-icon>
+                Фильтр
+              </button>
+            </div>
+
+            @if (loading) {
+              <p class="employees-state">Загрузка...</p>
+            } @else if (error) {
+              <p class="employees-state employees-state--error">{{ error }}</p>
+            } @else if (sortedData.length === 0) {
+              <p class="employees-state">Сотрудники не найдены</p>
+            } @else {
+              <div class="employees-table-wrap">
+                <table matSort (matSortChange)="sortData($event)">
+                  <tr>
+                    <th class="employees-cell-checkbox"></th>
+                    <th mat-sort-header="name">Сотрудник</th>
+                    <th mat-sort-header="department">Отдел</th>
+                    <th mat-sort-header="inProgress">В процессе</th>
+                    <th mat-sort-header="completed">Прошел</th>
+                    <th mat-sort-header="overdue">Просрочено</th>
+                  </tr>
+
+                  @for (employee of sortedData; track trackByUserId($index, employee)) {
+                    <tr>
+                      <td class="employees-cell-checkbox">
+                        <mat-checkbox color="primary"></mat-checkbox>
+                      </td>
+                      <td>
+                        <div class="employee-cell">
+                          <div class="employee-cell__avatar">
+                            {{ employee.full_name.slice(0, 1).toUpperCase() }}
+                          </div>
+                          <div>
+                            <div class="employee-cell__name">{{ employee.full_name }}</div>
+                            <div class="employee-cell__position">
+                              {{ employee.position_title || 'Должность не указана' }}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td>{{ employee.department_name || '—' }}</td>
+                      <td>{{ employee.in_progress_count }}</td>
+                      <td>{{ employee.completed_count }}</td>
+                      <td>{{ employee.overdue_count }}</td>
+                    </tr>
+                  }
+                </table>
+              </div>
+            }
+          </mat-tab>
+
+          <mat-tab [label]="'Внешние ' + tabCounts.external">
+            <p class="employees-state">Раздел в подготовке</p>
+          </mat-tab>
+
+          <mat-tab [label]="'Корпоративный университет ' + tabCounts.university">
+            <p class="employees-state">Раздел в подготовке</p>
+          </mat-tab>
+
+          <mat-tab [label]="'Обязательные ' + tabCounts.mandatory">
+            <p class="employees-state">Раздел в подготовке</p>
+          </mat-tab>
+        </mat-tab-group>
+      </div>
+    </section>
+  </div>
+
+  <aside class="employees-page__side">
+    <app-upcoming-events-widget />
+  </aside>
+</section>

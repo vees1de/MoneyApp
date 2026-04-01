@@ -6,13 +6,16 @@ import { API_BASE_URL } from '@core/config/api.config';
 import type {
   CreateDevelopmentTeamRequest,
   DevelopmentTeam,
+  EmployeesLearningStatsQuery,
+  EmployeesLearningStatsResponse,
   EmployeeProfileResponse,
   ProfileMeResponse,
   ProfileRole,
   UpdateUserProfileRequest,
 } from './contracts';
-import type { ListResponse } from './api.types';
+import type { ListQuery, ListResponse } from './api.types';
 import type { IdentityUserView } from '@core/auth/auth.types';
+import { toHttpParams } from './http-params.util';
 
 @Injectable({ providedIn: 'root' })
 export class UsersApiService {
@@ -67,6 +70,17 @@ export class UsersApiService {
 
   getEmployeeProfile(userId: string): Observable<EmployeeProfileResponse> {
     return this.http.get<EmployeeProfileResponse>(`${API_BASE_URL}/v1/employees/${userId}`);
+  }
+
+  getEmployeesLearningStats(
+    query?: EmployeesLearningStatsQuery,
+  ): Observable<EmployeesLearningStatsResponse> {
+    return this.http.get<EmployeesLearningStatsResponse>(
+      `${API_BASE_URL}/v1/employees/learning-stats`,
+      {
+        params: toHttpParams(query as ListQuery),
+      },
+    );
   }
 
   listAdminUsers(): Observable<IdentityUserView[]> {
