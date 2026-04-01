@@ -27,6 +27,7 @@ interface LearningCardView {
   certificateLabel: string;
   certificateTone: Tone;
   certificateReady: boolean;
+  badgeLabel: string;
   overdue: boolean;
   needsCertificate: boolean;
   deadlineSort: number;
@@ -69,7 +70,7 @@ export class MyLearningListPageComponent implements OnInit {
       {
         label: 'С сертификатом',
         value: String(items.filter((item) => item.certificateReady).length),
-        hint: 'Можно завершить',
+        hint: 'Ждут апрува HR',
         tone: 'success',
       },
       {
@@ -137,6 +138,14 @@ export class MyLearningListPageComponent implements OnInit {
           : 'Сертификат не загружен';
         const certificateReady = !!certificate && certificate.status !== 'rejected';
         const needsCertificate = item.status === 'in_progress' && !certificateReady;
+        const badgeLabel =
+          item.status === 'completed'
+            ? 'Курс завершён'
+            : item.status === 'enrolled'
+              ? 'Ожидает старта'
+              : needsCertificate
+                ? 'Нужен сертификат'
+                : 'Ждём апрува HR';
         const overdue =
           item.status !== 'completed' &&
           !!deadline &&
@@ -156,6 +165,7 @@ export class MyLearningListPageComponent implements OnInit {
           certificateLabel,
           certificateTone,
           certificateReady,
+          badgeLabel,
           overdue,
           needsCertificate,
           deadlineSort:
@@ -208,14 +218,14 @@ export class MyLearningListPageComponent implements OnInit {
       }
 
       if (certificateStatus) {
-        return 'Сертификат уже прикреплён. Остался последний шаг завершения.';
+        return 'Сертификат уже прикреплён. Осталось дождаться подтверждения HR.';
       }
 
-      return 'Сначала загрузите сертификат, затем завершите курс.';
+      return 'Сначала загрузите сертификат. После подтверждения HR курс завершится автоматически.';
     }
 
     if (status === 'completed') {
-      return 'Курс завершён и доступен для проверки HR.';
+      return 'Курс завершён автоматически после подтверждения сертификата.';
     }
 
     if (status === 'enrolled') {

@@ -23,6 +23,7 @@ import (
 	yougilemodule "moneyapp/backend/internal/modules/yougile"
 	platformauth "moneyapp/backend/internal/platform/auth"
 	"moneyapp/backend/internal/platform/httpx"
+	platformworker "moneyapp/backend/internal/platform/worker"
 
 	"github.com/google/uuid"
 )
@@ -118,6 +119,7 @@ type aiResult struct {
 
 type Service struct {
 	db                   *sql.DB
+	queue                *platformworker.Queue
 	yougileService       *yougilemodule.Service
 	catalogService       *catalogmodule.Service
 	courseIntakesService *courseintakesmodule.Service
@@ -127,6 +129,7 @@ type Service struct {
 
 func NewService(
 	db *sql.DB,
+	queue *platformworker.Queue,
 	yougileService *yougilemodule.Service,
 	catalogService *catalogmodule.Service,
 	courseIntakesService *courseintakesmodule.Service,
@@ -135,6 +138,7 @@ func NewService(
 ) *Service {
 	return &Service{
 		db:                   db,
+		queue:                queue,
 		yougileService:       yougileService,
 		catalogService:       catalogService,
 		courseIntakesService: courseIntakesService,

@@ -3684,10 +3684,6 @@
       },
       "UploadCertificateRequest": {
         "properties": {
-          "certificate_no": {
-            "nullable": true,
-            "type": "string"
-          },
           "course_id": {
             "format": "uuid",
             "nullable": true,
@@ -3708,15 +3704,7 @@
             "nullable": true,
             "type": "string"
           },
-          "issued_by": {
-            "nullable": true,
-            "type": "string"
-          },
           "mime_type": {
-            "type": "string"
-          },
-          "notes": {
-            "nullable": true,
             "type": "string"
           },
           "original_name": {
@@ -5133,7 +5121,7 @@
             "description": "Certificate created"
           }
         },
-        "summary": "Upload certificate metadata",
+        "summary": "Upload certificate file",
         "tags": [
           "Certificates"
         ]

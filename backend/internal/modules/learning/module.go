@@ -438,32 +438,72 @@ func (s *Service) CompleteEnrollment(ctx context.Context, principal platformauth
 		}
 	}
 	now := s.clock.Now()
-	item.Status = "completed"
-	item.CompletedAt = &now
-	item.LastActivityAt = &now
-	item.CompletionPercent = "100"
-	item.UpdatedAt = now
 
 	err = db.WithTx(ctx, s.db, func(tx *sql.Tx) error {
-		if err := s.repo.UpdateEnrollment(ctx, item, tx); err != nil {
-			return err
-		}
-		if err := s.repo.CreateCompletionRecord(ctx, item.ID, principal.UserID, req.CompletionType, req.Score, req.Notes, now, tx); err != nil {
-			return err
-		}
-		return s.outbox.Publish(ctx, tx, events.Message{
-			Topic:      "learning",
-			EventType:  "learning.enrollment.completed",
-			EntityType: "enrollment",
-			EntityID:   item.ID,
-			Payload: map[string]any{
-				"user_id":   item.UserID,
-				"course_id": item.CourseID,
-			},
-			OccurredAt: now,
-		})
+		return s.completeEnrollment(ctx, item.ID, principal.UserID, req.CompletionType, req.Score, req.Notes, now, tx)
 	})
+	if err == nil && item.Status != "completed" {
+		item.Status = "completed"
+		item.CompletedAt = &now
+		item.LastActivityAt = &now
+		item.CompletionPercent = "100"
+		item.UpdatedAt = now
+	}
 	return item, err
+}
+
+func (s *Service) CompleteEnrollmentAfterCertificate(
+	ctx context.Context,
+	enrollmentID uuid.UUID,
+	actorID uuid.UUID,
+	notes *string,
+	completedAt time.Time,
+	exec db.DBTX,
+) error {
+	return s.completeEnrollment(ctx, enrollmentID, actorID, "certificate_verified", nil, notes, completedAt, exec)
+}
+
+func (s *Service) completeEnrollment(
+	ctx context.Context,
+	enrollmentID uuid.UUID,
+	actorID uuid.UUID,
+	completionType string,
+	score *string,
+	notes *string,
+	completedAt time.Time,
+	exec db.DBTX,
+) error {
+	item, err := s.repo.GetEnrollment(ctx, enrollmentID, exec)
+	if err != nil {
+		return err
+	}
+	if item.Status == "completed" {
+		return nil
+	}
+
+	item.Status = "completed"
+	item.CompletedAt = &completedAt
+	item.LastActivityAt = &completedAt
+	item.CompletionPercent = "100"
+	item.UpdatedAt = completedAt
+
+	if err := s.repo.UpdateEnrollment(ctx, item, exec); err != nil {
+		return err
+	}
+	if err := s.repo.CreateCompletionRecord(ctx, item.ID, actorID, completionType, score, notes, completedAt, exec); err != nil {
+		return err
+	}
+	return s.outbox.Publish(ctx, exec, events.Message{
+		Topic:      "learning",
+		EventType:  "learning.enrollment.completed",
+		EntityType: "enrollment",
+		EntityID:   item.ID,
+		Payload: map[string]any{
+			"user_id":   item.UserID,
+			"course_id": item.CourseID,
+		},
+		OccurredAt: completedAt,
+	})
 }
 
 type Handler struct {

@@ -5,12 +5,6 @@
 .my-learning-page {
   display: grid;
   gap: 1.25rem;
-  padding: 1.5rem;
-  background:
-    radial-gradient(circle at top left, rgba(86, 106, 230, 0.14), transparent 34%),
-    radial-gradient(circle at top right, rgba(48, 204, 0, 0.08), transparent 28%),
-    linear-gradient(180deg, #eef3ff 0%, #f8fafc 100%);
-  color: var(--app-text);
 }
 
 .my-learning-page__eyebrow {
@@ -42,9 +36,7 @@
   gap: 0.7rem;
   max-width: 52rem;
   padding: 1.5rem;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(246, 249, 255, 0.96)),
-    #fff;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(246, 249, 255, 0.96)), #fff;
 }
 
 .my-learning-page__state h1,
@@ -65,9 +57,7 @@
 }
 
 .my-learning-page__state--error {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(255, 245, 245, 0.96)),
-    #fff;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(255, 245, 245, 0.96)), #fff;
 }
 
 .my-learning-page__hero {
@@ -75,9 +65,7 @@
   gap: 1rem;
   grid-template-columns: minmax(0, 1.4fr) minmax(20rem, 0.9fr);
   padding: 1.5rem;
-  background:
-    linear-gradient(135deg, rgba(86, 106, 230, 0.94), rgba(54, 73, 173, 0.92)),
-    #566ae6;
+  background: linear-gradient(135deg, rgba(86, 106, 230, 0.94), rgba(54, 73, 173, 0.92)), #566ae6;
   color: #fff;
 }
 
@@ -213,9 +201,7 @@
   display: grid;
   gap: 1rem;
   padding: 1.15rem 1.15rem 1.2rem;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 249, 255, 0.98)),
-    #fff;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 249, 255, 0.98)), #fff;
   transition:
     transform 0.18s ease,
     box-shadow 0.18s ease,
@@ -228,7 +214,9 @@
 }
 
 .learning-card--overdue {
-  box-shadow: inset 0 0 0 1px rgba(228, 51, 44, 0.2), 0 16px 40px rgba(15, 23, 42, 0.06);
+  box-shadow:
+    inset 0 0 0 1px rgba(228, 51, 44, 0.2),
+    0 16px 40px rgba(15, 23, 42, 0.06);
 }
 
 .learning-card__header {

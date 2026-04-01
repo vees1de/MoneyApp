@@ -346,14 +346,15 @@ func (r *Repository) ListRequestsByManager(ctx context.Context, userID uuid.UUID
 }
 
 type Service struct {
-	db               *sql.DB
-	repo             *Repository
-	identityRepo     *identity.Repository
-	orgService       *org.Service
-	catalogService   *catalog.Service
-	learningRepo     *learning.Repository
-	certificatesRepo *certificates.Repository
-	clock            clock.Clock
+	db                       *sql.DB
+	repo                     *Repository
+	identityRepo             *identity.Repository
+	orgService               *org.Service
+	catalogService           *catalog.Service
+	learningRepo             *learning.Repository
+	certificatesRepo         *certificates.Repository
+	enrollmentCompletionHook certificates.EnrollmentCompletionHook
+	clock                    clock.Clock
 }
 
 func NewService(
@@ -364,17 +365,19 @@ func NewService(
 	catalogService *catalog.Service,
 	learningRepo *learning.Repository,
 	certificatesRepo *certificates.Repository,
+	enrollmentCompletionHook certificates.EnrollmentCompletionHook,
 	appClock clock.Clock,
 ) *Service {
 	return &Service{
-		db:               database,
-		repo:             repo,
-		identityRepo:     identityRepo,
-		orgService:       orgService,
-		catalogService:   catalogService,
-		learningRepo:     learningRepo,
-		certificatesRepo: certificatesRepo,
-		clock:            appClock,
+		db:                       database,
+		repo:                     repo,
+		identityRepo:             identityRepo,
+		orgService:               orgService,
+		catalogService:           catalogService,
+		learningRepo:             learningRepo,
+		certificatesRepo:         certificatesRepo,
+		enrollmentCompletionHook: enrollmentCompletionHook,
+		clock:                    appClock,
 	}
 }
 
@@ -892,6 +895,11 @@ func (s *Service) ApproveCertificate(ctx context.Context, principal platformauth
 		}
 		if err := s.certificatesRepo.CreateVerification(ctx, certificate.ID, principal.UserID, "verify", comment, now, tx); err != nil {
 			return err
+		}
+		if item.EnrollmentID != nil && s.enrollmentCompletionHook != nil {
+			if err := s.enrollmentCompletionHook.CompleteEnrollmentAfterCertificate(ctx, *item.EnrollmentID, principal.UserID, comment, now, tx); err != nil {
+				return err
+			}
 		}
 		if err := s.repo.UpdateRequest(ctx, item, tx); err != nil {
 			return err

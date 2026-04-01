@@ -109,7 +109,7 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 	catalogService := catalogmodule.NewService(catalogRepo, appClock)
 	learningService := learningmodule.NewService(database, learningRepo, certificatesRepo, orgService, catalogService, outboxService, appClock)
 	testingService := testingmodule.NewService(database, testingRepo, appClock)
-	certificatesService := certificatesmodule.NewService(database, certificatesRepo, outboxService, appClock)
+	certificatesService := certificatesmodule.NewService(database, certificatesRepo, outboxService, appClock, learningService)
 	courseIntakesService := courseintakesmodule.NewService(
 		database,
 		courseIntakesRepo,
@@ -118,7 +118,17 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 		appClock,
 		cfg.Features.CourseIntakeManagerApprovalEnabled,
 	)
-	courseRequestsService := courserequestsmodule.NewService(database, courseRequestsRepo, identityRepo, orgService, catalogService, learningRepo, certificatesRepo, appClock)
+	courseRequestsService := courserequestsmodule.NewService(
+		database,
+		courseRequestsRepo,
+		identityRepo,
+		orgService,
+		catalogService,
+		learningRepo,
+		certificatesRepo,
+		learningService,
+		appClock,
+	)
 	externalTrainingService := externaltrainingmodule.NewService(database, externalTrainingRepo, identityRepo, orgService, outboxService, queue, appClock)
 	calendarService := calendarmodule.NewService(calendarRepo)
 	learningPlanService := learningplanmodule.NewService(learningPlanRepo)
@@ -138,6 +148,7 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 	employeesStatsService := employeesstatsmodule.NewService(employeesStatsRepo)
 	aiRecommendationsService := airecommendationsmodule.NewService(
 		database,
+		queue,
 		yougileService,
 		catalogService,
 		courseIntakesService,
@@ -148,7 +159,7 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 		"postgres": database.PingContext,
 	})
 
-	registerWorkerHandlers(queue, log, yougileService, githubService, outlookService)
+	registerWorkerHandlers(queue, log, yougileService, githubService, outlookService, aiRecommendationsService)
 
 	container := &Container{
 		Config:                   cfg,
@@ -243,7 +254,7 @@ func (a *App) Run(ctx context.Context) error {
 	return nil
 }
 
-func registerWorkerHandlers(queue *platformworker.Queue, logger *slog.Logger, yougileService *yougilemodule.Service, githubService *githubmodule.Service, outlookService *outlookmodule.Service) {
+func registerWorkerHandlers(queue *platformworker.Queue, logger *slog.Logger, yougileService *yougilemodule.Service, githubService *githubmodule.Service, outlookService *outlookmodule.Service, aiRecommendationsService *airecommendationsmodule.Service) {
 	queue.Register("send_password_reset", func(ctx context.Context, job platformworker.Job) error {
 		logger.Info("process job", "job_type", job.JobType, "queue", job.Queue, "payload", string(job.Payload))
 		return nil
@@ -270,5 +281,8 @@ func registerWorkerHandlers(queue *platformworker.Queue, logger *slog.Logger, yo
 	})
 	queue.Register("github_sync", func(ctx context.Context, job platformworker.Job) error {
 		return githubService.ProcessSyncJob(ctx, job)
+	})
+	queue.Register("ai_recommendations_run", func(ctx context.Context, job platformworker.Job) error {
+		return aiRecommendationsService.ProcessRecommendationJob(ctx, job)
 	})
 }

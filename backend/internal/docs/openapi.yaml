@@ -723,7 +723,7 @@ paths:
   /api/v1/certificates/upload:
     post:
       tags: [Certificates]
-      summary: Upload certificate metadata
+      summary: Upload certificate file
       requestBody:
         required: true
         content:
@@ -3485,12 +3485,6 @@ components:
           type: string
           format: uuid
           nullable: true
-        certificate_no:
-          type: string
-          nullable: true
-        issued_by:
-          type: string
-          nullable: true
         issued_at:
           type: string
           format: date-time
@@ -3498,9 +3492,6 @@ components:
         expires_at:
           type: string
           format: date-time
-          nullable: true
-        notes:
-          type: string
           nullable: true
         storage_provider:
           type: string

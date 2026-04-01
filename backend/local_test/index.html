@@ -162,7 +162,7 @@
       <div class="sidebar-item" data-method="POST" data-path="/api/v1/course-requests/{id}/complete" data-body='{"comment":"Курс завершен"}'>
         <span class="method method-post">POST</span> complete course
       </div>
-      <div class="sidebar-item" data-method="POST" data-path="/api/v1/course-requests/{id}/certificate/upload" data-body='{"certificate_no":"CERT-001","issued_by":"Demo Provider","notes":"Сертификат по курсу","storage_provider":"local","storage_key":"course-certificates/demo-certificate.pdf","original_name":"demo-certificate.pdf","mime_type":"application/pdf","size_bytes":20480}'>
+      <div class="sidebar-item" data-method="POST" data-path="/api/v1/course-requests/{id}/certificate/upload" data-body='{"storage_provider":"local","storage_key":"course-certificates/demo-certificate.pdf","original_name":"demo-certificate.pdf","mime_type":"application/pdf","size_bytes":20480}'>
         <span class="method method-post">POST</span> upload certificate
       </div>
       <div class="sidebar-item" data-method="POST" data-path="/api/v1/course-requests/{id}/certificate/approve" data-body='{"comment":"Сертификат принят"}'>

@@ -33,6 +33,30 @@
     font-size: 15px;
   }
 
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin-top: 20px;
+  }
+
+  &__status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--mat-sys-on-surface-variant);
+    font-size: 13px;
+  }
+
+  &__status-id {
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--mat-sys-surface-container);
+    color: var(--mat-sys-on-surface-variant);
+    font-size: 12px;
+  }
+
   &__loading {
     display: flex;
     flex-direction: column;

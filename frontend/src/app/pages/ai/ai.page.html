@@ -7,12 +7,26 @@
     <p class="ai-page__subtitle">
       На основе ваших задач в YouGile мы подобрали курсы и открытые наборы, которые помогут в работе прямо сейчас
     </p>
+    <div class="ai-page__actions">
+      <button mat-raised-button color="primary" (click)="startRecommendations()" [disabled]="loading()">
+        <mat-icon>play_arrow</mat-icon>
+        {{ loading() ? 'Рекомендации запускаются...' : 'Запустить рекомендации' }}
+      </button>
+      @if (jobStatus()) {
+        <div class="ai-page__status">
+          Статус: {{ describeJobStatus(jobStatus()) }}
+          @if (jobId()) {
+            <span class="ai-page__status-id">job {{ jobId() }}</span>
+          }
+        </div>
+      }
+    </div>
   </div>
 
   @if (loading()) {
     <div class="ai-page__loading">
       <mat-spinner diameter="48"></mat-spinner>
-      <p>Анализируем ваши задачи и подбираем курсы с открытыми наборами...</p>
+      <p>Рекомендации считаются в фоне. Это может занять несколько секунд.</p>
     </div>
   }
 
@@ -20,10 +34,17 @@
     <div class="ai-page__error">
       <mat-icon>error_outline</mat-icon>
       <p>{{ errorMsg }}</p>
-      <button mat-stroked-button (click)="loadRecommendations()">
+      <button mat-stroked-button (click)="startRecommendations()">
         <mat-icon>refresh</mat-icon>
         Попробовать снова
       </button>
+    </div>
+  }
+
+  @if (!loading() && !error() && !data()) {
+    <div class="ai-page__empty">
+      <mat-icon>play_circle</mat-icon>
+      <p>Нажмите кнопку выше, чтобы запустить фоновый анализ задач и получить рекомендации.</p>
     </div>
   }
 

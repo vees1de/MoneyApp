@@ -12,36 +12,6 @@
       <p class="my-learning-page__error">{{ error() }}</p>
     </section>
   } @else {
-    <header class="my-learning-page__hero">
-      <div class="my-learning-page__hero-copy">
-        <span class="my-learning-page__eyebrow">Моё обучение</span>
-        <h1>Курсы, сертификаты и завершение</h1>
-        <p>
-          Сначала загрузите сертификат в карточке курса, затем завершите обучение. Ниже показаны
-          активные назначения и то, что ещё требует внимания.
-        </p>
-      </div>
-
-      <aside class="my-learning-page__focus">
-        <span class="my-learning-page__focus-label">Следующее действие</span>
-        @if (focusItem(); as focus) {
-          <strong>{{ focus.title }}</strong>
-          <p>{{ focus.description }}</p>
-          <div class="my-learning-page__focus-meta">
-            <span>{{ focus.statusLabel }}</span>
-            <span>{{ focus.deadlineText }}</span>
-          </div>
-          <a mat-stroked-button [routerLink]="'/learning/' + focus.id">
-            <mat-icon>arrow_forward</mat-icon>
-            Открыть карточку
-          </a>
-        } @else {
-          <strong>Пока нет активных курсов</strong>
-          <p>Когда появится назначение, здесь будет быстрый переход в карточку обучения.</p>
-        }
-      </aside>
-    </header>
-
     <section class="my-learning-page__summary">
       @for (card of summaryCards(); track card.label) {
         <article class="summary-card" [attr.data-tone]="card.tone">
@@ -61,7 +31,11 @@
     } @else {
       <section class="my-learning-grid">
         @for (item of items(); track item.id) {
-          <article class="learning-card" [attr.data-tone]="item.statusTone" [class.learning-card--overdue]="item.overdue">
+          <article
+            class="learning-card"
+            [attr.data-tone]="item.statusTone"
+            [class.learning-card--overdue]="item.overdue"
+          >
             <div class="learning-card__header">
               <div>
                 <span class="learning-card__eyebrow">Курс</span>
@@ -93,7 +67,7 @@
 
             <div class="learning-card__footer">
               <span class="learning-card__badge" [attr.data-tone]="item.certificateTone">
-                {{ item.needsCertificate ? 'Нужен сертификат' : 'Готово к завершению' }}
+                {{ item.badgeLabel }}
               </span>
 
               <a mat-stroked-button [routerLink]="'/learning/' + item.id">

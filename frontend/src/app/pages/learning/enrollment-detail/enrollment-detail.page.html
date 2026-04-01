@@ -35,7 +35,7 @@
         }}</strong>
         <p>{{
           certificateReady()
-            ? 'После этого курс можно завершить.'
+            ? 'После подтверждения HR курс завершится автоматически.'
             : 'Завершение откроется только после загрузки файла.'
         }}</p>
 
@@ -63,7 +63,7 @@
 
         <mat-card-content class="enrollment-panel__content">
           <p class="enrollment-panel__lead">
-            Сначала прикрепите сертификат. После этого завершение курса станет доступным.
+            Сначала прикрепите сертификат. После подтверждения HR курс завершится автоматически.
           </p>
 
           @if (latestCertificate(); as certificate) {
@@ -73,16 +73,13 @@
                 <span>{{ certificate.uploaded_at | date: 'dd.MM.yyyy HH:mm' }}</span>
               </div>
               <p>
-                <span class="kv__key">Номер:</span>
-                <span class="kv__value">{{ certificate.certificate_no || '—' }}</span>
-              </p>
-              <p>
-                <span class="kv__key">Кем выдан:</span>
-                <span class="kv__value">{{ certificate.issued_by || '—' }}</span>
-              </p>
-              <p>
-                <span class="kv__key">Комментарий:</span>
-                <span class="kv__value">{{ certificate.notes || '—' }}</span>
+                {{
+                  certificate.status === 'rejected'
+                    ? 'Предыдущий сертификат отклонён. Загрузите новый файл.'
+                    : certificate.status === 'verified'
+                      ? 'Сертификат подтверждён HR.'
+                      : 'Файл загружен и ждёт проверки HR.'
+                }}
               </p>
             </div>
           } @else {
@@ -94,27 +91,29 @@
 
           @if (canUploadCertificate()) {
             <div class="certificate-upload">
-              <label class="certificate-upload__picker">
-                <span>Выберите файл сертификата</span>
-                <input type="file" (change)="onCertificateFileSelected($event)" />
-              </label>
+              <div class="certificate-upload__picker">
+                <input
+                  #certificateFileInput
+                  class="certificate-upload__input"
+                  type="file"
+                  (change)="onCertificateFileSelected($event, certificateFileInput)"
+                />
 
-              <p class="certificate-upload__filename">{{ selectedCertificateFileName() }}</p>
+                <button
+                  mat-stroked-button
+                  type="button"
+                  (click)="certificateFileInput.click()"
+                >
+                  <mat-icon>attach_file</mat-icon>
+                  Выбрать файл сертификата
+                </button>
 
-              <mat-form-field appearance="outline">
-                <mat-label>Номер сертификата</mat-label>
-                <input matInput [formControl]="certificateForm.controls.certificate_no" />
-              </mat-form-field>
+                <span class="certificate-upload__hint">PDF, JPG или PNG</span>
 
-              <mat-form-field appearance="outline">
-                <mat-label>Кем выдан</mat-label>
-                <input matInput [formControl]="certificateForm.controls.issued_by" />
-              </mat-form-field>
-
-              <mat-form-field appearance="outline" class="enrollment-detail-page__wide">
-                <mat-label>Комментарий к сертификату</mat-label>
-                <textarea matInput rows="3" [formControl]="certificateForm.controls.notes"></textarea>
-              </mat-form-field>
+                @if (selectedCertificateFile(); as file) {
+                  <span class="certificate-upload__filename">{{ file.name }}</span>
+                }
+              </div>
 
               <button
                 mat-flat-button
@@ -147,73 +146,38 @@
 
       <mat-card class="enrollment-panel enrollment-panel--completion">
         <mat-card-header>
-          <mat-card-title>Завершение курса</mat-card-title>
-          <mat-card-subtitle>Шаг 2. Доступно только после загрузки сертификата</mat-card-subtitle>
+          <mat-card-title>Автозавершение курса</mat-card-title>
+          <mat-card-subtitle>Шаг 2. Курс закроется сам после апрува сертификата</mat-card-subtitle>
         </mat-card-header>
 
         <mat-card-content class="enrollment-panel__content">
           <ol class="completion-steps">
             <li>Загрузите сертификат</li>
-            <li>Проверьте комментарий к завершению</li>
-            <li>Нажмите кнопку завершения</li>
+            <li>Дождитесь подтверждения HR</li>
+            <li>Курс завершится автоматически</li>
           </ol>
 
-          @if (canWorkOnCourse()) {
-            <mat-form-field appearance="outline" class="enrollment-detail-page__wide">
-              <mat-label>Комментарий к завершению</mat-label>
-              <textarea matInput rows="3" [formControl]="completionForm.controls.notes"></textarea>
-            </mat-form-field>
-
-            <div class="enrollment-detail-page__actions">
-              <button
-                mat-flat-button
-                color="primary"
-                type="button"
-                (click)="complete()"
-                [disabled]="acting() || !canCompleteCourse()"
-              >
-                <mat-icon>task_alt</mat-icon>
-                Завершить курс
-              </button>
-            </div>
-
-            @if (!certificateReady()) {
-              <p class="enrollment-panel__hint enrollment-panel__hint--warning">
-                Без сертификата завершение недоступно.
-              </p>
-            } @else {
-              <p class="enrollment-panel__hint">
-                Сертификат прикреплён, можно завершать курс.
-              </p>
-            }
-
-            <div class="enrollment-progress-box">
-              <p class="enrollment-progress-box__label">Внутренний прогресс по модулю</p>
-              <form
-                class="enrollment-detail-page__progress-form"
-                [formGroup]="progressForm"
-                (ngSubmit)="updateProgress()"
-              >
-                <mat-form-field appearance="outline">
-                  <mat-label>Course module id</mat-label>
-                  <input matInput formControlName="course_module_id" />
-                </mat-form-field>
-
-                <mat-form-field appearance="outline">
-                  <mat-label>Прогресс %</mat-label>
-                  <input matInput type="number" min="0" max="100" formControlName="progress_percent" />
-                </mat-form-field>
-
-                <button mat-stroked-button type="submit" [disabled]="acting() || progressForm.invalid">
-                  Обновить прогресс
-                </button>
-              </form>
-            </div>
+          @if (item.status === 'completed') {
+            <p class="enrollment-panel__hint enrollment-panel__hint--success">
+              Курс уже завершён автоматически после подтверждения сертификата.
+            </p>
+          } @else if (latestCertificate()?.status === 'verified') {
+            <p class="enrollment-panel__hint enrollment-panel__hint--success">
+              Сертификат подтверждён HR. Курс должен завершиться автоматически.
+            </p>
+          } @else if (latestCertificate()?.status === 'uploaded') {
+            <p class="enrollment-panel__hint">
+              Сертификат загружен. Как только HR его подтвердит, курс завершится автоматически.
+            </p>
+          } @else if (latestCertificate()?.status === 'rejected') {
+            <p class="enrollment-panel__hint enrollment-panel__hint--warning">
+              Предыдущий сертификат отклонён. Загрузите новый файл, чтобы запустить автозавершение.
+            </p>
           } @else {
-            <div class="enrollment-panel__empty">
-              <mat-icon>lock</mat-icon>
-              <p>Курс уже завершён или недоступен для изменений.</p>
-            </div>
+            <p class="enrollment-panel__hint">
+              После загрузки сертификата этот курс завершится автоматически, когда HR его
+              подтвердит.
+            </p>
           }
         </mat-card-content>
       </mat-card>

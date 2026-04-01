@@ -349,6 +349,8 @@ func NewRouter(container *Container) http.Handler {
 
 			r.Route("/ai", func(r chi.Router) {
 				r.Get("/recommendations", container.AIRecommendationsHandler.Recommend)
+				r.Post("/recommendations", container.AIRecommendationsHandler.Start)
+				r.Get("/recommendations/{jobId}", container.AIRecommendationsHandler.GetJob)
 			})
 		})
 	})

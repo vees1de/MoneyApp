@@ -51,16 +51,24 @@ type Certificate struct {
 type UploadCertificateRequest struct {
 	CourseID        *uuid.UUID `json:"course_id,omitempty"`
 	EnrollmentID    *uuid.UUID `json:"enrollment_id,omitempty"`
-	CertificateNo   *string    `json:"certificate_no,omitempty"`
-	IssuedBy        *string    `json:"issued_by,omitempty"`
 	IssuedAt        *time.Time `json:"issued_at,omitempty"`
 	ExpiresAt       *time.Time `json:"expires_at,omitempty"`
-	Notes           *string    `json:"notes,omitempty"`
 	StorageProvider string     `json:"storage_provider" validate:"required,oneof=s3 local minio"`
 	StorageKey      string     `json:"storage_key" validate:"required"`
 	OriginalName    string     `json:"original_name" validate:"required"`
 	MimeType        string     `json:"mime_type" validate:"required"`
 	SizeBytes       int64      `json:"size_bytes" validate:"required,min=1"`
+}
+
+type EnrollmentCompletionHook interface {
+	CompleteEnrollmentAfterCertificate(
+		ctx context.Context,
+		enrollmentID uuid.UUID,
+		actorID uuid.UUID,
+		notes *string,
+		completedAt time.Time,
+		exec db.DBTX,
+	) error
 }
 
 type ReviewRequest struct {
@@ -174,18 +182,26 @@ func (r *Repository) UpdateCertificate(ctx context.Context, item Certificate, ex
 }
 
 type Service struct {
-	db     *sql.DB
-	repo   *Repository
-	outbox *outbox.Service
-	clock  clock.Clock
+	db                       *sql.DB
+	repo                     *Repository
+	outbox                   *outbox.Service
+	clock                    clock.Clock
+	enrollmentCompletionHook EnrollmentCompletionHook
 }
 
-func NewService(database *sql.DB, repo *Repository, outboxService *outbox.Service, appClock clock.Clock) *Service {
+func NewService(
+	database *sql.DB,
+	repo *Repository,
+	outboxService *outbox.Service,
+	appClock clock.Clock,
+	enrollmentCompletionHook EnrollmentCompletionHook,
+) *Service {
 	return &Service{
-		db:     database,
-		repo:   repo,
-		outbox: outboxService,
-		clock:  appClock,
+		db:                       database,
+		repo:                     repo,
+		outbox:                   outboxService,
+		clock:                    appClock,
+		enrollmentCompletionHook: enrollmentCompletionHook,
 	}
 }
 
@@ -202,18 +218,15 @@ func (s *Service) Upload(ctx context.Context, principal platformauth.Principal, 
 		CreatedAt:       now,
 	}
 	item := Certificate{
-		ID:            uuid.New(),
-		UserID:        principal.UserID,
-		CourseID:      req.CourseID,
-		EnrollmentID:  req.EnrollmentID,
-		CertificateNo: req.CertificateNo,
-		IssuedBy:      req.IssuedBy,
-		IssuedAt:      req.IssuedAt,
-		ExpiresAt:     req.ExpiresAt,
-		Status:        "uploaded",
-		FileID:        file.ID,
-		UploadedAt:    now,
-		Notes:         req.Notes,
+		ID:           uuid.New(),
+		UserID:       principal.UserID,
+		CourseID:     req.CourseID,
+		EnrollmentID: req.EnrollmentID,
+		IssuedAt:     req.IssuedAt,
+		ExpiresAt:    req.ExpiresAt,
+		Status:       "uploaded",
+		FileID:       file.ID,
+		UploadedAt:   now,
 	}
 
 	err := db.WithTx(ctx, s.db, func(tx *sql.Tx) error {
@@ -264,6 +277,11 @@ func (s *Service) Verify(ctx context.Context, principal platformauth.Principal, 
 		}
 		if err := s.repo.CreateVerification(ctx, item.ID, principal.UserID, "verify", comment, now, tx); err != nil {
 			return err
+		}
+		if item.EnrollmentID != nil && s.enrollmentCompletionHook != nil {
+			if err := s.enrollmentCompletionHook.CompleteEnrollmentAfterCertificate(ctx, *item.EnrollmentID, principal.UserID, comment, now, tx); err != nil {
+				return err
+			}
 		}
 		return s.outbox.Publish(ctx, tx, events.Message{
 			Topic:      "certificates",

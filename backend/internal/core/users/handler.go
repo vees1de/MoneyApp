@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 
 	platformauth "moneyapp/backend/internal/platform/auth"
@@ -267,6 +268,12 @@ func requestBaseURL(r *http.Request) string {
 	host := strings.TrimSpace(r.Host)
 	if value := strings.TrimSpace(r.Header.Get("X-Forwarded-Host")); value != "" {
 		host = value
+	}
+
+	if origin := strings.TrimSpace(r.Header.Get("Origin")); origin != "" {
+		if parsed, err := url.Parse(origin); err == nil && parsed.Scheme != "" && parsed.Host != "" {
+			return parsed.Scheme + "://" + parsed.Host
+		}
 	}
 
 	return scheme + "://" + host

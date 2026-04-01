@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, retry, switchMap, takeWhile, throwError, timer } from 'rxjs';
 
 import { API_BASE_URL } from '@core/config/api.config';
 
@@ -43,6 +43,21 @@ export interface AIRecommendResponse {
   debug?: AIDebugLog | null;
 }
 
+export type AIRecommendationJobStatus = 'pending' | 'processing' | 'retry' | 'done' | 'failed';
+
+export interface AIRecommendationJob {
+  id: string;
+  user_id: string;
+  status: AIRecommendationJobStatus;
+  attempt: number;
+  result?: AIRecommendResponse | null;
+  last_error?: string | null;
+  started_at?: string | null;
+  finished_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AIApiService {
   private readonly base = `${API_BASE_URL}/v1/ai`;
@@ -51,5 +66,45 @@ export class AIApiService {
 
   getRecommendations(): Observable<AIRecommendResponse> {
     return this.http.get<AIRecommendResponse>(`${this.base}/recommendations`);
+  }
+
+  startRecommendationJob(): Observable<AIRecommendationJob> {
+    return this.http.post<AIRecommendationJob>(`${this.base}/recommendations`, {});
+  }
+
+  getRecommendationJob(jobId: string): Observable<AIRecommendationJob> {
+    return this.http.get<AIRecommendationJob>(`${this.base}/recommendations/${jobId}`).pipe(
+      retry({
+        count: 3,
+        delay: (error, retryCount) => {
+          if (!this.isRetriableGatewayError(error)) {
+            return throwError(() => error);
+          }
+
+          const delayMs = Math.min(500 * retryCount, 2000);
+          return timer(delayMs);
+        },
+      }),
+    );
+  }
+
+  watchRecommendationJob(jobId: string): Observable<AIRecommendationJob> {
+    return timer(0, 1500).pipe(
+      switchMap(() => this.getRecommendationJob(jobId)),
+      takeWhile((job) => !this.isTerminalJob(job.status), true),
+    );
+  }
+
+  runRecommendations(): Observable<AIRecommendationJob> {
+    return this.startRecommendationJob().pipe(switchMap((job) => this.watchRecommendationJob(job.id)));
+  }
+
+  private isTerminalJob(status: AIRecommendationJobStatus): boolean {
+    return status === 'done' || status === 'failed';
+  }
+
+  private isRetriableGatewayError(error: unknown): boolean {
+    const status = (error as { status?: number } | null | undefined)?.status ?? 0;
+    return status === 0 || status === 502 || status === 503 || status === 504;
   }
 }
