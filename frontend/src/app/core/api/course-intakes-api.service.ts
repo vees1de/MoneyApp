@@ -35,6 +35,10 @@ export class CourseIntakesApiService {
     return this.http.patch<CourseIntake>(`${this.base}/${id}`, payload);
   }
 
+  delete(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/${id}`);
+  }
+
   close(id: string): Observable<CourseIntake> {
     return this.http.post<CourseIntake>(`${this.base}/${id}/close`, {});
   }

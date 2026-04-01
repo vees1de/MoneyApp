@@ -232,6 +232,48 @@ func (r *Repository) UpdateIntake(ctx context.Context, item Intake, exec ...db.D
 	return err
 }
 
+func (r *Repository) LockIntake(ctx context.Context, id uuid.UUID, exec ...db.DBTX) (*Intake, error) {
+	row := r.base(exec...).QueryRowContext(ctx, `
+		SELECT id, course_id, title, description, opened_by, approver_id,
+			max_participants, start_date, end_date, duration_weeks, application_deadline,
+			price::text, price_currency, status, created_at, updated_at
+		FROM course_intakes
+		WHERE id = $1
+		FOR UPDATE
+	`, id)
+	return scanIntake(row)
+}
+
+func (r *Repository) CountApplicationsByIntake(ctx context.Context, intakeID uuid.UUID, exec ...db.DBTX) (int, error) {
+	var count int
+	err := r.base(exec...).QueryRowContext(ctx, `
+		SELECT count(*)
+		FROM course_applications
+		WHERE intake_id = $1
+	`, intakeID).Scan(&count)
+	return count, err
+}
+
+func (r *Repository) HasSuggestionLinkedToIntake(ctx context.Context, intakeID uuid.UUID, exec ...db.DBTX) (bool, error) {
+	var exists bool
+	err := r.base(exec...).QueryRowContext(ctx, `
+		SELECT EXISTS (
+			SELECT 1
+			FROM course_suggestions
+			WHERE intake_id = $1
+		)
+	`, intakeID).Scan(&exists)
+	return exists, err
+}
+
+func (r *Repository) DeleteIntake(ctx context.Context, id uuid.UUID, exec ...db.DBTX) error {
+	_, err := r.base(exec...).ExecContext(ctx, `
+		DELETE FROM course_intakes
+		WHERE id = $1
+	`, id)
+	return err
+}
+
 // --- Applications ---
 
 func (r *Repository) CreateApplication(ctx context.Context, item Application, exec ...db.DBTX) error {
@@ -787,6 +829,36 @@ func (s *Service) CloseIntake(ctx context.Context, id uuid.UUID) (*Intake, error
 		return nil, err
 	}
 	return intake, nil
+}
+
+func (s *Service) DeleteIntake(ctx context.Context, id uuid.UUID) error {
+	return db.WithTx(ctx, s.db, func(tx *sql.Tx) error {
+		intake, err := s.repo.LockIntake(ctx, id, tx)
+		if err != nil {
+			return err
+		}
+		if intake == nil {
+			return httpx.NotFound("not_found", "intake not found")
+		}
+
+		applicationsCount, err := s.repo.CountApplicationsByIntake(ctx, id, tx)
+		if err != nil {
+			return err
+		}
+		if applicationsCount > 0 {
+			return httpx.Conflict("intake_has_applications", "intake has applications and cannot be deleted")
+		}
+
+		hasSuggestion, err := s.repo.HasSuggestionLinkedToIntake(ctx, id, tx)
+		if err != nil {
+			return err
+		}
+		if hasSuggestion {
+			return httpx.Conflict("intake_linked_to_suggestion", "intake is linked to a suggestion and cannot be deleted")
+		}
+
+		return s.repo.DeleteIntake(ctx, id, tx)
+	})
 }
 
 // --- Applications ---
@@ -1483,6 +1555,20 @@ func (h *Handler) CloseIntake(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, intake)
+}
+
+func (h *Handler) DeleteIntake(w http.ResponseWriter, r *http.Request) {
+	id, ok := h.uuidParam(w, r, "id")
+	if !ok {
+		return
+	}
+
+	if err := h.service.DeleteIntake(r.Context(), id); err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // --- Application handlers ---

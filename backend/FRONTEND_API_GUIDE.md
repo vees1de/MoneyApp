@@ -583,3 +583,172 @@ Exports:
 Если фронту нужен автоген клиента:
 - брать лучше `openapi.yaml`
 - использовать его как основной контракт вместо чтения Go handler-ов
+
+## 20. Наборы курсов (course intakes)
+
+Это основной workflow для HR/L&D и сотрудника.
+
+### Сущности и статусы
+
+Набор (`course_intakes`) приходит в статусах:
+- `open`
+- `closed`
+- `canceled`
+- `completed`
+
+Заявка сотрудника (`course_applications`) приходит в статусах:
+- `pending`
+- `pending_manager`
+- `approved_by_manager`
+- `approved`
+- `rejected_by_manager`
+- `rejected_by_hr`
+- `withdrawn`
+- `enrolled`
+
+Статус оплаты:
+- `paid`
+- `unpaid`
+
+### Базовые методы по наборам
+
+- `GET /api/v1/intakes`
+- `GET /api/v1/intakes?status=open`
+- `GET /api/v1/intakes/{id}`
+- `POST /api/v1/intakes`
+- `PATCH /api/v1/intakes/{id}`
+- `DELETE /api/v1/intakes/{id}`
+- `POST /api/v1/intakes/{id}/close`
+- `POST /api/v1/intakes/{id}/start-course`
+- `POST /api/v1/intakes/{id}/payment-status`
+- `GET /api/v1/intakes/{id}/applications`
+
+### Что возвращают методы
+
+- `GET /api/v1/intakes` возвращает массив наборов
+- `GET /api/v1/intakes/{id}` возвращает один набор
+- `POST /api/v1/intakes` возвращает созданный набор
+- `PATCH /api/v1/intakes/{id}` возвращает обновленный набор
+- `DELETE /api/v1/intakes/{id}` возвращает `204 No Content`
+- `POST /api/v1/intakes/{id}/close` возвращает обновленный набор со статусом `closed`
+- `POST /api/v1/intakes/{id}/start-course` возвращает `{ "items": [...] }` со списком обновленных заявок
+- `POST /api/v1/intakes/{id}/payment-status` возвращает `{ "items": [...] }` со списком обновленных заявок
+- `GET /api/v1/intakes/{id}/applications` возвращает массив заявок по набору
+
+### Правила удаления набора
+
+Удаление разрешено только для HR/admin через `intakes.manage`.
+
+Backend блокирует удаление, если:
+- по набору уже есть хотя бы одна заявка
+- набор уже привязан к `course_suggestions.intake_id`
+
+Причина простая: удаление набора не должно оставлять сиротские enrollment/certificate записи.
+
+### Flow сотрудника
+
+1. Загрузить открытые наборы:
+   - `GET /api/v1/intakes?status=open`
+2. Открыть карточку набора:
+   - `GET /api/v1/intakes/{id}`
+3. Податься в набор:
+   - `POST /api/v1/applications`
+   - body:
+
+```json
+{
+  "intake_id": "uuid",
+  "motivation": "Почему мне нужен этот курс",
+  "use_manager_approval": true
+}
+```
+
+4. Проверять состояние через:
+   - `GET /api/v1/applications/my`
+   - `GET /api/v1/applications/{id}`
+5. Если нужна отмена:
+   - `POST /api/v1/applications/{id}/withdraw`
+
+### Flow HR
+
+#### 1. Создать или открыть набор
+
+- вручную:
+  - `POST /api/v1/intakes`
+- из предложения сотрудника:
+  - `POST /api/v1/suggestions/{id}/open-intake`
+
+#### 2. Управлять набором
+
+- `PATCH /api/v1/intakes/{id}` для редактирования
+- `POST /api/v1/intakes/{id}/close` чтобы прекратить прием заявок
+- `DELETE /api/v1/intakes/{id}` если набор еще не использовался
+
+#### 3. Смотреть заявки
+
+- `GET /api/v1/intakes/{id}/applications`
+- `GET /api/v1/applications/{id}`
+- `GET /api/v1/applications/pending-manager` если включен manager approval flow
+
+#### 4. Согласование заявки
+
+Если `FEATURE_COURSE_INTAKE_MANAGER_APPROVAL_ENABLED=false`:
+- сотрудник сразу попадает в `pending`
+- HR обрабатывает заявку через:
+  - `POST /api/v1/applications/{id}/approve-hr`
+  - `POST /api/v1/applications/{id}/reject-hr`
+
+Если флаг включен:
+- сотрудник может отправить заявку в `pending_manager`
+- manager обрабатывает:
+  - `POST /api/v1/applications/{id}/approve-manager`
+  - `POST /api/v1/applications/{id}/reject-manager`
+- после manager шага HR видит `approved_by_manager`
+- HR завершает:
+  - `POST /api/v1/applications/{id}/approve-hr`
+  - `POST /api/v1/applications/{id}/reject-hr`
+
+#### 5. Взять сотрудника в набор
+
+- `POST /api/v1/applications/{id}/enroll`
+
+Это переводит заявку в `enrolled` и создает `enrollment` с `source=intake`.
+
+#### 6. Отметить оплату набора
+
+- `POST /api/v1/intakes/{id}/payment-status`
+
+Фронту важно:
+- этот метод меняет `payment_status` у всех заявок в статусе `enrolled`
+- это не меняет статус самой заявки и не создает enrollment
+
+#### 7. Стартовать курс по набору
+
+- `POST /api/v1/intakes/{id}/start-course`
+
+Что делает backend:
+- находит все заявки `enrolled`
+- если enrollment еще не создан, создает его
+- если enrollment уже есть, переводит его в `in_progress`
+
+### Suggested frontend state machine
+
+Для UI удобно считать, что маршрут выглядит так:
+
+1. `open` intake
+2. employee applies
+3. optional manager review
+4. HR approval
+5. `enroll`
+6. `payment-status=paid`
+7. `start-course`
+8. enrollment continues in Learning UI
+
+### Практика для фронта
+
+- список наборов брать через `GET /api/v1/intakes?status=open`
+- детали набора всегда добирать через `GET /api/v1/intakes/{id}`
+- кнопку `Delete` показывать только HR/admin и только когда набор еще не использовался
+- кнопку `Start course` показывать только если в наборе уже есть хотя бы один `enrolled` application
+- кнопку `Payment status` показывать только в HR view набора
+- если включен manager approval flow, на отдельный экран выносить `GET /api/v1/applications/pending-manager`
