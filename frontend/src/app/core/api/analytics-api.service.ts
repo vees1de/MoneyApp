@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '@core/config/api.config';
+import type { HrRisksResponse } from './contracts';
 
 @Injectable({ providedIn: 'root' })
 export class AnalyticsApiService {
@@ -32,5 +33,9 @@ export class AnalyticsApiService {
 
   getTrainersAnalytics(): Observable<Record<string, unknown>> {
     return this.http.get<Record<string, unknown>>(`${this.base}/trainers`);
+  }
+
+  getRisks(): Observable<HrRisksResponse> {
+    return this.http.get<HrRisksResponse>(`${this.base}/risks`);
   }
 }

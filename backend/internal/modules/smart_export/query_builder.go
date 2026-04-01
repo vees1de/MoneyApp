@@ -3,6 +3,7 @@ package smart_export
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -12,19 +13,59 @@ import (
 
 // ExportFilters holds all optional filter criteria.
 type ExportFilters struct {
-	EmployeeIDs   []uuid.UUID `json:"employee_ids"`
-	DepartmentIDs []uuid.UUID `json:"department_ids"`
-	CourseIDs     []uuid.UUID `json:"course_ids"`
-	CategoryIDs   []uuid.UUID `json:"category_ids"`
-	Levels        []string    `json:"levels"`
-	Statuses      []string    `json:"statuses"`
-	PriceMin      *float64    `json:"price_min"`
-	PriceMax      *float64    `json:"price_max"`
-	PriceCurrency *string     `json:"price_currency"`
-	DateFrom      *time.Time  `json:"date_from"`
-	DateTo        *time.Time  `json:"date_to"`
-	DateField     *string     `json:"date_field"`
-	Search        *string     `json:"search"`
+	EmployeeIDs   []uuid.UUID     `json:"employee_ids"`
+	IntakeIDs     []uuid.UUID     `json:"intake_ids"`
+	DepartmentIDs []uuid.UUID     `json:"department_ids"`
+	CourseIDs     []uuid.UUID     `json:"course_ids"`
+	CategoryIDs   []uuid.UUID     `json:"category_ids"`
+	Levels        []string        `json:"levels"`
+	Statuses      []string        `json:"statuses"`
+	PriceMin      *float64        `json:"price_min"`
+	PriceMax      *float64        `json:"price_max"`
+	PriceCurrency *string         `json:"price_currency"`
+	DateFrom      *DateFilterTime `json:"date_from"`
+	DateTo        *DateFilterTime `json:"date_to"`
+	DateField     *string         `json:"date_field"`
+	Search        *string         `json:"search"`
+}
+
+// DateFilterTime accepts RFC3339 timestamps and date-only values (YYYY-MM-DD).
+type DateFilterTime struct {
+	time.Time
+	dateOnly bool
+}
+
+func (d *DateFilterTime) UnmarshalJSON(data []byte) error {
+	var raw string
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	if raw == "" {
+		return fmt.Errorf("time value cannot be empty")
+	}
+
+	if parsed, err := time.Parse(time.RFC3339, raw); err == nil {
+		d.Time = parsed
+		d.dateOnly = false
+		return nil
+	}
+
+	parsed, err := time.Parse("2006-01-02", raw)
+	if err != nil {
+		return fmt.Errorf("invalid time %q: expected RFC3339 or YYYY-MM-DD", raw)
+	}
+
+	d.Time = parsed
+	d.dateOnly = true
+	return nil
+}
+
+func (d DateFilterTime) valueForToBoundary() time.Time {
+	if !d.dateOnly {
+		return d.Time
+	}
+	return d.Time.Add(24*time.Hour - time.Nanosecond)
 }
 
 // QueryResult holds the rows returned by the dynamic query.
@@ -36,9 +77,10 @@ type QueryResult struct {
 // filterMappings maps source keys to table aliases used in WHERE clauses.
 type filterMapping struct {
 	employeeUserID string // e.g. "ca.applicant_id" or "ep.user_id"
+	intakeID       string // e.g. "ca.intake_id" or "ci.id"
 	departmentID   string // e.g. "ep.department_id"
 	courseID       string // e.g. "ci.course_id" or "c.id"
-	categoryID    string // e.g. "c.category_id"
+	categoryID     string // e.g. "c.category_id"
 	level          string // e.g. "c.level"
 	status         string // e.g. "ca.status"
 	priceExpr      string // e.g. "c.price"
@@ -50,8 +92,9 @@ type filterMapping struct {
 var sourceMappings = map[string]filterMapping{
 	"applications": {
 		employeeUserID: "ca.applicant_id",
+		intakeID:       "ca.intake_id",
 		departmentID:   "ep.department_id",
-		courseID:        "ci.course_id",
+		courseID:       "ci.course_id",
 		categoryID:     "c.category_id",
 		level:          "c.level",
 		status:         "ca.status",
@@ -61,8 +104,9 @@ var sourceMappings = map[string]filterMapping{
 		searchColumns:  []string{"ci.title", "c.title", "u.email"},
 	},
 	"intakes": {
+		intakeID:       "ci.id",
 		departmentID:   "",
-		courseID:        "ci.course_id",
+		courseID:       "ci.course_id",
 		categoryID:     "c.category_id",
 		level:          "c.level",
 		status:         "ci.status",
@@ -83,7 +127,7 @@ var sourceMappings = map[string]filterMapping{
 	"course_requests": {
 		employeeUserID: "cr.employee_user_id",
 		departmentID:   "cr.department_id",
-		courseID:        "cr.course_id",
+		courseID:       "cr.course_id",
 		categoryID:     "c.category_id",
 		level:          "c.level",
 		status:         "cr.status",
@@ -95,7 +139,7 @@ var sourceMappings = map[string]filterMapping{
 	"enrollments": {
 		employeeUserID: "e.user_id",
 		departmentID:   "ep.department_id",
-		courseID:        "e.course_id",
+		courseID:       "e.course_id",
 		categoryID:     "c.category_id",
 		level:          "c.level",
 		status:         "e.status",
@@ -105,7 +149,7 @@ var sourceMappings = map[string]filterMapping{
 		searchColumns:  []string{"c.title", "u.email"},
 	},
 	"courses": {
-		courseID:        "c.id",
+		courseID:       "c.id",
 		categoryID:     "c.category_id",
 		level:          "c.level",
 		status:         "c.status",
@@ -203,6 +247,10 @@ func buildWhere(filters *ExportFilters, m filterMapping) ([]string, []any) {
 		clauses = append(clauses, m.employeeUserID+" = ANY("+placeholder(&paramIdx)+")")
 		args = append(args, uuidArray(filters.EmployeeIDs))
 	}
+	if len(filters.IntakeIDs) > 0 && m.intakeID != "" {
+		clauses = append(clauses, m.intakeID+" = ANY("+placeholder(&paramIdx)+")")
+		args = append(args, uuidArray(filters.IntakeIDs))
+	}
 	if len(filters.DepartmentIDs) > 0 && m.departmentID != "" {
 		clauses = append(clauses, m.departmentID+" = ANY("+placeholder(&paramIdx)+")")
 		args = append(args, uuidArray(filters.DepartmentIDs))
@@ -242,11 +290,11 @@ func buildWhere(filters *ExportFilters, m filterMapping) ([]string, []any) {
 	}
 	if filters.DateFrom != nil && dateCol != "" {
 		clauses = append(clauses, dateCol+" >= "+placeholder(&paramIdx))
-		args = append(args, *filters.DateFrom)
+		args = append(args, filters.DateFrom.Time)
 	}
 	if filters.DateTo != nil && dateCol != "" {
 		clauses = append(clauses, dateCol+" <= "+placeholder(&paramIdx))
-		args = append(args, *filters.DateTo)
+		args = append(args, filters.DateTo.valueForToBoundary())
 	}
 
 	if filters.Search != nil && *filters.Search != "" && len(m.searchColumns) > 0 {

@@ -274,6 +274,25 @@ export interface HrDashboardStats {
   pending_approvals: number;
 }
 
+export interface HrRiskOverdueItem {
+  enrollment_id: string;
+  user_id: string;
+  full_name: string;
+  course_id: string;
+  course_title: string;
+  deadline_at: string;
+  completion_percent: string;
+  last_activity_at: string | null;
+}
+
+export interface HrRisksResponse {
+  overdue_enrollments: number;
+  deadline_soon: number;
+  inactive_learners: number;
+  low_completion: number;
+  overdue_items: HrRiskOverdueItem[];
+}
+
 export interface BoardSummaryBoardItem {
   board_id: string;
   title: string;

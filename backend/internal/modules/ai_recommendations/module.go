@@ -122,7 +122,6 @@ type yandexReasoningParam struct {
 	Effort string `json:"effort"`
 }
 
-
 type yandexRequestText struct {
 	Format yandexTextResponseFormat `json:"format"`
 }
@@ -312,7 +311,11 @@ func (s *Service) Recommend(ctx context.Context, principal platformauth.Principa
 		return RecommendResponse{}, err
 	}
 
-	tasks, err := s.yougileService.ListTasks(ctx, connectionID, yougilemodule.ListTasksQuery{Limit: aiPoolLimit})
+	tasks, err := s.yougileService.ListTasks(ctx, connectionID, yougilemodule.ListTasksQuery{
+		Limit:          aiPoolLimit,
+		MineOnly:       true,
+		EmployeeUserID: principal.UserID,
+	})
 	if err != nil {
 		return RecommendResponse{}, fmt.Errorf("fetch yougile tasks: %w", err)
 	}
@@ -728,13 +731,13 @@ func isNoiseTask(title string) bool {
 
 // priorityColumns are column names that indicate active work (higher priority).
 var priorityColumns = map[string]bool{
-	"в работе":      true,
-	"в процессе":    true,
-	"in progress":   true,
-	"тестирование":  true,
-	"testing":       true,
-	"review":        true,
-	"на проверке":   true,
+	"в работе":     true,
+	"в процессе":   true,
+	"in progress":  true,
+	"тестирование": true,
+	"testing":      true,
+	"review":       true,
+	"на проверке":  true,
 }
 
 // preprocessTasks filters and prioritizes tasks: active work first, noise removed.
@@ -904,51 +907,51 @@ func recommendHeuristically(tasks []yougilemodule.TaskItem, courses []catalogmod
 
 // synonymMap maps tokens to their canonical form for matching.
 var synonymMap = map[string]string{
-	"golang":               "go",
-	"бекенд":               "backend",
-	"бэкенд":               "backend",
-	"бекенда":              "backend",
-	"бэкенда":              "backend",
-	"фронтенд":             "frontend",
-	"фронтэнд":             "frontend",
-	"devops":               "devops",
-	"cache":                "кеширование",
-	"кеш":                  "кеширование",
-	"кэш":                  "кеширование",
-	"кэширование":          "кеширование",
-	"презентация":          "выступление",
-	"публичные":            "выступление",
-	"domain-driven":        "ddd",
-	"sql":                  "sql",
-	"postgresql":           "sql",
-	"postgres":             "sql",
-	"docker":               "контейнеризация",
-	"kubernetes":           "контейнеризация",
-	"k8s":                  "контейнеризация",
-	"облачных":             "cloud",
-	"cloud":                "cloud",
-	"aws":                  "cloud",
-	"azure":                "cloud",
-	"наставник":            "mentoring",
-	"наставничество":       "mentoring",
-	"менторинг":            "mentoring",
-	"mentor":               "mentoring",
-	"интеграция":           "integration",
-	"интеграцию":           "integration",
-	"api":                  "api",
-	"rest":                 "api",
-	"микросервисы":         "microservices",
-	"микросервисов":        "microservices",
-	"microservices":        "microservices",
-	"тестирование":         "testing",
-	"тестировании":         "testing",
-	"тесты":                "testing",
-	"test":                 "testing",
-	"tests":                "testing",
-	"архитектура":          "architecture",
-	"архитектуру":          "architecture",
-	"архитектор":           "architecture",
-	"architecture":         "architecture",
+	"golang":         "go",
+	"бекенд":         "backend",
+	"бэкенд":         "backend",
+	"бекенда":        "backend",
+	"бэкенда":        "backend",
+	"фронтенд":       "frontend",
+	"фронтэнд":       "frontend",
+	"devops":         "devops",
+	"cache":          "кеширование",
+	"кеш":            "кеширование",
+	"кэш":            "кеширование",
+	"кэширование":    "кеширование",
+	"презентация":    "выступление",
+	"публичные":      "выступление",
+	"domain-driven":  "ddd",
+	"sql":            "sql",
+	"postgresql":     "sql",
+	"postgres":       "sql",
+	"docker":         "контейнеризация",
+	"kubernetes":     "контейнеризация",
+	"k8s":            "контейнеризация",
+	"облачных":       "cloud",
+	"cloud":          "cloud",
+	"aws":            "cloud",
+	"azure":          "cloud",
+	"наставник":      "mentoring",
+	"наставничество": "mentoring",
+	"менторинг":      "mentoring",
+	"mentor":         "mentoring",
+	"интеграция":     "integration",
+	"интеграцию":     "integration",
+	"api":            "api",
+	"rest":           "api",
+	"микросервисы":   "microservices",
+	"микросервисов":  "microservices",
+	"microservices":  "microservices",
+	"тестирование":   "testing",
+	"тестировании":   "testing",
+	"тесты":          "testing",
+	"test":           "testing",
+	"tests":          "testing",
+	"архитектура":    "architecture",
+	"архитектуру":    "architecture",
+	"архитектор":     "architecture",
+	"architecture":   "architecture",
 }
 
 // domainTokenWeights assigns higher scores to domain-specific tokens.

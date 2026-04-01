@@ -294,10 +294,16 @@ export class ReportsOverviewPageComponent implements OnInit {
       request.filters = { ...request.filters, levels: filters.levels };
     }
     if (filters.date_from) {
-      request.filters = { ...request.filters, date_from: filters.date_from };
+      const dateFrom = this.normalizeDateFromFilter(filters.date_from);
+      if (dateFrom) {
+        request.filters = { ...request.filters, date_from: dateFrom };
+      }
     }
     if (filters.date_to) {
-      request.filters = { ...request.filters, date_to: filters.date_to };
+      const dateTo = this.normalizeDateToFilter(filters.date_to);
+      if (dateTo) {
+        request.filters = { ...request.filters, date_to: dateTo };
+      }
     }
     if (filters.sort_by) {
       request.sort_by = filters.sort_by;
@@ -317,6 +323,16 @@ export class ReportsOverviewPageComponent implements OnInit {
       sort_by: '',
       sort_dir: 'asc',
     });
+  }
+
+  private normalizeDateFromFilter(value: string): string | null {
+    const date = new Date(`${value}T00:00:00`);
+    return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  }
+
+  private normalizeDateToFilter(value: string): string | null {
+    const date = new Date(`${value}T23:59:59.999`);
+    return Number.isNaN(date.getTime()) ? null : date.toISOString();
   }
 
   private getMockValue(column: ColumnMeta, rowIndex: number): string {

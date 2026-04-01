@@ -104,6 +104,16 @@
               </div>
 
               <div class="workflow-card__actions">
+                <button
+                  mat-stroked-button
+                  type="button"
+                  (click)="exportParticipantsExcel()"
+                  [disabled]="acting() || exporting() || applications().length === 0"
+                >
+                  <mat-icon>download</mat-icon>
+                  {{ exporting() ? 'Выгрузка…' : 'Выгрузить Excel' }}
+                </button>
+
                 @if (item.status === 'open') {
                   <button
                     mat-stroked-button

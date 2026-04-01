@@ -331,6 +331,7 @@ func NewRouter(container *Container) http.Handler {
 				r.Get("/external-requests", container.AnalyticsHandler.ExternalRequests)
 				r.Get("/budget", container.AnalyticsHandler.Budget)
 				r.Get("/trainers", container.AnalyticsHandler.Trainers)
+				r.With(middleware.RBAC("analytics.read_hr")).Get("/risks", container.AnalyticsHandler.RisksHR)
 			})
 
 			r.Route("/reports/sources", func(r chi.Router) {

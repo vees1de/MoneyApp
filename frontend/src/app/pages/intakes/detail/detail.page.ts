@@ -18,6 +18,7 @@ import { CertificatesApiService } from '@core/api/certificates-api.service';
 import { CourseApplicationsApiService } from '@core/api/course-applications-api.service';
 import { CourseIntakesApiService } from '@core/api/course-intakes-api.service';
 import { EnrollmentsApiService } from '@core/api/enrollments-api.service';
+import { ReportsApiService } from '@core/api/reports-api.service';
 import { UsersApiService } from '@core/api/users-api.service';
 import type { CourseApplication, CourseIntake } from '@core/api/contracts';
 import { API_BASE_URL } from '@core/config/api.config';
@@ -79,6 +80,7 @@ export class IntakeDetailPageComponent implements OnInit {
   private readonly applicationsApi = inject(CourseApplicationsApiService);
   private readonly enrollmentsApi = inject(EnrollmentsApiService);
   private readonly usersApi = inject(UsersApiService);
+  private readonly reportsApi = inject(ReportsApiService);
   private readonly certificatesApi = inject(CertificatesApiService);
   private readonly authState = inject(AuthStateService);
   private readonly route = inject(ActivatedRoute);
@@ -88,6 +90,7 @@ export class IntakeDetailPageComponent implements OnInit {
 
   protected readonly loading = signal(true);
   protected readonly acting = signal(false);
+  protected readonly exporting = signal(false);
   protected readonly hrFilter = signal<HrApplicationFilter>('all');
   protected readonly error = signal<string | null>(null);
   protected readonly directoryUnavailable = signal(false);
@@ -318,6 +321,27 @@ export class IntakeDetailPageComponent implements OnInit {
 
   protected setHrFilter(filter: HrApplicationFilter): void {
     this.hrFilter.set(filter);
+  }
+
+  protected exportParticipantsExcel(): void {
+    const item = this.intake();
+    if (!item || this.exporting()) {
+      return;
+    }
+
+    this.exporting.set(true);
+    this.error.set(null);
+
+    this.reportsApi.exportIntakeApplicationsExcel(item.id).subscribe({
+      next: (blob) => {
+        this.downloadIntakeExport(blob, item.title);
+        this.exporting.set(false);
+      },
+      error: () => {
+        this.error.set('Не удалось выгрузить Excel по выбранному набору.');
+        this.exporting.set(false);
+      },
+    });
   }
 
   protected hrFilterCount(filter: HrApplicationFilter): number {
@@ -811,6 +835,25 @@ export class IntakeDetailPageComponent implements OnInit {
       return null;
     }
     return `${API_BASE_URL}/uploads/${encodeURI(storageKey)}`;
+  }
+
+  private downloadIntakeExport(blob: Blob, intakeTitle: string): void {
+    const now = new Date();
+    const datePart = now.toISOString().slice(0, 10).replace(/-/g, '');
+    const safeTitle = intakeTitle
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9а-яё]+/gi, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 60);
+    const filename = `${safeTitle || 'intake'}-participants-${datePart}.xlsx`;
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   private load(): void {

@@ -1,0 +1,182 @@
+:host {
+  display: block;
+}
+
+.tabs {
+  display: flex;
+  gap: var(--space-4);
+}
+
+.tabs__item {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--app-text);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  gap: var(--space-2);
+  padding: 8px 12px;
+}
+
+.tabs__item--active {
+  background: var(--app-primary);
+  border-color: #566ae6;
+  color: #fff;
+}
+
+.risks {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.risks--skeleton {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.risks__skeleton {
+  animation: risks-shimmer 1.3s ease-in-out infinite;
+  background: linear-gradient(90deg, #edf1f8 25%, #f9fbff 50%, #edf1f8 75%);
+  background-size: 300% 100%;
+  border-radius: var(--radius-md);
+  min-height: 88px;
+}
+
+.risks__empty {
+  color: var(--app-muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.risk-card {
+  align-items: center;
+  border-radius: var(--radius-lg);
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.risk-card--critical {
+  background: rgb(228 51 44 / 8%);
+}
+
+.risk-card--critical .risk-card__icon {
+  color: var(--status-error);
+}
+
+.risk-card--warning {
+  background: rgb(245 166 35 / 8%);
+}
+
+.risk-card--warning .risk-card__icon {
+  color: var(--status-warning);
+}
+
+.risk-card--info {
+  background: var(--app-surface-soft);
+}
+
+.risk-card--info .risk-card__icon {
+  color: var(--app-muted);
+}
+
+.risk-card__icon {
+  align-items: center;
+  display: flex;
+  font-size: 1.5rem;
+  justify-content: center;
+}
+
+.risk-card__icon mat-icon {
+  font-size: 1.5rem;
+  height: 1.5rem;
+  width: 1.5rem;
+}
+
+.risk-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.risk-card__count {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.risk-card__label {
+  color: var(--app-muted);
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.overdue-list {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.overdue-item {
+  background: var(--app-surface-soft);
+  border-left: 3px solid var(--status-error);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+}
+
+.overdue-item__header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.overdue-item__name {
+  color: var(--app-text);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.overdue-item__name:hover {
+  text-decoration: underline;
+}
+
+.overdue-item__days {
+  color: var(--status-error);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.overdue-item__course {
+  color: var(--app-text);
+  font-size: 0.88rem;
+}
+
+.overdue-item__meta {
+  color: var(--app-muted);
+  font-size: 0.82rem;
+}
+
+@keyframes risks-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .risks {
+    grid-template-columns: 1fr;
+  }
+
+  .tabs {
+    gap: var(--space-2);
+  }
+}

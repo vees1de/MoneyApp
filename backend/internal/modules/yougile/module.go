@@ -233,12 +233,14 @@ type ImportStructureResponse struct {
 }
 
 type ListTasksQuery struct {
-	AssignedTo     string `json:"assignedTo,omitempty"`
-	ColumnID       string `json:"columnId,omitempty"`
-	IncludeDeleted bool   `json:"includeDeleted,omitempty"`
-	Limit          int    `json:"limit,omitempty"`
-	Offset         int    `json:"offset,omitempty"`
-	Title          string `json:"title,omitempty"`
+	AssignedTo     string    `json:"assignedTo,omitempty"`
+	ColumnID       string    `json:"columnId,omitempty"`
+	IncludeDeleted bool      `json:"includeDeleted,omitempty"`
+	Limit          int       `json:"limit,omitempty"`
+	Offset         int       `json:"offset,omitempty"`
+	Title          string    `json:"title,omitempty"`
+	MineOnly       bool      `json:"-"`
+	EmployeeUserID uuid.UUID `json:"-"`
 }
 
 type TasksPaging struct {
@@ -665,6 +667,59 @@ func (r *Repository) ListMappings(ctx context.Context, connectionID uuid.UUID) (
 		items = append(items, item)
 	}
 	return items, rows.Err()
+}
+
+func (r *Repository) FindActiveMappedYougileUserID(
+	ctx context.Context,
+	connectionID, employeeUserID uuid.UUID,
+) (string, error) {
+	var yougileUserID string
+	err := r.db.QueryRowContext(ctx, `
+			select yougile_user_id
+			from yougile_employee_mappings
+			where connection_id = $1
+			  and employee_user_id = $2
+			  and is_active = true
+			limit 1
+		`, connectionID, employeeUserID).Scan(&yougileUserID)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(yougileUserID), nil
+}
+
+func (r *Repository) GetUserEmail(ctx context.Context, userID uuid.UUID) (string, error) {
+	var email string
+	err := r.db.QueryRowContext(ctx, `
+			select email
+			from users
+			where id = $1
+			limit 1
+		`, userID).Scan(&email)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(email), nil
+}
+
+func (r *Repository) FindImportedYougileUserIDByEmail(
+	ctx context.Context,
+	connectionID uuid.UUID,
+	email string,
+) (string, error) {
+	var yougileUserID string
+	err := r.db.QueryRowContext(ctx, `
+			select yougile_user_id
+			from yougile_users
+			where connection_id = $1
+			  and lower(coalesce(email, '')) = lower($2)
+			order by updated_at desc
+			limit 1
+		`, connectionID, strings.TrimSpace(email)).Scan(&yougileUserID)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(yougileUserID), nil
 }
 
 func (r *Repository) ListInternalUsersForMatching(ctx context.Context) ([]struct {
@@ -1391,6 +1446,34 @@ func (s *Service) ListTasks(ctx context.Context, connectionID uuid.UUID, query L
 		}
 		return ListTasksResponse{}, err
 	}
+
+	if query.MineOnly {
+		query.AssignedTo = strings.TrimSpace(query.AssignedTo)
+		if query.AssignedTo == "" && query.EmployeeUserID != uuid.Nil {
+			assignedTo, err := s.ResolveEmployeeYougileUserID(ctx, connectionID, query.EmployeeUserID)
+			if err != nil {
+				return ListTasksResponse{}, err
+			}
+			query.AssignedTo = strings.TrimSpace(assignedTo)
+		}
+
+		if query.AssignedTo == "" {
+			offset := query.Offset
+			if offset < 0 {
+				offset = 0
+			}
+			return ListTasksResponse{
+				Paging: TasksPaging{
+					Count:  0,
+					Limit:  normalizeTasksLimit(query.Limit),
+					Offset: offset,
+					Next:   false,
+				},
+				Content: []TaskItem{},
+			}, nil
+		}
+	}
+
 	client := NewClient(conn.APIBaseURL, conn.APIKeyEncrypted)
 	response, err := client.ListTasks(ctx, query)
 	if err != nil {
@@ -1398,7 +1481,78 @@ func (s *Service) ListTasks(ctx context.Context, connectionID uuid.UUID, query L
 	}
 
 	s.enrichTaskItems(ctx, connectionID, client, response.Content)
+	if query.MineOnly {
+		response.Content = filterTasksByAssignee(response.Content, query.AssignedTo)
+		response.Paging.Count = len(response.Content)
+		response.Paging.Next = false
+		if response.Paging.Limit <= 0 {
+			response.Paging.Limit = normalizeTasksLimit(query.Limit)
+		}
+	}
 	return response, nil
+}
+
+func (s *Service) ResolveEmployeeYougileUserID(
+	ctx context.Context,
+	connectionID, employeeUserID uuid.UUID,
+) (string, error) {
+	if employeeUserID == uuid.Nil {
+		return "", nil
+	}
+
+	yougileUserID, err := s.repo.FindActiveMappedYougileUserID(ctx, connectionID, employeeUserID)
+	if err == nil {
+		return strings.TrimSpace(yougileUserID), nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return "", err
+	}
+
+	email, err := s.repo.GetUserEmail(ctx, employeeUserID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", nil
+		}
+		return "", err
+	}
+	email = strings.TrimSpace(email)
+	if email == "" {
+		return "", nil
+	}
+
+	yougileUserID, err = s.repo.FindImportedYougileUserIDByEmail(ctx, connectionID, email)
+	if err == nil {
+		return strings.TrimSpace(yougileUserID), nil
+	}
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	return "", err
+}
+
+func normalizeTasksLimit(limit int) int {
+	if limit <= 0 || limit > 1000 {
+		return 100
+	}
+	return limit
+}
+
+func filterTasksByAssignee(items []TaskItem, assigneeID string) []TaskItem {
+	assigneeID = strings.TrimSpace(assigneeID)
+	if len(items) == 0 || assigneeID == "" {
+		return []TaskItem{}
+	}
+
+	filtered := make([]TaskItem, 0, len(items))
+	for _, item := range items {
+		for _, assigned := range item.Assigned {
+			if strings.TrimSpace(assigned) == assigneeID {
+				filtered = append(filtered, item)
+				break
+			}
+		}
+	}
+	return filtered
 }
 
 type taskStructureMeta struct {
@@ -2056,6 +2210,10 @@ func (h *Handler) ListTasks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	limit, offset := parsePaging(r)
+	mineOnly := false
+	if raw := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("mineOnly"))); raw == "true" || raw == "1" || raw == "yes" {
+		mineOnly = true
+	}
 	query := ListTasksQuery{
 		AssignedTo:     r.URL.Query().Get("assignedTo"),
 		ColumnID:       r.URL.Query().Get("columnId"),
@@ -2063,6 +2221,8 @@ func (h *Handler) ListTasks(w http.ResponseWriter, r *http.Request) {
 		Limit:          limit,
 		Offset:         offset,
 		Title:          r.URL.Query().Get("title"),
+		MineOnly:       mineOnly,
+		EmployeeUserID: principal.UserID,
 	}
 	items, err := h.service.ListTasks(r.Context(), id, query)
 	if err != nil {

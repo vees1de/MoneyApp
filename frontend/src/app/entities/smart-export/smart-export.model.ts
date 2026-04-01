@@ -17,6 +17,7 @@ export interface SourcesResponse {
 
 export interface ExportFilters {
   employee_ids?: string[];
+  intake_ids?: string[];
   department_ids?: string[];
   course_ids?: string[];
   category_ids?: string[];

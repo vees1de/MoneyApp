@@ -1,0 +1,64 @@
+<app-widget-shell
+  title="Риски"
+  [loading]="loading()"
+  [error]="error()"
+  [empty]="totalRisks() === 0"
+>
+  <div widget-loading class="risks risks--skeleton">
+    <div class="risks__skeleton"></div>
+    <div class="risks__skeleton"></div>
+    <div class="risks__skeleton"></div>
+  </div>
+
+  <div class="tabs">
+    @for (tab of tabs; track tab.key) {
+      <button
+        type="button"
+        class="tabs__item"
+        [class.tabs__item--active]="selectedTab() === tab.key"
+        (click)="setTab(tab.key)"
+      >
+        {{ tab.label }}
+      </button>
+    }
+  </div>
+
+  @if (selectedTab() === 'summary') {
+    <div class="risks">
+      @for (risk of risks(); track risk.key) {
+        <div class="risk-card" [class]="'risk-card--' + risk.severity">
+          <div class="risk-card__icon">
+            <mat-icon>{{ risk.icon }}</mat-icon>
+          </div>
+          <div class="risk-card__body">
+            <span class="risk-card__count">{{ risk.count }}</span>
+            <span class="risk-card__label">{{ risk.label }}</span>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  @if (selectedTab() === 'overdue') {
+    @if (overdueItems().length === 0) {
+      <p class="risks__empty">Нет просроченных записей.</p>
+    } @else {
+      <div class="overdue-list">
+        @for (item of overdueItems(); track item.enrollment_id) {
+          <article class="overdue-item">
+            <div class="overdue-item__header">
+              <a [routerLink]="'/employees/' + item.user_id" class="overdue-item__name">
+                {{ item.full_name }}
+              </a>
+              <span class="overdue-item__days">{{ daysOverdue(item.deadline_at) }} дн. назад</span>
+            </div>
+            <div class="overdue-item__course">{{ item.course_title }}</div>
+            <div class="overdue-item__meta">
+              <span>Прогресс: {{ item.completion_percent }}%</span>
+            </div>
+          </article>
+        }
+      </div>
+    }
+  }
+</app-widget-shell>

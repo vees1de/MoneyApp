@@ -10,7 +10,10 @@ var statusTranslations = map[string]string{
 	"pending_manager":      "Ожидает руководителя",
 	"pending_hr":           "Ожидает HR",
 	"approved":             "Одобрено",
+	"approved_by_manager":  "Одобрено руководителем",
 	"rejected":             "Отклонено",
+	"rejected_by_manager":  "Отклонено руководителем",
+	"rejected_by_hr":       "Отклонено HR",
 	"withdrawn":            "Отозвано",
 	"enrolled":             "Записан",
 	"in_progress":          "В процессе",
@@ -25,6 +28,8 @@ var statusTranslations = map[string]string{
 	"certificate_uploaded": "Сертификат загружен",
 	"certificate_approved": "Сертификат одобрен",
 	"certificate_rejected": "Сертификат отклонён",
+	"uploaded":             "На проверке HR",
+	"verified":             "Подтверждён HR",
 	"not_started":          "Не начат",
 
 	// Course statuses
@@ -36,8 +41,9 @@ var statusTranslations = map[string]string{
 	"closed": "Закрыт",
 
 	// Suggestion statuses
-	"new":      "Новое",
-	"reviewed": "Рассмотрено",
+	"new":           "Новое",
+	"reviewed":      "Рассмотрено",
+	"intake_opened": "Набор открыт",
 
 	// Payment statuses
 	"unpaid": "Не оплачено",
@@ -82,27 +88,27 @@ var sourceTypeTranslations = map[string]string{
 
 // courseTypeTranslations maps course type codes.
 var courseTypeTranslations = map[string]string{
-	"online":   "Онлайн",
-	"offline":  "Очный",
-	"blended":  "Смешанный",
-	"video":    "Видеокурс",
-	"webinar":  "Вебинар",
-	"workshop": "Воркшоп",
+	"online":     "Онлайн",
+	"offline":    "Очный",
+	"blended":    "Смешанный",
+	"video":      "Видеокурс",
+	"webinar":    "Вебинар",
+	"workshop":   "Воркшоп",
 	"self_paced": "Самостоятельный",
 }
 
 // languageTranslations maps language codes.
 var languageTranslations = map[string]string{
-	"ru":  "Русский",
-	"en":  "Английский",
-	"de":  "Немецкий",
-	"fr":  "Французский",
-	"es":  "Испанский",
-	"zh":  "Китайский",
-	"ja":  "Японский",
-	"ko":  "Корейский",
-	"pt":  "Португальский",
-	"it":  "Итальянский",
+	"ru": "Русский",
+	"en": "Английский",
+	"de": "Немецкий",
+	"fr": "Французский",
+	"es": "Испанский",
+	"zh": "Китайский",
+	"ja": "Японский",
+	"ko": "Корейский",
+	"pt": "Португальский",
+	"it": "Итальянский",
 }
 
 // priorityTranslations maps priority codes.

@@ -21,6 +21,42 @@ export class ReportsApiService {
     });
   }
 
+  exportIntakeApplicationsExcel(intakeId: string): Observable<Blob> {
+    const request: SmartExportRequest = {
+      source: 'applications',
+      format: 'xlsx',
+      columns: [
+        'employee_name',
+        'employee_email',
+        'department',
+        'position',
+        'intake_title',
+        'course_title',
+        'status',
+        'payment_status',
+        'enrollment_status',
+        'certificate_status',
+        'certificate_uploaded_at',
+        'motivation',
+        'manager_approver',
+        'manager_comment',
+        'manager_decided_at',
+        'hr_approver',
+        'hr_comment',
+        'hr_decided_at',
+        'applied_at',
+        'updated_at',
+      ],
+      filters: {
+        intake_ids: [intakeId],
+      },
+      sort_by: 'applied_at',
+      sort_dir: 'desc',
+    };
+
+    return this.smartExport(request);
+  }
+
   exportExcel(): Observable<Blob> {
     return this.http.get(`${this.base}/export/excel`, { responseType: 'blob' });
   }

@@ -117,6 +117,74 @@ func (s *Service) Trainers(ctx context.Context) ([]map[string]any, error) {
 	return items, rows.Err()
 }
 
+func (s *Service) RisksHR(ctx context.Context) (map[string]any, error) {
+	counts, err := s.simpleCounts(ctx, map[string]string{
+		"overdue_enrollments": `select count(*) from enrollments
+			where status not in ('completed','canceled')
+			  and deadline_at is not null
+			  and deadline_at < now()`,
+		"deadline_soon": `select count(*) from enrollments
+			where status not in ('completed','canceled')
+			  and deadline_at is not null
+			  and deadline_at between now() and now() + interval '7 days'`,
+		"inactive_learners": `select count(distinct user_id) from enrollments
+			where status = 'in_progress'
+			  and (last_activity_at is null or last_activity_at < now() - interval '30 days')`,
+		"low_completion": `select count(*) from enrollments
+			where status = 'in_progress'
+			  and deadline_at is not null
+			  and deadline_at < now() + interval '14 days'
+			  and cast(completion_percent as decimal) < 50`,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := s.db.QueryContext(ctx, `
+		select e.id, e.user_id, coalesce(u.display_name, u.email), e.course_id,
+		       coalesce(c.title, ''), e.deadline_at, e.completion_percent, e.last_activity_at
+		from enrollments e
+		join users u on u.id = e.user_id
+		left join courses c on c.id = e.course_id
+		where e.status not in ('completed','canceled')
+		  and e.deadline_at is not null
+		  and e.deadline_at < now()
+		order by e.deadline_at asc
+		limit 20
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var overdueItems []map[string]any
+	for rows.Next() {
+		var id, userID, courseID uuid.UUID
+		var fullName, courseTitle, completionPercent string
+		var deadlineAt time.Time
+		var lastActivity *time.Time
+		if err := rows.Scan(&id, &userID, &fullName, &courseID, &courseTitle, &deadlineAt, &completionPercent, &lastActivity); err != nil {
+			return nil, err
+		}
+		overdueItems = append(overdueItems, map[string]any{
+			"enrollment_id":     id,
+			"user_id":           userID,
+			"full_name":         fullName,
+			"course_id":         courseID,
+			"course_title":      courseTitle,
+			"deadline_at":       deadlineAt,
+			"completion_percent": completionPercent,
+			"last_activity_at":  lastActivity,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	counts["overdue_items"] = overdueItems
+	return counts, nil
+}
+
 func (s *Service) QueueExport(ctx context.Context, principal platformauth.Principal, format string) (map[string]any, error) {
 	now := time.Now().UTC()
 	jobKey := "report-export:" + format + ":" + principal.UserID.String() + ":" + now.Format("200601021504")
@@ -218,6 +286,15 @@ func (h *Handler) Trainers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
+func (h *Handler) RisksHR(w http.ResponseWriter, r *http.Request) {
+	payload, err := h.service.RisksHR(r.Context())
+	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, payload)
 }
 
 func (h *Handler) ExportExcel(w http.ResponseWriter, r *http.Request) {
