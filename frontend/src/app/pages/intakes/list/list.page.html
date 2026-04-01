@@ -1,14 +1,14 @@
 ﻿<section class="intakes-page">
-  <header class="intakes-page__header">
-    <div class="intakes-page__actions">
-      @if (canManage()) {
+  @if (canManage()) {
+    <header class="intakes-page__header">
+      <div class="intakes-page__actions">
         <a mat-flat-button color="primary" routerLink="/intakes/new">
           <mat-icon>add_circle</mat-icon>
           Создать назначение
         </a>
-      }
-    </div>
-  </header>
+      </div>
+    </header>
+  }
 
   <mat-card>
     <mat-card-content>

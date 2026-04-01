@@ -31,13 +31,22 @@
 .export-step {
   background: #fff;
   border: 1px solid #d8deea !important;
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+}
+
+.export-step mat-card-content {
+  padding: 0 !important;
+}
+
+.export-step--source {
+  padding: var(--space-4);
 }
 
 .step-label {
-  align-items: center;
   display: flex;
   gap: var(--space-3);
-  margin-bottom: var(--space-4);
+  align-items: center;
 }
 
 .step-number {
@@ -54,7 +63,7 @@
 }
 
 .step-title {
-  font-size: 1.1rem;
+  font-size: 1.22rem;
   font-weight: 700;
 }
 
@@ -82,43 +91,41 @@
   gap: var(--space-2);
 }
 
-// Source Grid
-.source-grid {
-  display: grid;
-  gap: var(--space-3);
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+// Source chips
+.source-chips {
+  align-items: stretch;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  max-width: 100%;
 }
 
-.source-card {
-  background: var(--app-surface);
-  border: 2px solid var(--app-border);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  display: grid;
-  gap: 0.25rem;
-  padding: var(--space-4) var(--space-5);
+.source-chips .mat-mdc-chip-option {
+  border-radius: 12px !important;
+  justify-content: flex-start;
+  min-height: 56px;
+  max-width: 100%;
+  width: fit-content;
+}
+
+.source-chips .mat-mdc-chip-action-label {
+  align-items: center;
+  display: grid !important;
+  gap: 0.1rem;
+  justify-items: flex-start;
   text-align: left;
-  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
-
-  &:hover {
-    border-color: var(--app-primary-soft);
-    background: var(--app-surface-soft);
-  }
-
-  &--active {
-    border-color: var(--app-primary);
-    background: var(--app-primary-soft);
-    box-shadow: 0 0 0 3px rgb(var(--app-ring) / 0.18);
-  }
 }
 
-.source-card__label {
-  font-size: 0.95rem;
-  font-weight: 700;
+.source-chip__label {
+  color: var(--app-text);
+  font-family: var(--font-family);
+  font-size: 0.96rem;
+  font-weight: 500;
 }
 
-.source-card__meta {
+.source-chip__meta {
   color: var(--app-muted);
+  font-family: var(--font-family);
   font-size: 0.8rem;
   font-weight: 500;
 }
@@ -295,9 +302,6 @@
 
 // Export Action Bar
 .export-step--action {
-  position: sticky;
-  bottom: var(--space-4);
-  z-index: 10;
   box-shadow: var(--shadow-card);
 }
 
@@ -309,21 +313,11 @@
   justify-content: space-between;
 }
 
-.export-action-bar__info {
-  display: grid;
-  gap: 0.15rem;
-
-  .step-label {
-    margin-bottom: 0;
-  }
-}
-
 .export-action-bar__summary {
   color: var(--app-muted);
   font-size: 0.88rem;
   font-weight: 500;
   margin: 0;
-  padding-left: 40px;
 }
 
 .export-action-bar__buttons {
@@ -350,10 +344,6 @@
 
 // Responsive
 @media (max-width: 900px) {
-  .source-grid {
-    grid-template-columns: 1fr;
-  }
-
   .filter-grid {
     grid-template-columns: 1fr;
   }
