@@ -42,6 +42,7 @@ type Assignment struct {
 type Enrollment struct {
 	ID                uuid.UUID  `json:"id"`
 	CourseID          uuid.UUID  `json:"course_id"`
+	CourseTitle       string     `json:"course_title,omitempty"`
 	UserID            uuid.UUID  `json:"user_id"`
 	AssignmentID      *uuid.UUID `json:"assignment_id,omitempty"`
 	Source            string     `json:"source"`
@@ -147,22 +148,26 @@ func (r *Repository) CreateEnrollment(ctx context.Context, item Enrollment, exec
 func (r *Repository) GetEnrollment(ctx context.Context, id uuid.UUID, exec ...db.DBTX) (Enrollment, error) {
 	var item Enrollment
 	err := r.base(exec...).QueryRowContext(ctx, `
-		select id, course_id, user_id, assignment_id, source, status, enrolled_at, started_at, completed_at,
-		       deadline_at, last_activity_at, completion_percent::text, is_mandatory, created_at, updated_at
-		from enrollments
-		where id = $1
-	`, id).Scan(&item.ID, &item.CourseID, &item.UserID, &item.AssignmentID, &item.Source, &item.Status, &item.EnrolledAt,
-		&item.StartedAt, &item.CompletedAt, &item.DeadlineAt, &item.LastActivityAt, &item.CompletionPercent, &item.IsMandatory, &item.CreatedAt, &item.UpdatedAt)
+		select e.id, e.course_id, coalesce(c.title, ''), e.user_id, e.assignment_id, e.source, e.status,
+		       e.enrolled_at, e.started_at, e.completed_at, e.deadline_at, e.last_activity_at,
+		       e.completion_percent::text, e.is_mandatory, e.created_at, e.updated_at
+		from enrollments e
+		left join courses c on c.id = e.course_id
+		where e.id = $1
+	`, id).Scan(&item.ID, &item.CourseID, &item.CourseTitle, &item.UserID, &item.AssignmentID, &item.Source, &item.Status,
+		&item.EnrolledAt, &item.StartedAt, &item.CompletedAt, &item.DeadlineAt, &item.LastActivityAt, &item.CompletionPercent, &item.IsMandatory, &item.CreatedAt, &item.UpdatedAt)
 	return item, err
 }
 
 func (r *Repository) ListEnrollmentsByUser(ctx context.Context, userID uuid.UUID, exec ...db.DBTX) ([]Enrollment, error) {
 	rows, err := r.base(exec...).QueryContext(ctx, `
-		select id, course_id, user_id, assignment_id, source, status, enrolled_at, started_at, completed_at,
-		       deadline_at, last_activity_at, completion_percent::text, is_mandatory, created_at, updated_at
-		from enrollments
-		where user_id = $1
-		order by created_at desc
+		select e.id, e.course_id, coalesce(c.title, ''), e.user_id, e.assignment_id, e.source, e.status,
+		       e.enrolled_at, e.started_at, e.completed_at, e.deadline_at, e.last_activity_at,
+		       e.completion_percent::text, e.is_mandatory, e.created_at, e.updated_at
+		from enrollments e
+		left join courses c on c.id = e.course_id
+		where e.user_id = $1
+		order by e.created_at desc
 	`, userID)
 	if err != nil {
 		return nil, err
@@ -171,7 +176,7 @@ func (r *Repository) ListEnrollmentsByUser(ctx context.Context, userID uuid.UUID
 	var items []Enrollment
 	for rows.Next() {
 		var item Enrollment
-		if err := rows.Scan(&item.ID, &item.CourseID, &item.UserID, &item.AssignmentID, &item.Source, &item.Status,
+		if err := rows.Scan(&item.ID, &item.CourseID, &item.CourseTitle, &item.UserID, &item.AssignmentID, &item.Source, &item.Status,
 			&item.EnrolledAt, &item.StartedAt, &item.CompletedAt, &item.DeadlineAt, &item.LastActivityAt,
 			&item.CompletionPercent, &item.IsMandatory, &item.CreatedAt, &item.UpdatedAt); err != nil {
 			return nil, err

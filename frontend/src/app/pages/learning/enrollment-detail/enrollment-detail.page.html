@@ -25,12 +25,12 @@
           <div class="certificate-card__header-copy">
             <p class="certificate-card__eyebrow">Проверка HR</p>
             <mat-card-title>Сертификат</mat-card-title>
-            <mat-card-subtitle>{{ certificateStatusLabel(latestCertificate()?.status) }}</mat-card-subtitle>
+            <mat-card-subtitle>{{
+              certificateStatusLabel(latestCertificate()?.status)
+            }}</mat-card-subtitle>
           </div>
 
-          <span [ngClass]="['status-chip', 'status-chip--certificate']">
-            Автозавершение
-          </span>
+          <span [ngClass]="['status-chip', 'status-chip--certificate']"> Автозавершение </span>
         </mat-card-header>
 
         <mat-card-content class="certificate-card__content">
@@ -47,12 +47,16 @@
               </p>
               <p>
                 <span class="kv__key">Загружен</span>
-                <span class="kv__value">{{ certificate.uploaded_at | date: 'dd.MM.yyyy HH:mm' }}</span>
+                <span class="kv__value">{{
+                  certificate.uploaded_at | date: 'dd.MM.yyyy HH:mm'
+                }}</span>
               </p>
               <p>
                 <span class="kv__key">Проверен</span>
                 <span class="kv__value">{{
-                  certificate.verified_at ? (certificate.verified_at | date: 'dd.MM.yyyy HH:mm') : '—'
+                  certificate.verified_at
+                    ? (certificate.verified_at | date: 'dd.MM.yyyy HH:mm')
+                    : '—'
                 }}</span>
               </p>
               @if (certificateFileUrl(certificate); as fileUrl) {
@@ -70,7 +74,9 @@
               }
               <p>
                 <span class="kv__key">Курс</span>
-                <span class="kv__value kv__value--mono">{{ shortId(item.course_id) }}</span>
+                <span class="kv__value">{{
+                  item.course_title || 'Курс ' + shortId(item.course_id)
+                }}</span>
               </p>
             </div>
           } @else {
@@ -118,58 +124,60 @@
       </mat-card>
 
       <mat-card class="enrollment-detail-card">
-      <mat-card-header>
-        <div class="enrollment-detail-card__header-copy">
-          <p class="enrollment-detail-card__eyebrow">Детали курса</p>
-          <mat-card-title>Обучение {{ shortId(item.id) }}</mat-card-title>
-          <mat-card-subtitle>Статус: {{ enrollmentStatusLabel(item.status) }}</mat-card-subtitle>
-        </div>
-      </mat-card-header>
+        <mat-card-header>
+          <div class="enrollment-detail-card__header-copy">
+            <p class="enrollment-detail-card__eyebrow">Детали курса</p>
+            <mat-card-title>{{
+              item.course_title || 'Курс ' + shortId(item.course_id)
+            }}</mat-card-title>
+            <mat-card-subtitle>Статус: {{ enrollmentStatusLabel(item.status) }}</mat-card-subtitle>
+          </div>
+        </mat-card-header>
 
-      <mat-card-content class="enrollment-detail-card__content">
-        <div class="enrollment-detail-card__facts">
-          <p>
-            <span class="kv__key">Курс</span>
-            <span class="kv__value kv__value--mono">{{ item.course_id }}</span>
-          </p>
-          <p>
-            <span class="kv__key">Источник</span>
-            <span class="kv__value">{{ sourceLabel(item.source) }}</span>
-          </p>
-          <p>
-            <span class="kv__key">Тип</span>
-            <span class="kv__value">{{ mandatoryLabel(item) }}</span>
-          </p>
-          <p>
-            <span class="kv__key">Записан</span>
-            <span class="kv__value">{{ item.enrolled_at | date: 'dd.MM.yyyy HH:mm' }}</span>
-          </p>
-          <p>
-            <span class="kv__key">Старт</span>
-            <span class="kv__value">{{
-              item.started_at ? (item.started_at | date: 'dd.MM.yyyy HH:mm') : '—'
-            }}</span>
-          </p>
-          <p>
-            <span class="kv__key">Завершение</span>
-            <span class="kv__value">{{
-              item.completed_at ? (item.completed_at | date: 'dd.MM.yyyy HH:mm') : '—'
-            }}</span>
-          </p>
-          <p>
-            <span class="kv__key">Последняя активность</span>
-            <span class="kv__value">{{
-              item.last_activity_at ? (item.last_activity_at | date: 'dd.MM.yyyy HH:mm') : '—'
-            }}</span>
-          </p>
-          <p>
-            <span class="kv__key">Дедлайн</span>
-            <span class="kv__value">{{
-              item.deadline_at ? (item.deadline_at | date: 'dd.MM.yyyy HH:mm') : '—'
-            }}</span>
-          </p>
-        </div>
-      </mat-card-content>
+        <mat-card-content class="enrollment-detail-card__content">
+          <div class="enrollment-detail-card__facts">
+            <p>
+              <span class="kv__key">Курс</span>
+              <span class="kv__value">{{ item.course_title || item.course_id }}</span>
+            </p>
+            <p>
+              <span class="kv__key">Источник</span>
+              <span class="kv__value">{{ sourceLabel(item.source) }}</span>
+            </p>
+            <p>
+              <span class="kv__key">Тип</span>
+              <span class="kv__value">{{ mandatoryLabel(item) }}</span>
+            </p>
+            <p>
+              <span class="kv__key">Записан</span>
+              <span class="kv__value">{{ item.enrolled_at | date: 'dd.MM.yyyy HH:mm' }}</span>
+            </p>
+            <p>
+              <span class="kv__key">Старт</span>
+              <span class="kv__value">{{
+                item.started_at ? (item.started_at | date: 'dd.MM.yyyy HH:mm') : '—'
+              }}</span>
+            </p>
+            <p>
+              <span class="kv__key">Завершение</span>
+              <span class="kv__value">{{
+                item.completed_at ? (item.completed_at | date: 'dd.MM.yyyy HH:mm') : '—'
+              }}</span>
+            </p>
+            <p>
+              <span class="kv__key">Последняя активность</span>
+              <span class="kv__value">{{
+                item.last_activity_at ? (item.last_activity_at | date: 'dd.MM.yyyy HH:mm') : '—'
+              }}</span>
+            </p>
+            <p>
+              <span class="kv__key">Дедлайн</span>
+              <span class="kv__value">{{
+                item.deadline_at ? (item.deadline_at | date: 'dd.MM.yyyy HH:mm') : '—'
+              }}</span>
+            </p>
+          </div>
+        </mat-card-content>
       </mat-card>
     </div>
   }
