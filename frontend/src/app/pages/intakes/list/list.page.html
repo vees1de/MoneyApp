@@ -63,24 +63,20 @@
           </mat-card-header>
 
           <mat-card-content class="intake-card__content">
-            @if (item.description) {
-              <p class="intake-card__description">{{ item.description }}</p>
-            }
-
             <p>
-              <span class="kv__key">Старт:</span>
+              <span class="kv__key">Старт: </span>
               <span class="kv__value">{{
                 item.start_date ? (item.start_date | date: 'dd.MM.yyyy') : '—'
               }}</span>
             </p>
             <p>
-              <span class="kv__key">Финиш:</span>
+              <span class="kv__key">Финиш: </span>
               <span class="kv__value">{{
                 item.end_date ? (item.end_date | date: 'dd.MM.yyyy') : '—'
               }}</span>
             </p>
             <p>
-              <span class="kv__key">Дедлайн заявки:</span>
+              <span class="kv__key">Дедлайн заявки: </span>
               <span class="kv__value">
                 {{
                   item.application_deadline
@@ -90,24 +86,15 @@
               </span>
             </p>
             <p>
-              <span class="kv__key">Лимит участников:</span>
+              <span class="kv__key">Лимит участников: </span>
               <span class="kv__value">{{ item.max_participants ?? 'не ограничен' }}</span>
             </p>
+
             <p>
-              <span class="kv__key">Длительность:</span>
-              <span class="kv__value">{{
-                item.duration_weeks ? item.duration_weeks + ' нед.' : 'по дате окончания'
-              }}</span>
-            </p>
-            <p>
-              <span class="kv__key">Цена:</span>
+              <span class="kv__key">Цена: </span>
               <span class="kv__value"
                 >{{ item.price || '—' }} {{ item.price_currency || 'RUB' }}</span
               >
-            </p>
-            <p>
-              <span class="kv__key">Обновлено:</span>
-              <span class="kv__value">{{ item.updated_at | date: 'dd.MM.yyyy HH:mm' }}</span>
             </p>
           </mat-card-content>
         </mat-card>
