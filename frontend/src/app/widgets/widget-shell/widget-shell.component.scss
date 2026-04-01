@@ -16,6 +16,15 @@
   justify-content: space-between;
   padding: 0 0 var(--space-3) !important;
   align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.widget-shell__title {
+  color: var(--app-text);
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
 }
 
 .widget-shell__title {
@@ -38,6 +47,31 @@
   min-height: 30px !important;
   padding-inline: 14px !important;
   white-space: nowrap;
+}
+
+.widget-shell__action-link {
+  align-items: center;
+  border: 1px solid rgb(22 28 45 / 24%);
+  border-radius: 999px;
+  color: #4b5565;
+  display: inline-flex;
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  font-weight: 500;
+  line-height: 1;
+  min-height: 34px;
+  padding: 8px 14px;
+  text-decoration: none;
+  transition:
+    border-color 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.widget-shell__action-link:hover {
+  border-color: rgb(86 106 230 / 38%);
+  color: var(--app-primary);
+  transform: translateY(-1px);
 }
 
 .widget-shell__content {

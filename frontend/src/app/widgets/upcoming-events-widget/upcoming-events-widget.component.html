@@ -1,41 +1,110 @@
-<app-widget-shell
-  title="Ближайшие события"
-  listRoute="/calendar"
+﻿<app-widget-shell
+  title="Календарь"
+  listRoute="/calendar/overview"
+  actionLabel="Посмотреть еще"
+  actionRoute="/calendar/overview"
   [loading]="loading()"
-  [error]="error()">
-  <div widget-loading class="upcoming-skeleton">
-    <div class="upcoming-skeleton__item"></div>
-    <div class="upcoming-skeleton__item"></div>
-    <div class="upcoming-skeleton__item"></div>
+  [error]="error()"
+>
+  <div widget-loading class="calendar-mini__skeleton">
+    <div class="calendar-mini__skeleton-strip"></div>
+    <div class="calendar-mini__skeleton-card"></div>
+    <div class="calendar-mini__skeleton-card"></div>
+    <div class="calendar-mini__skeleton-card calendar-mini__skeleton-card--compact"></div>
   </div>
 
-  <div class="upcoming-calendar">
-    @for (day of weekDays(); track day.date) {
-      <button
-        type="button"
-        class="upcoming-calendar__day"
-        [class.upcoming-calendar__day--active]="isDayActive(day.date)"
-        (click)="setActiveDate(day.date)"
-      >
-        <span>{{ day.weekday }}</span>
-        <strong>{{ day.dayNumber }}</strong>
-      </button>
+  <section class="calendar-mini">
+    <section class="calendar-mini__week">
+      @for (day of visibleWeek(); track day.key) {
+        <button
+          class="calendar-mini__day"
+          type="button"
+          [class.calendar-mini__day--active]="day.isActive"
+          (click)="selectDay(day.key)"
+        >
+          <span class="calendar-mini__day-name">{{ day.name }}</span>
+          <span class="calendar-mini__day-number">{{ day.number }}</span>
+          @if (day.hasConflict) {
+            <i class="calendar-mini__day-dot calendar-mini__day-dot--conflict"></i>
+          } @else if (day.hasItems) {
+            <i class="calendar-mini__day-dot"></i>
+          }
+        </button>
+      }
+    </section>
+
+    @if (selectedDayEvents().length) {
+      <section class="calendar-mini__cards">
+        @for (event of selectedDayEvents(); track event.id) {
+          <article
+            class="calendar-mini__card"
+            [class.calendar-mini__card--all-day]="event.visualTone === 'all-day'"
+            [class.calendar-mini__card--completed]="event.visualTone === 'completed'"
+          >
+            <div class="calendar-mini__card-copy">
+              <div class="calendar-mini__card-head">
+                <div class="calendar-mini__card-title">
+                  <mat-icon>{{
+                    event.visualTone === 'all-day'
+                      ? 'today'
+                      : event.visualTone === 'completed'
+                        ? 'task_alt'
+                        : 'schedule'
+                  }}</mat-icon>
+                  <strong>{{ event.title }}</strong>
+                </div>
+              </div>
+
+              <p class="calendar-mini__card-time">{{ event.timeLabel }}</p>
+
+              <div class="calendar-mini__meta-grid">
+                <div class="calendar-mini__meta-item">
+                  <span>{{ event.primaryMetaLabel }}</span>
+                  <strong>{{ event.primaryMetaValue }}</strong>
+                </div>
+                <div class="calendar-mini__meta-item">
+                  <span>{{ event.secondaryMetaLabel }}</span>
+                  <strong>{{ event.secondaryMetaValue }}</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="calendar-mini__visual">
+              <span>{{ event.visualLabel }}</span>
+            </div>
+          </article>
+        }
+      </section>
+    } @else if (emptyDay()) {
+      <section class="calendar-mini__empty">
+        <strong>На выбранный день таймблоков нет.</strong>
+        <p>
+          @if (unscheduledCount() > 0) {
+            Без срока в Yougile: {{ unscheduledCount() }}.
+          }
+          Выберите другой день выше или откройте полный календарь.
+        </p>
+      </section>
     }
-  </div>
 
-  <div class="upcoming-events">
-    @for (event of filteredEvents(); track event.id) {
-      <article class="upcoming-events__item">
-        <a class="upcoming-events__title" routerLink="/calendar/overview">{{ event.title }}</a>
-        <p class="upcoming-events__time">{{ eventSubtitle(event) }}</p>
-      </article>
-    } @empty {
-      <p class="upcoming-events__empty">Событий на выбранный день нет.</p>
+    @if (selectedDayConflict(); as conflict) {
+      <section class="calendar-mini__conflict">
+        <div class="calendar-mini__conflict-copy">
+          <div class="calendar-mini__conflict-head">
+            <mat-icon>error_outline</mat-icon>
+            <strong>{{ conflict.title }}</strong>
+          </div>
+          <p>{{ conflict.reason }}</p>
+          <span>{{ conflict.timeLabel }}</span>
+        </div>
+
+        <div class="calendar-mini__conflict-actions">
+          <button mat-flat-button type="button" (click)="selectNextConflictDay()">
+            Следующий конфликт
+          </button>
+          <a mat-flat-button routerLink="/calendar/overview">Открыть календарь</a>
+        </div>
+      </section>
     }
-  </div>
-
-  <div class="upcoming-events__actions">
-    <a mat-flat-button routerLink="/calendar/conflicts">Перенести событие</a>
-    <a mat-flat-button routerLink="/calendar/overview">Открыть календарь</a>
-  </div>
+  </section>
 </app-widget-shell>
