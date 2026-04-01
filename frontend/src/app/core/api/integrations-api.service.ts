@@ -1,7 +1,18 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import type { BoardSummary } from './contracts';
+import type {
+  BoardSummary,
+  OutlookConnectResponse,
+  OutlookEventRecord,
+  OutlookIntegrationStatus,
+  OutlookManualConnectRequest,
+  OutlookMessageRecord,
+  OutlookSyncResponse,
+  OutlookTestEmailRequest,
+  OutlookTestEmailResponse,
+  OutlookUpdateSettingsRequest,
+} from './contracts';
 import { API_BASE_URL } from '@core/config/api.config';
 
 import type {
@@ -37,20 +48,48 @@ export class IntegrationsApiService {
 
   constructor(private readonly http: HttpClient) {}
 
-  getOutlookConnectLink(): Observable<Record<string, unknown>> {
-    return this.http.get<Record<string, unknown>>(`${this.base}/outlook/connect`);
+  getOutlookConnectLink(): Observable<OutlookConnectResponse> {
+    return this.http.get<OutlookConnectResponse>(`${this.base}/outlook/connect`);
   }
 
-  getOutlookStatus(): Observable<Record<string, unknown>> {
-    return this.http.get<Record<string, unknown>>(`${this.base}/outlook/status`);
+  connectOutlookManual(payload: OutlookManualConnectRequest): Observable<OutlookIntegrationStatus> {
+    return this.http.post<OutlookIntegrationStatus>(`${this.base}/outlook/connect/manual`, payload);
   }
 
-  syncOutlook(): Observable<Record<string, unknown>> {
-    return this.http.post<Record<string, unknown>>(`${this.base}/outlook/sync`, {});
+  getOutlookStatus(): Observable<OutlookIntegrationStatus> {
+    return this.http.get<OutlookIntegrationStatus>(`${this.base}/outlook/status`);
   }
 
-  disconnectOutlook(): Observable<Record<string, unknown>> {
-    return this.http.post<Record<string, unknown>>(`${this.base}/outlook/disconnect`, {});
+  syncOutlook(): Observable<OutlookSyncResponse> {
+    return this.http.post<OutlookSyncResponse>(`${this.base}/outlook/sync`, {});
+  }
+
+  listOutlookMessages(limit = 12): Observable<{ items: OutlookMessageRecord[] }> {
+    return this.http.get<{ items: OutlookMessageRecord[] }>(
+      `${this.base}/outlook/messages?limit=${limit}`,
+    );
+  }
+
+  listOutlookEvents(limit = 12): Observable<{ items: OutlookEventRecord[] }> {
+    return this.http.get<{ items: OutlookEventRecord[] }>(
+      `${this.base}/outlook/events?limit=${limit}`,
+    );
+  }
+
+  updateOutlookSettings(
+    payload: OutlookUpdateSettingsRequest,
+  ): Observable<OutlookIntegrationStatus> {
+    return this.http.post<OutlookIntegrationStatus>(`${this.base}/outlook/settings`, payload);
+  }
+
+  sendOutlookTestEmail(
+    payload: OutlookTestEmailRequest = {},
+  ): Observable<OutlookTestEmailResponse> {
+    return this.http.post<OutlookTestEmailResponse>(`${this.base}/outlook/test-email`, payload);
+  }
+
+  disconnectOutlook(): Observable<void> {
+    return this.http.post<void>(`${this.base}/outlook/disconnect`, {});
   }
 
   getAgileBoardSummary(query?: {

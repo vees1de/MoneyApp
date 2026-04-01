@@ -53,6 +53,14 @@ type FeatureConfig struct {
 type IntegrationsConfig struct {
 	Telegram TelegramConfig
 	Yandex   YandexConfig
+	Outlook  OutlookConfig
+	YandexAI YandexAIConfig
+}
+
+type YandexAIConfig struct {
+	APIKey   string
+	FolderID string
+	Model    string
 }
 
 type TelegramConfig struct {
@@ -63,6 +71,14 @@ type YandexConfig struct {
 	ClientID     string
 	ClientSecret string
 	RedirectURI  string
+}
+
+type OutlookConfig struct {
+	TenantID       string
+	ClientID       string
+	ClientSecret   string
+	RedirectURI    string
+	PostConnectURL string
 }
 
 func MustLoad() *Config {
@@ -113,6 +129,18 @@ func Load() (*Config, error) {
 				ClientID:     getEnv("YANDEX_CLIENT_ID", ""),
 				ClientSecret: getEnv("YANDEX_CLIENT_SECRET", ""),
 				RedirectURI:  getEnv("YANDEX_REDIRECT_URI", firstNonEmptyEnv("VITE_YANDEX_REDIRECT_URI", "")),
+			},
+			Outlook: OutlookConfig{
+				TenantID:       getEnv("OUTLOOK_TENANT_ID", "common"),
+				ClientID:       getEnv("OUTLOOK_CLIENT_ID", ""),
+				ClientSecret:   getEnv("OUTLOOK_CLIENT_SECRET", ""),
+				RedirectURI:    getEnv("OUTLOOK_REDIRECT_URI", ""),
+				PostConnectURL: getEnv("OUTLOOK_POST_CONNECT_URL", "/calendar/overview"),
+			},
+			YandexAI: YandexAIConfig{
+				APIKey:   getEnv("YANDEX_AI_API_KEY", ""),
+				FolderID: getEnv("YANDEX_AI_FOLDER_ID", "b1gste4lfr39is20f5r8"),
+				Model:    getEnv("YANDEX_AI_MODEL", "deepseek-v32/latest"),
 			},
 		},
 	}

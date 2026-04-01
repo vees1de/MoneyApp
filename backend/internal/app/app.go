@@ -10,6 +10,7 @@ import (
 	corehealth "moneyapp/backend/internal/core/health"
 	coreusers "moneyapp/backend/internal/core/users"
 	adminmodule "moneyapp/backend/internal/modules/admin"
+	airecommendationsmodule "moneyapp/backend/internal/modules/ai_recommendations"
 	analyticsmodule "moneyapp/backend/internal/modules/analytics"
 	auditmodule "moneyapp/backend/internal/modules/audit"
 	boardsummarymodule "moneyapp/backend/internal/modules/board_summary"
@@ -90,6 +91,7 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 	courseRequestsRepo := courserequestsmodule.NewRepository(database)
 	externalTrainingRepo := externaltrainingmodule.NewRepository(database)
 	outlookRepo := outlookmodule.NewRepository(database)
+	outlookGraphClient := outlookmodule.NewGraphClient(cfg.Integrations.Outlook)
 	notificationsRepo := notificationsmodule.NewRepository(database)
 	universityRepo := universitymodule.NewRepository(database)
 	yougileRepo := yougilemodule.NewRepository(database)
@@ -121,7 +123,7 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 	learningPlanService := learningplanmodule.NewService(learningPlanRepo)
 	boardSummaryService := boardsummarymodule.NewService(boardSummaryRepo)
 	dashboardAPIService := dashboardapimodule.NewService(dashboardAPIRepo, calendarService, learningPlanService, externalTrainingService, courseRequestsService)
-	outlookService := outlookmodule.NewService(database, outlookRepo, queue, appClock)
+	outlookService := outlookmodule.NewService(database, outlookRepo, queue, appClock, orgService, outlookGraphClient, cfg.Auth.JWTSecret)
 	notificationsService := notificationsmodule.NewService(notificationsRepo, appClock)
 	universityService := universitymodule.NewService(universityRepo, appClock)
 	smartExportService := smartexportmodule.NewService(database)
@@ -131,11 +133,12 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 	employeesStatsRepo := employeesstatsmodule.NewRepository(database)
 	githubService := githubmodule.NewService(database, githubRepo, queue, appClock)
 	employeesStatsService := employeesstatsmodule.NewService(employeesStatsRepo)
+	aiRecommendationsService := airecommendationsmodule.NewService(database, yougileService, catalogService, cfg.Integrations.YandexAI)
 	healthService := corehealth.NewService(map[string]corehealth.CheckFunc{
 		"postgres": database.PingContext,
 	})
 
-	registerWorkerHandlers(queue, log, yougileService, githubService)
+	registerWorkerHandlers(queue, log, yougileService, githubService, outlookService)
 
 	container := &Container{
 		Config:                  cfg,
@@ -170,7 +173,8 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 		AuditService:            auditService,
 		YougileService:          yougileService,
 		GitHubService:           githubService,
-		EmployeesStatsService:   employeesStatsService,
+		EmployeesStatsService:       employeesStatsService,
+		AIRecommendationsService:    aiRecommendationsService,
 		HealthHandler:           corehealth.NewHandler(healthService),
 		UsersHandler:            coreusers.NewHandler(usersService, validate),
 		IdentityHandler:         identitymodule.NewHandler(identityService, validate),
@@ -194,7 +198,8 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 		AuditHandler:            auditmodule.NewHandler(auditService),
 		YougileHandler:          yougilemodule.NewHandler(yougileService, validate),
 		GitHubHandler:           githubmodule.NewHandler(githubService, validate),
-		EmployeesStatsHandler:   employeesstatsmodule.NewHandler(employeesStatsService, validate),
+		EmployeesStatsHandler:       employeesstatsmodule.NewHandler(employeesStatsService, validate),
+		AIRecommendationsHandler:    airecommendationsmodule.NewHandler(aiRecommendationsService),
 	}
 
 	return container, nil
@@ -228,18 +233,19 @@ func (a *App) Run(ctx context.Context) error {
 	return nil
 }
 
-func registerWorkerHandlers(queue *platformworker.Queue, logger *slog.Logger, yougileService *yougilemodule.Service, githubService *githubmodule.Service) {
+func registerWorkerHandlers(queue *platformworker.Queue, logger *slog.Logger, yougileService *yougilemodule.Service, githubService *githubmodule.Service, outlookService *outlookmodule.Service) {
 	queue.Register("send_password_reset", func(ctx context.Context, job platformworker.Job) error {
 		logger.Info("process job", "job_type", job.JobType, "queue", job.Queue, "payload", string(job.Payload))
 		return nil
 	})
 	queue.Register("outlook_sync", func(ctx context.Context, job platformworker.Job) error {
-		logger.Info("process job", "job_type", job.JobType, "queue", job.Queue, "payload", string(job.Payload))
-		return nil
+		return outlookService.ProcessSyncJob(ctx, job)
 	})
 	queue.Register("outlook_create_event", func(ctx context.Context, job platformworker.Job) error {
-		logger.Info("process job", "job_type", job.JobType, "queue", job.Queue, "payload", string(job.Payload))
-		return nil
+		return outlookService.ProcessCreateEventJob(ctx, job)
+	})
+	queue.Register("outlook_send_notification_email", func(ctx context.Context, job platformworker.Job) error {
+		return outlookService.ProcessNotificationEmailJob(ctx, job)
 	})
 	queue.Register("export_excel", func(ctx context.Context, job platformworker.Job) error {
 		logger.Info("process job", "job_type", job.JobType, "queue", job.Queue, "payload", string(job.Payload))

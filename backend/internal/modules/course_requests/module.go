@@ -20,6 +20,7 @@ import (
 	"moneyapp/backend/internal/platform/clock"
 	"moneyapp/backend/internal/platform/db"
 	"moneyapp/backend/internal/platform/httpx"
+	"moneyapp/backend/internal/platform/notificationsx"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/validator/v10"
@@ -184,13 +185,17 @@ func (r *Repository) CreateEvent(ctx context.Context, requestID, actorID uuid.UU
 }
 
 func (r *Repository) CreateNotification(ctx context.Context, userID uuid.UUID, typ, title, body, relatedEntityType string, relatedEntityID uuid.UUID, createdAt time.Time, exec ...db.DBTX) error {
-	_, err := r.base(exec...).ExecContext(ctx, `
-		insert into notifications (
-			id, user_id, channel, type, title, body, status, related_entity_type, related_entity_id, created_at
-		)
-		values ($1, $2, 'in_app', $3, $4, $5, 'pending', $6, $7, $8)
-	`, uuid.New(), userID, typ, title, body, relatedEntityType, relatedEntityID, createdAt)
-	return err
+	return notificationsx.CreateInAppWithLinkedEmailMirror(
+		ctx,
+		r.base(exec...),
+		userID,
+		typ,
+		title,
+		body,
+		relatedEntityType,
+		relatedEntityID,
+		createdAt,
+	)
 }
 
 func (r *Repository) HasActiveRequest(ctx context.Context, employeeUserID, courseID uuid.UUID, exec ...db.DBTX) (bool, error) {

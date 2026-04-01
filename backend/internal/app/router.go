@@ -48,9 +48,14 @@ func NewRouter(container *Container) http.Handler {
 			r.Group(func(r chi.Router) {
 				r.Use(middleware.AuthRequired(container.JWT))
 				r.Get("/connect", container.OutlookHandler.Connect)
+				r.Post("/connect/manual", container.OutlookHandler.ManualConnect)
 				r.Post("/disconnect", container.OutlookHandler.Disconnect)
 				r.Get("/status", container.OutlookHandler.Status)
 				r.Post("/sync", container.OutlookHandler.Sync)
+				r.Get("/messages", container.OutlookHandler.ListMessages)
+				r.Get("/events", container.OutlookHandler.ListEvents)
+				r.Post("/settings", container.OutlookHandler.UpdateSettings)
+				r.Post("/test-email", container.OutlookHandler.SendTestEmail)
 			})
 		})
 
@@ -341,6 +346,10 @@ func NewRouter(container *Container) http.Handler {
 			})
 
 			r.With(middleware.RBAC("audit.read")).Get("/audit-logs", container.AuditHandler.List)
+
+			r.Route("/ai", func(r chi.Router) {
+				r.Get("/recommendations", container.AIRecommendationsHandler.Recommend)
+			})
 		})
 	})
 

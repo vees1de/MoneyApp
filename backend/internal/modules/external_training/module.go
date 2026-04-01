@@ -15,6 +15,7 @@ import (
 	"moneyapp/backend/internal/platform/db"
 	"moneyapp/backend/internal/platform/events"
 	"moneyapp/backend/internal/platform/httpx"
+	"moneyapp/backend/internal/platform/notificationsx"
 	"moneyapp/backend/internal/platform/outbox"
 	"moneyapp/backend/internal/platform/worker"
 
@@ -483,13 +484,17 @@ func (r *Repository) CreateApprovalHistory(ctx context.Context, entityID uuid.UU
 }
 
 func (r *Repository) CreateNotification(ctx context.Context, userID uuid.UUID, typ, title, body string, relatedEntityID uuid.UUID, createdAt time.Time, exec ...db.DBTX) error {
-	_, err := r.base(exec...).ExecContext(ctx, `
-		insert into notifications (
-			id, user_id, channel, type, title, body, status, related_entity_type, related_entity_id, created_at
-		)
-		values ($1, $2, 'in_app', $3, $4, $5, 'pending', 'external_course_request', $6, $7)
-	`, uuid.New(), userID, typ, title, body, relatedEntityID, createdAt)
-	return err
+	return notificationsx.CreateInAppWithLinkedEmailMirror(
+		ctx,
+		r.base(exec...),
+		userID,
+		typ,
+		title,
+		body,
+		"external_course_request",
+		relatedEntityID,
+		createdAt,
+	)
 }
 
 func (r *Repository) ResolveDepartmentHead(ctx context.Context, departmentID uuid.UUID, exec ...db.DBTX) (*uuid.UUID, error) {

@@ -107,6 +107,12 @@ export const routes: Routes = [
       },
 
       {
+        path: 'ai',
+        loadComponent: () =>
+          import('@pages/ai/ai.page').then((m) => m.AIPageComponent),
+      },
+
+      {
         path: 'catalog',
         canActivate: [permissionGuard([PERMISSIONS.coursesRead])],
         loadComponent: () =>
@@ -262,6 +268,12 @@ export const routes: Routes = [
 
       {
         path: 'calendar',
+        canActivate: [permissionGuard([PERMISSIONS.enrollmentsRead])],
+        pathMatch: 'full',
+        redirectTo: 'calendar/overview',
+      },
+      {
+        path: 'calendar/overview',
         canActivate: [permissionGuard([PERMISSIONS.enrollmentsRead])],
         loadComponent: () =>
           import('@pages/calendar/overview/overview.page').then(

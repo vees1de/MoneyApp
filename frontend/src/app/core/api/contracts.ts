@@ -8,6 +8,92 @@ export interface CalendarUpcomingEvent {
   location?: string | null;
 }
 
+export interface OutlookAccountView {
+  id: string;
+  user_id: string;
+  external_account_id: string;
+  email: string;
+  token_expires_at: string;
+  scope?: string | null;
+  status: string;
+  auth_mode: string;
+  system_email_enabled: boolean;
+  last_sync_at?: string | null;
+  last_mail_sync_at?: string | null;
+  last_calendar_sync_at?: string | null;
+  last_error?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OutlookIntegrationStatus {
+  graph_configured: boolean;
+  connected: boolean;
+  account?: OutlookAccountView | null;
+}
+
+export interface OutlookConnectResponse {
+  auth_url: string;
+  state: string;
+}
+
+export interface OutlookManualConnectRequest {
+  access_token: string;
+  refresh_token?: string | null;
+  system_email_enabled?: boolean;
+}
+
+export interface OutlookUpdateSettingsRequest {
+  system_email_enabled: boolean;
+}
+
+export interface OutlookSyncResponse {
+  status: OutlookIntegrationStatus;
+  messages_synced: number;
+  events_synced: number;
+}
+
+export interface OutlookMessageRecord {
+  id: string;
+  external_message_id: string;
+  conversation_id?: string | null;
+  subject: string;
+  sender_email?: string | null;
+  sender_name?: string | null;
+  received_at: string;
+  is_read: boolean;
+  body_preview?: string | null;
+  web_link?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OutlookEventRecord {
+  id: string;
+  external_event_id?: string | null;
+  title: string;
+  start_at: string;
+  end_at: string;
+  timezone?: string | null;
+  status: string;
+  location?: string | null;
+  web_link?: string | null;
+  organizer_email?: string | null;
+  organizer_name?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OutlookTestEmailRequest {
+  subject?: string | null;
+  body?: string | null;
+}
+
+export interface OutlookTestEmailResponse {
+  recipient: string;
+  queued: boolean;
+}
+
 export interface AdminRole {
   id: string;
   code: string;

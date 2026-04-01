@@ -1,0 +1,81 @@
+<div class="ai-page">
+  <div class="ai-page__header">
+    <div class="ai-page__title-row">
+      <mat-icon class="ai-page__icon">auto_awesome</mat-icon>
+      <h1>AI-рекомендации курсов</h1>
+    </div>
+    <p class="ai-page__subtitle">
+      На основе ваших задач в YouGile мы подобрали курсы, которые помогут вам в работе
+    </p>
+  </div>
+
+  @if (loading()) {
+    <div class="ai-page__loading">
+      <mat-spinner diameter="48"></mat-spinner>
+      <p>Анализируем ваши задачи и подбираем курсы...</p>
+    </div>
+  }
+
+  @if (error(); as errorMsg) {
+    <div class="ai-page__error">
+      <mat-icon>error_outline</mat-icon>
+      <p>{{ errorMsg }}</p>
+      <button mat-stroked-button (click)="loadRecommendations()">
+        <mat-icon>refresh</mat-icon>
+        Попробовать снова
+      </button>
+    </div>
+  }
+
+  @if (!loading() && !error() && data(); as result) {
+    <div class="ai-page__stats">
+      <mat-chip-set>
+        <mat-chip>
+          <mat-icon matChipAvatar>task</mat-icon>
+          Задач проанализировано: {{ result.tasks_analyzed }}
+        </mat-chip>
+        <mat-chip>
+          <mat-icon matChipAvatar>school</mat-icon>
+          Курсов в каталоге: {{ result.courses_in_pool }}
+        </mat-chip>
+        <mat-chip>
+          <mat-icon matChipAvatar>recommend</mat-icon>
+          Рекомендовано: {{ result.recommendations.length }}
+        </mat-chip>
+      </mat-chip-set>
+    </div>
+
+    @if (result.recommendations.length === 0) {
+      <div class="ai-page__empty">
+        <mat-icon>info</mat-icon>
+        <p>Нет подходящих рекомендаций. Возможно, нет активных задач в YouGile или курсов в каталоге.</p>
+      </div>
+    }
+
+    <div class="ai-page__grid">
+      @for (rec of result.recommendations; track rec.course_id) {
+        <mat-card class="ai-page__card">
+          <mat-card-header>
+            <mat-icon mat-card-avatar class="ai-page__card-icon">auto_awesome</mat-icon>
+            <mat-card-title>{{ rec.title }}</mat-card-title>
+            @if (rec.short_description) {
+              <mat-card-subtitle>{{ rec.short_description }}</mat-card-subtitle>
+            }
+          </mat-card-header>
+          <mat-card-content>
+            <div class="ai-page__reason">
+              <mat-icon>lightbulb</mat-icon>
+              <span>{{ rec.reason }}</span>
+            </div>
+          </mat-card-content>
+          <mat-card-actions>
+            <a mat-button [routerLink]="'/catalog/' + rec.course_id" color="primary">
+              <mat-icon>arrow_forward</mat-icon>
+              Перейти к курсу
+            </a>
+          </mat-card-actions>
+        </mat-card>
+      }
+    </div>
+  }
+</div>

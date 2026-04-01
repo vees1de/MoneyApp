@@ -68,7 +68,7 @@ export class AppShellComponent {
       },
       {
         label: 'Календарь',
-        route: '/calendar',
+        route: '/calendar/overview',
         visible: this.authState.hasPermission(PERMISSIONS.enrollmentsRead),
       },
       {

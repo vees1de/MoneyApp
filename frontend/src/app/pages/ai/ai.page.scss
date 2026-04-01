@@ -1,0 +1,136 @@
+.ai-page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 32px 16px;
+
+  &__header {
+    margin-bottom: 32px;
+  }
+
+  &__title-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+
+    h1 {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 600;
+    }
+  }
+
+  &__icon {
+    font-size: 32px;
+    width: 32px;
+    height: 32px;
+    color: var(--mat-sys-primary);
+  }
+
+  &__subtitle {
+    margin: 0;
+    color: var(--mat-sys-on-surface-variant);
+    font-size: 15px;
+  }
+
+  &__loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 64px 0;
+
+    p {
+      color: var(--mat-sys-on-surface-variant);
+      font-size: 15px;
+    }
+  }
+
+  &__error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 48px 0;
+    text-align: center;
+
+    mat-icon {
+      font-size: 48px;
+      width: 48px;
+      height: 48px;
+      color: var(--mat-sys-error);
+    }
+
+    p {
+      color: var(--mat-sys-on-surface-variant);
+      max-width: 400px;
+    }
+  }
+
+  &__stats {
+    margin-bottom: 24px;
+  }
+
+  &__empty {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 32px;
+    border-radius: 12px;
+    background: var(--mat-sys-surface-variant);
+
+    mat-icon {
+      color: var(--mat-sys-on-surface-variant);
+    }
+
+    p {
+      margin: 0;
+      color: var(--mat-sys-on-surface-variant);
+    }
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+  }
+
+  &__card {
+    transition: box-shadow 0.2s ease;
+
+    &:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+  }
+
+  &__card-icon {
+    background: var(--mat-sys-primary-container);
+    color: var(--mat-sys-on-primary-container);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+  }
+
+  &__reason {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    padding: 12px;
+    border-radius: 8px;
+    background: var(--mat-sys-surface-variant);
+    font-size: 14px;
+    line-height: 1.5;
+
+    mat-icon {
+      color: var(--mat-sys-tertiary);
+      flex-shrink: 0;
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+    }
+  }
+}

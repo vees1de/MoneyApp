@@ -31,6 +31,7 @@ import (
 	testingmodule "moneyapp/backend/internal/modules/testing"
 	universitymodule "moneyapp/backend/internal/modules/university"
 	employeesstatsmodule "moneyapp/backend/internal/modules/employees_stats"
+	airecommendationsmodule "moneyapp/backend/internal/modules/ai_recommendations"
 	yougilemodule "moneyapp/backend/internal/modules/yougile"
 	platformauth "moneyapp/backend/internal/platform/auth"
 	"moneyapp/backend/internal/platform/clock"
@@ -73,7 +74,8 @@ type Container struct {
 	AuditService            *auditmodule.Service
 	YougileService          *yougilemodule.Service
 	GitHubService           *githubmodule.Service
-	EmployeesStatsService   *employeesstatsmodule.Service
+	EmployeesStatsService       *employeesstatsmodule.Service
+	AIRecommendationsService    *airecommendationsmodule.Service
 
 	HealthHandler           *corehealth.Handler
 	IdentityHandler         *identitymodule.Handler
@@ -97,6 +99,7 @@ type Container struct {
 	AuditHandler            *auditmodule.Handler
 	YougileHandler          *yougilemodule.Handler
 	GitHubHandler           *githubmodule.Handler
-	EmployeesStatsHandler   *employeesstatsmodule.Handler
+	EmployeesStatsHandler       *employeesstatsmodule.Handler
+	AIRecommendationsHandler    *airecommendationsmodule.Handler
 	UsersHandler            *coreusers.Handler
 }

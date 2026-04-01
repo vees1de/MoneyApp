@@ -14,6 +14,7 @@ import (
 	"moneyapp/backend/internal/platform/db"
 	"moneyapp/backend/internal/platform/events"
 	"moneyapp/backend/internal/platform/httpx"
+	"moneyapp/backend/internal/platform/notificationsx"
 	"moneyapp/backend/internal/platform/outbox"
 
 	"github.com/go-chi/chi/v5"
@@ -306,12 +307,17 @@ func (s *Service) CreateAssignment(ctx context.Context, principal platformauth.P
 				return err
 			}
 
-			if _, err := tx.ExecContext(ctx, `
-				insert into notifications (
-					id, user_id, channel, type, title, body, status, related_entity_type, related_entity_id, created_at
-				)
-				values ($1, $2, 'in_app', 'course_assigned', $3, $4, 'pending', 'course_assignment', $5, $6)
-			`, uuid.New(), userID, "New assigned course", "You have been assigned: "+course.Title, item.ID, now); err != nil {
+			if err := notificationsx.CreateInAppWithLinkedEmailMirror(
+				ctx,
+				tx,
+				userID,
+				"course_assigned",
+				"New assigned course",
+				"You have been assigned: "+course.Title,
+				"course_assignment",
+				item.ID,
+				now,
+			); err != nil {
 				return err
 			}
 		}
