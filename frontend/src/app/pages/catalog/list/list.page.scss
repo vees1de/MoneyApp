@@ -19,6 +19,7 @@
   display: grid;
   gap: var(--space-3);
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: center;
 }
 
 .catalog-filters__actions {
