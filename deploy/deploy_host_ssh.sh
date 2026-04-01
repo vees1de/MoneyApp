@@ -6,7 +6,7 @@
 # Steps:
 #   1. Clone/fetch/reset the git repo on the server
 #   2. Upload .env
-#   3. Restart backend via docker compose
+#   3. Restart backend and worker via docker compose
 
 set -euo pipefail
 
@@ -92,7 +92,7 @@ echo ">>> uploading .env"
 scp "${ENV_FILE}" "${SSH_ALIAS}:${REMOTE_DIR}/.env"
 
 # ── Restart backend on server ──────────────────────────────────────────────
-echo ">>> restarting backend"
+echo ">>> restarting backend and worker"
 ssh "${SSH_ALIAS}" "REMOTE_DIR='${REMOTE_DIR}' bash -se" <<'REMOTE'
 set -euo pipefail
 cd "${REMOTE_DIR}"
@@ -102,12 +102,14 @@ if ! command -v docker >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "  rebuilding + restarting backend container"
-if ! docker compose up --build -d backend; then
+echo "  rebuilding + restarting backend + worker containers"
+if ! docker compose up --build -d backend worker; then
   echo "--- migrate logs ---" >&2
   docker compose logs --tail=80 migrate >&2
   echo "--- backend logs ---" >&2
   docker compose logs --tail=40 backend >&2
+  echo "--- worker logs ---" >&2
+  docker compose logs --tail=40 worker >&2
   exit 1
 fi
 
@@ -125,6 +127,16 @@ for i in $(seq 1 30); do
   fi
   sleep 2
 done
+
+echo "  checking worker container"
+worker_status=$(docker compose ps --format '{{.Status}}' worker 2>/dev/null || true)
+if [[ "${worker_status}" != Up* ]]; then
+  echo "worker container is not running: ${worker_status}" >&2
+  docker compose logs --tail=80 worker >&2
+  exit 1
+fi
+
+echo "  worker is running"
 REMOTE
 
 echo ">>> deployment completed"

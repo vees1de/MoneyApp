@@ -14,7 +14,7 @@ Usage:
 
 The script expects a filled .env file in the repo root.
 It makes the server clone/fetch/reset the git repository,
-uploads .env, preserves uploaded frontend/dist, and runs docker compose up --build -d remotely.
+uploads .env, preserves uploaded frontend/dist, and runs backend + worker with docker compose remotely.
 Default target: ${DEFAULT_SSH_TARGET}
 EOF
 }
@@ -106,7 +106,7 @@ if [[ ! -f "./frontend/dist/index.html" ]]; then
   exit 1
 fi
 
-docker compose up --build -d
+docker compose up --build -d backend worker
 EOF
 
 echo "deployment completed"
