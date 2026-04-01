@@ -2,17 +2,17 @@
   <div class="ai-page__header">
     <div class="ai-page__title-row">
       <mat-icon class="ai-page__icon">auto_awesome</mat-icon>
-      <h1>AI-рекомендации курсов</h1>
+      <h1>AI-рекомендации курсов и наборов</h1>
     </div>
     <p class="ai-page__subtitle">
-      На основе ваших задач в YouGile мы подобрали курсы, которые помогут вам в работе
+      На основе ваших задач в YouGile мы подобрали курсы и открытые наборы, которые помогут в работе прямо сейчас
     </p>
   </div>
 
   @if (loading()) {
     <div class="ai-page__loading">
       <mat-spinner diameter="48"></mat-spinner>
-      <p>Анализируем ваши задачи и подбираем курсы...</p>
+      <p>Анализируем ваши задачи и подбираем курсы с открытыми наборами...</p>
     </div>
   }
 
@@ -39,44 +39,92 @@
           Курсов в каталоге: {{ result.courses_in_pool }}
         </mat-chip>
         <mat-chip>
+          <mat-icon matChipAvatar>groups</mat-icon>
+          Открытых наборов: {{ result.intakes_in_pool }}
+        </mat-chip>
+        <mat-chip>
           <mat-icon matChipAvatar>recommend</mat-icon>
-          Рекомендовано: {{ result.recommendations.length }}
+          Курсов рекомендовано: {{ result.recommendations.length }}
+        </mat-chip>
+        <mat-chip>
+          <mat-icon matChipAvatar>event_available</mat-icon>
+          Наборов рекомендовано: {{ result.intake_recommendations.length }}
         </mat-chip>
       </mat-chip-set>
     </div>
 
-    @if (result.recommendations.length === 0) {
+    @if (result.recommendations.length === 0 && result.intake_recommendations.length === 0) {
       <div class="ai-page__empty">
         <mat-icon>info</mat-icon>
-        <p>Нет подходящих рекомендаций. Возможно, нет активных задач в YouGile или курсов в каталоге.</p>
+        <p>Нет подходящих рекомендаций. Возможно, нет активных задач, опубликованных курсов или открытых наборов.</p>
       </div>
     }
 
-    <div class="ai-page__grid">
-      @for (rec of result.recommendations; track rec.course_id) {
-        <mat-card class="ai-page__card">
-          <mat-card-header>
-            <mat-icon mat-card-avatar class="ai-page__card-icon">auto_awesome</mat-icon>
-            <mat-card-title>{{ rec.title }}</mat-card-title>
-            @if (rec.short_description) {
-              <mat-card-subtitle>{{ rec.short_description }}</mat-card-subtitle>
-            }
-          </mat-card-header>
-          <mat-card-content>
-            <div class="ai-page__reason">
-              <mat-icon>lightbulb</mat-icon>
-              <span>{{ rec.reason }}</span>
-            </div>
-          </mat-card-content>
-          <mat-card-actions>
-            <a mat-button [routerLink]="'/catalog/' + rec.course_id" color="primary">
-              <mat-icon>arrow_forward</mat-icon>
-              Перейти к курсу
-            </a>
-          </mat-card-actions>
-        </mat-card>
-      }
-    </div>
+    @if (result.recommendations.length > 0) {
+      <h2>Рекомендованные курсы</h2>
+      <div class="ai-page__grid">
+        @for (rec of result.recommendations; track rec.course_id) {
+          <mat-card class="ai-page__card">
+            <mat-card-header>
+              <mat-icon mat-card-avatar class="ai-page__card-icon">auto_awesome</mat-icon>
+              <mat-card-title>{{ rec.title }}</mat-card-title>
+              @if (rec.short_description) {
+                <mat-card-subtitle>{{ rec.short_description }}</mat-card-subtitle>
+              }
+            </mat-card-header>
+            <mat-card-content>
+              <div class="ai-page__reason">
+                <mat-icon>lightbulb</mat-icon>
+                <span>{{ rec.reason }}</span>
+              </div>
+            </mat-card-content>
+            <mat-card-actions>
+              <a mat-button [routerLink]="'/catalog/' + rec.course_id" color="primary">
+                <mat-icon>arrow_forward</mat-icon>
+                Перейти к курсу
+              </a>
+            </mat-card-actions>
+          </mat-card>
+        }
+      </div>
+    }
+
+    @if (result.intake_recommendations.length > 0) {
+      <h2>Рекомендованные открытые наборы</h2>
+      <div class="ai-page__grid">
+        @for (intake of result.intake_recommendations; track intake.intake_id) {
+          <mat-card class="ai-page__card">
+            <mat-card-header>
+              <mat-icon mat-card-avatar class="ai-page__card-icon">event_available</mat-icon>
+              <mat-card-title>{{ intake.title }}</mat-card-title>
+              @if (intake.description) {
+                <mat-card-subtitle>{{ intake.description }}</mat-card-subtitle>
+              }
+            </mat-card-header>
+            <mat-card-content>
+              <div class="ai-page__reason">
+                <mat-icon>lightbulb</mat-icon>
+                <span>{{ intake.reason }}</span>
+              </div>
+              @if (intake.start_date || intake.application_deadline) {
+                <div class="ai-page__reason">
+                  <mat-icon>schedule</mat-icon>
+                  <span>
+                    Старт: {{ intake.start_date || 'не указан' }}, дедлайн: {{ intake.application_deadline || 'не указан' }}
+                  </span>
+                </div>
+              }
+            </mat-card-content>
+            <mat-card-actions>
+              <a mat-button [routerLink]="'/intakes/' + intake.intake_id" color="primary">
+                <mat-icon>arrow_forward</mat-icon>
+                Перейти к набору
+              </a>
+            </mat-card-actions>
+          </mat-card>
+        }
+      </div>
+    }
 
     <!-- Debug Logs -->
     @if (result.debug) {
@@ -95,6 +143,30 @@
           </div>
 
           <div class="ai-page__debug-section">
+            <h4>Источник курсов</h4>
+            <pre>{{ result.debug.courses_source || 'unknown' }}</pre>
+          </div>
+
+          <div class="ai-page__debug-section">
+            <h4>Источник наборов</h4>
+            <pre>{{ result.debug.intakes_source || 'unknown' }}</pre>
+          </div>
+
+          @if (result.debug.courses_error) {
+            <div class="ai-page__debug-section">
+              <h4>Ошибка пула курсов</h4>
+              <pre>{{ result.debug.courses_error }}</pre>
+            </div>
+          }
+
+          @if (result.debug.intakes_error) {
+            <div class="ai-page__debug-section">
+              <h4>Ошибка пула наборов</h4>
+              <pre>{{ result.debug.intakes_error }}</pre>
+            </div>
+          }
+
+          <div class="ai-page__debug-section">
             <h4>Задачи (отправлено в AI)</h4>
             <pre>{{ result.debug.tasks_summary }}</pre>
           </div>
@@ -102,6 +174,11 @@
           <div class="ai-page__debug-section">
             <h4>Курсы (отправлено в AI)</h4>
             <pre>{{ result.debug.courses_summary }}</pre>
+          </div>
+
+          <div class="ai-page__debug-section">
+            <h4>Наборы (отправлено в AI)</h4>
+            <pre>{{ result.debug.intakes_summary }}</pre>
           </div>
 
           <div class="ai-page__debug-section">

@@ -8,17 +8,24 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strings"
+	"time"
 
 	"moneyapp/backend/internal/config"
+	"moneyapp/backend/internal/core/audit"
+	"moneyapp/backend/internal/core/common"
 	catalogmodule "moneyapp/backend/internal/modules/catalog"
+	courseintakesmodule "moneyapp/backend/internal/modules/course_intakes"
 	yougilemodule "moneyapp/backend/internal/modules/yougile"
 	platformauth "moneyapp/backend/internal/platform/auth"
 	"moneyapp/backend/internal/platform/httpx"
 
 	"github.com/google/uuid"
 )
+
+const aiPoolLimit = 50
 
 type AIRecommendation struct {
 	CourseID         string `json:"course_id"`
@@ -27,22 +34,43 @@ type AIRecommendation struct {
 	Reason           string `json:"reason"`
 }
 
+type AIIntakeRecommendation struct {
+	IntakeID            string `json:"intake_id"`
+	CourseID            string `json:"course_id,omitempty"`
+	Title               string `json:"title"`
+	Description         string `json:"description,omitempty"`
+	Reason              string `json:"reason"`
+	StartDate           string `json:"start_date,omitempty"`
+	ApplicationDeadline string `json:"application_deadline,omitempty"`
+}
+
 type DebugLog struct {
 	PromptSentToAI string `json:"prompt_sent_to_ai"`
 	AIRawResponse  string `json:"ai_raw_response"`
 	AIModelURI     string `json:"ai_model_uri"`
 	TasksSummary   string `json:"tasks_summary"`
 	CoursesSummary string `json:"courses_summary"`
+	IntakesSummary string `json:"intakes_summary"`
+	CoursesSource  string `json:"courses_source,omitempty"`
+	IntakesSource  string `json:"intakes_source,omitempty"`
+	CoursesError   string `json:"courses_error,omitempty"`
+	IntakesError   string `json:"intakes_error,omitempty"`
 }
 
 type RecommendResponse struct {
-	Tasks           int                `json:"tasks_analyzed"`
-	CoursesInPool   int                `json:"courses_in_pool"`
-	Recommendations []AIRecommendation `json:"recommendations"`
-	Debug           *DebugLog          `json:"debug,omitempty"`
+	Tasks                 int                      `json:"tasks_analyzed"`
+	CoursesInPool         int                      `json:"courses_in_pool"`
+	IntakesInPool         int                      `json:"intakes_in_pool"`
+	Recommendations       []AIRecommendation       `json:"recommendations"`
+	IntakeRecommendations []AIIntakeRecommendation `json:"intake_recommendations"`
+	Debug                 *DebugLog                `json:"debug,omitempty"`
 }
 
-// Yandex AI API types
+type RecommendOptions struct {
+	IP        *string
+	UserAgent *string
+}
+
 type yandexRequest struct {
 	Model           string  `json:"model"`
 	Temperature     float64 `json:"temperature"`
@@ -68,87 +96,256 @@ func (r yandexResponse) getText() string {
 	return ""
 }
 
+type aiParsedResponse struct {
+	CourseRecommendations []struct {
+		CourseID string `json:"course_id"`
+		Reason   string `json:"reason"`
+	} `json:"course_recommendations"`
+	IntakeRecommendations []struct {
+		IntakeID string `json:"intake_id"`
+		Reason   string `json:"reason"`
+	} `json:"intake_recommendations"`
+}
+
 type aiResult struct {
-	recommendations []AIRecommendation
-	debug           DebugLog
+	courseRecommendations []AIRecommendation
+	intakeRecommendations []AIIntakeRecommendation
+	debug                 DebugLog
 }
 
 type Service struct {
-	db             *sql.DB
-	yougileService *yougilemodule.Service
-	catalogService *catalogmodule.Service
-	aiConfig       config.YandexAIConfig
+	db                   *sql.DB
+	yougileService       *yougilemodule.Service
+	catalogService       *catalogmodule.Service
+	courseIntakesService *courseintakesmodule.Service
+	auditService         *audit.Service
+	aiConfig             config.YandexAIConfig
 }
 
-func NewService(db *sql.DB, yougileService *yougilemodule.Service, catalogService *catalogmodule.Service, aiConfig config.YandexAIConfig) *Service {
+func NewService(
+	db *sql.DB,
+	yougileService *yougilemodule.Service,
+	catalogService *catalogmodule.Service,
+	courseIntakesService *courseintakesmodule.Service,
+	auditService *audit.Service,
+	aiConfig config.YandexAIConfig,
+) *Service {
 	return &Service{
-		db:             db,
-		yougileService: yougileService,
-		catalogService: catalogService,
-		aiConfig:       aiConfig,
+		db:                   db,
+		yougileService:       yougileService,
+		catalogService:       catalogService,
+		courseIntakesService: courseIntakesService,
+		auditService:         auditService,
+		aiConfig:             aiConfig,
 	}
 }
 
-func (s *Service) Recommend(ctx context.Context, principal platformauth.Principal) (RecommendResponse, error) {
+func (s *Service) Recommend(ctx context.Context, principal platformauth.Principal, options RecommendOptions) (RecommendResponse, error) {
 	connectionID, err := s.getActiveYougileConnection(ctx, principal.UserID)
 	if err != nil {
 		return RecommendResponse{}, err
 	}
 
-	tasks, err := s.yougileService.ListTasks(ctx, connectionID, yougilemodule.ListTasksQuery{
-		Limit: 50,
-	})
+	tasks, err := s.yougileService.ListTasks(ctx, connectionID, yougilemodule.ListTasksQuery{Limit: aiPoolLimit})
 	if err != nil {
 		return RecommendResponse{}, fmt.Errorf("fetch yougile tasks: %w", err)
 	}
 
 	activeTasks := make([]yougilemodule.TaskItem, 0, len(tasks.Content))
-	for _, t := range tasks.Content {
-		if !t.Completed && !t.Archived && !t.Deleted {
-			activeTasks = append(activeTasks, t)
+	for _, task := range tasks.Content {
+		if !task.Completed && !task.Archived && !task.Deleted {
+			activeTasks = append(activeTasks, task)
 		}
 	}
 
 	if len(activeTasks) == 0 {
-		return RecommendResponse{
-			Tasks:           0,
-			CoursesInPool:   0,
-			Recommendations: []AIRecommendation{},
+		response := RecommendResponse{
+			Tasks:                 0,
+			CoursesInPool:         0,
+			IntakesInPool:         0,
+			Recommendations:       []AIRecommendation{},
+			IntakeRecommendations: []AIIntakeRecommendation{},
 			Debug: &DebugLog{
 				TasksSummary:   "Нет активных задач в YouGile",
 				CoursesSummary: "Пропущено — нет задач",
+				IntakesSummary: "Пропущено — нет задач",
 			},
-		}, nil
+		}
+		s.tryRecordAudit(ctx, principal.UserID, "ai.recommendations.no_tasks", response, options, nil, nil, nil)
+		return response, nil
 	}
 
-	courses, err := s.catalogService.ListCourses(ctx, principal, catalogmodule.CourseListFilters{})
+	courses, coursesErr := s.listCoursePool(ctx, principal)
+	intakes, intakesErr := s.courseIntakesService.ListIntakes(ctx, "open")
+
+	if coursesErr != nil && intakesErr != nil {
+		debug := &DebugLog{
+			TasksSummary:   buildTasksSummary(activeTasks),
+			CoursesSummary: "Не удалось получить опубликованные курсы",
+			IntakesSummary: "Не удалось получить открытые наборы",
+			CoursesSource:  "/api/v1/courses?limit=50&offset=0",
+			IntakesSource:  "/api/v1/intakes?status=open",
+			CoursesError:   coursesErr.Error(),
+			IntakesError:   intakesErr.Error(),
+		}
+		response := RecommendResponse{
+			Tasks:                 len(activeTasks),
+			CoursesInPool:         0,
+			IntakesInPool:         0,
+			Recommendations:       []AIRecommendation{},
+			IntakeRecommendations: []AIIntakeRecommendation{},
+			Debug:                 debug,
+		}
+		s.tryRecordAudit(ctx, principal.UserID, "ai.recommendations.failed", response, options, coursesErr, intakesErr, fmt.Errorf("fetch pools failed"))
+		return RecommendResponse{}, fmt.Errorf("fetch recommendation pools: courses: %w; intakes: %w", coursesErr, intakesErr)
+	}
+
+	if len(courses) == 0 && len(intakes) == 0 {
+		debug := &DebugLog{
+			TasksSummary:   buildTasksSummary(activeTasks),
+			CoursesSummary: "Нет опубликованных курсов в пуле /api/v1/courses?limit=50&offset=0",
+			IntakesSummary: "Нет открытых наборов в пуле /api/v1/intakes?status=open",
+			CoursesSource:  "/api/v1/courses?limit=50&offset=0",
+			IntakesSource:  "/api/v1/intakes?status=open",
+		}
+		if coursesErr != nil {
+			debug.CoursesError = coursesErr.Error()
+		}
+		if intakesErr != nil {
+			debug.IntakesError = intakesErr.Error()
+		}
+		response := RecommendResponse{
+			Tasks:                 len(activeTasks),
+			CoursesInPool:         0,
+			IntakesInPool:         0,
+			Recommendations:       []AIRecommendation{},
+			IntakeRecommendations: []AIIntakeRecommendation{},
+			Debug:                 debug,
+		}
+		s.tryRecordAudit(ctx, principal.UserID, "ai.recommendations.no_pool", response, options, coursesErr, intakesErr, nil)
+		return response, nil
+	}
+
+	result, err := s.callYandexAI(ctx, activeTasks, courses, intakes)
+	result.debug.CoursesSource = "/api/v1/courses?limit=50&offset=0"
+	result.debug.IntakesSource = "/api/v1/intakes?status=open"
+	if coursesErr != nil {
+		result.debug.CoursesError = coursesErr.Error()
+	}
+	if intakesErr != nil {
+		result.debug.IntakesError = intakesErr.Error()
+	}
+
+	response := RecommendResponse{
+		Tasks:                 len(activeTasks),
+		CoursesInPool:         len(courses),
+		IntakesInPool:         len(intakes),
+		Recommendations:       result.courseRecommendations,
+		IntakeRecommendations: result.intakeRecommendations,
+		Debug:                 &result.debug,
+	}
+
 	if err != nil {
-		return RecommendResponse{}, fmt.Errorf("fetch courses: %w", err)
-	}
-
-	if len(courses) == 0 {
-		return RecommendResponse{
-			Tasks:         len(activeTasks),
-			CoursesInPool: 0,
-			Recommendations: []AIRecommendation{},
-			Debug: &DebugLog{
-				TasksSummary:   fmt.Sprintf("%d активных задач найдено", len(activeTasks)),
-				CoursesSummary: "Нет курсов в каталоге",
-			},
-		}, nil
-	}
-
-	result, err := s.callYandexAI(ctx, activeTasks, courses)
-	if err != nil {
+		s.tryRecordAudit(ctx, principal.UserID, "ai.recommendations.failed", response, options, coursesErr, intakesErr, err)
 		return RecommendResponse{}, fmt.Errorf("yandex ai: %w", err)
 	}
 
-	return RecommendResponse{
-		Tasks:           len(activeTasks),
-		CoursesInPool:   len(courses),
-		Recommendations: result.recommendations,
-		Debug:           &result.debug,
-	}, nil
+	s.tryRecordAudit(ctx, principal.UserID, "ai.recommendations.completed", response, options, coursesErr, intakesErr, nil)
+	return response, nil
+}
+
+func (s *Service) listCoursePool(ctx context.Context, principal platformauth.Principal) ([]catalogmodule.Course, error) {
+	filters := catalogmodule.CourseListFilters{
+		Statuses: []string{"published"},
+		Sort:     "newest",
+		Pagination: common.Pagination{
+			Limit:  aiPoolLimit,
+			Offset: 0,
+		},
+	}
+	if principal.HasPermission("courses.write") {
+		filters.Statuses = nil
+	}
+	return s.catalogService.ListCourses(ctx, principal, filters)
+}
+
+func buildTasksSummary(tasks []yougilemodule.TaskItem) string {
+	var taskLines []string
+	for index, task := range tasks {
+		line := fmt.Sprintf("%d. %s", index+1, task.Title)
+		if task.Description != "" {
+			line += " — " + task.Description
+		}
+		if task.BoardTitle != "" {
+			line += " [доска: " + task.BoardTitle + "]"
+		}
+		if task.ColumnTitle != "" {
+			line += " [колонка: " + task.ColumnTitle + "]"
+		}
+		taskLines = append(taskLines, line)
+	}
+	return strings.Join(taskLines, "\n")
+}
+
+func buildCoursesSummary(courses []catalogmodule.Course) string {
+	type courseRef struct {
+		ID               string `json:"id"`
+		Title            string `json:"title"`
+		ShortDescription string `json:"short_description,omitempty"`
+	}
+
+	items := make([]courseRef, 0, len(courses))
+	for _, course := range courses {
+		item := courseRef{ID: course.ID.String(), Title: course.Title}
+		if course.ShortDescription != nil {
+			item.ShortDescription = *course.ShortDescription
+		}
+		items = append(items, item)
+	}
+
+	payload, _ := json.MarshalIndent(items, "", "  ")
+	return string(payload)
+}
+
+func buildIntakesSummary(intakes []courseintakesmodule.Intake) string {
+	type intakeRef struct {
+		ID                  string `json:"id"`
+		CourseID            string `json:"course_id,omitempty"`
+		Title               string `json:"title"`
+		Description         string `json:"description,omitempty"`
+		StartDate           string `json:"start_date,omitempty"`
+		EndDate             string `json:"end_date,omitempty"`
+		ApplicationDeadline string `json:"application_deadline,omitempty"`
+		Status              string `json:"status"`
+	}
+
+	items := make([]intakeRef, 0, len(intakes))
+	for _, intake := range intakes {
+		item := intakeRef{
+			ID:     intake.ID.String(),
+			Title:  intake.Title,
+			Status: intake.Status,
+		}
+		if intake.CourseID != nil {
+			item.CourseID = intake.CourseID.String()
+		}
+		if intake.Description != nil {
+			item.Description = *intake.Description
+		}
+		if intake.StartDate != nil {
+			item.StartDate = *intake.StartDate
+		}
+		if intake.EndDate != nil {
+			item.EndDate = *intake.EndDate
+		}
+		if intake.ApplicationDeadline != nil {
+			item.ApplicationDeadline = intake.ApplicationDeadline.Format(time.RFC3339)
+		}
+		items = append(items, item)
+	}
+
+	payload, _ := json.MarshalIndent(items, "", "  ")
+	return string(payload)
 }
 
 func (s *Service) getActiveYougileConnection(ctx context.Context, userID uuid.UUID) (uuid.UUID, error) {
@@ -168,56 +365,38 @@ func (s *Service) getActiveYougileConnection(ctx context.Context, userID uuid.UU
 	return connectionID, nil
 }
 
-func (s *Service) callYandexAI(ctx context.Context, tasks []yougilemodule.TaskItem, courses []catalogmodule.Course) (aiResult, error) {
+func (s *Service) callYandexAI(ctx context.Context, tasks []yougilemodule.TaskItem, courses []catalogmodule.Course, intakes []courseintakesmodule.Intake) (aiResult, error) {
 	if s.aiConfig.APIKey == "" {
 		return aiResult{}, httpx.BadRequest("ai_not_configured", "Yandex AI API key is not configured")
 	}
 
-	// Build task lines
-	var taskLines []string
-	for i, t := range tasks {
-		line := fmt.Sprintf("%d. %s", i+1, t.Title)
-		if t.Description != "" {
-			line += " — " + t.Description
-		}
-		if t.BoardTitle != "" {
-			line += " [доска: " + t.BoardTitle + "]"
-		}
-		if t.ColumnTitle != "" {
-			line += " [колонка: " + t.ColumnTitle + "]"
-		}
-		taskLines = append(taskLines, line)
-	}
-	tasksSummary := strings.Join(taskLines, "\n")
+	tasksSummary := buildTasksSummary(tasks)
+	coursesSummary := buildCoursesSummary(courses)
+	intakesSummary := buildIntakesSummary(intakes)
 
-	// Build courses JSON
-	type courseRef struct {
-		ID               string `json:"id"`
-		Title            string `json:"title"`
-		ShortDescription string `json:"short_description,omitempty"`
-	}
-	courseRefs := make([]courseRef, 0, len(courses))
-	for _, c := range courses {
-		ref := courseRef{ID: c.ID.String(), Title: c.Title}
-		if c.ShortDescription != nil {
-			ref.ShortDescription = *c.ShortDescription
-		}
-		courseRefs = append(courseRefs, ref)
-	}
-	coursesJSON, _ := json.MarshalIndent(courseRefs, "", "  ")
-
-	instructions := `Ты — AI-ассистент корпоративной системы обучения. Твоя задача — на основе текущих рабочих задач сотрудника рекомендовать ему наиболее подходящие курсы из каталога.
+	instructions := `Ты — AI-ассистент корпоративной системы обучения. На основе текущих рабочих задач сотрудника нужно рекомендовать:
+1. Подходящие опубликованные курсы из пула course_recommendations.
+2. Подходящие открытые наборы обучения из пула intake_recommendations.
 
 Правила:
-1. Анализируй задачи сотрудника и определи, какие навыки и знания ему нужны.
-2. Подбери от 1 до 5 наиболее релевантных курсов из предоставленного каталога.
-3. Для каждого курса объясни, почему он полезен для выполнения задач.
-4. Отвечай ТОЛЬКО валидным JSON-массивом без markdown-обёрток.
+1. Анализируй только переданные задачи, курсы и наборы.
+2. Возвращай от 0 до 5 курсов и от 0 до 5 наборов.
+3. Если подходящих вариантов нет, возвращай пустой массив для соответствующего раздела.
+4. Для каждого элемента укажи только id и причину.
+5. Отвечай ТОЛЬКО валидным JSON-объектом без markdown-обёрток.
 
-Формат ответа (JSON массив):
-[{"course_id": "uuid", "title": "название курса", "reason": "почему этот курс полезен"}]`
+Формат ответа:
+{
+  "course_recommendations": [{"course_id": "uuid", "reason": "почему курс полезен"}],
+  "intake_recommendations": [{"intake_id": "uuid", "reason": "почему набор полезен прямо сейчас"}]
+}`
 
-	input := fmt.Sprintf("Задачи сотрудника:\n%s\n\nДоступные курсы (JSON):\n%s", tasksSummary, string(coursesJSON))
+	input := fmt.Sprintf(
+		"Задачи сотрудника:\n%s\n\nОпубликованные курсы (JSON):\n%s\n\nОткрытые наборы (JSON):\n%s",
+		tasksSummary,
+		coursesSummary,
+		intakesSummary,
+	)
 
 	modelURI := fmt.Sprintf("gpt://%s/%s", s.aiConfig.FolderID, s.aiConfig.Model)
 	reqData := yandexRequest{
@@ -225,7 +404,7 @@ func (s *Service) callYandexAI(ctx context.Context, tasks []yougilemodule.TaskIt
 		Temperature:     0.3,
 		Instructions:    instructions,
 		Input:           input,
-		MaxOutputTokens: 2000,
+		MaxOutputTokens: 2500,
 	}
 
 	fullPrompt := fmt.Sprintf("=== INSTRUCTIONS ===\n%s\n\n=== INPUT ===\n%s", instructions, input)
@@ -235,7 +414,7 @@ func (s *Service) callYandexAI(ctx context.Context, tasks []yougilemodule.TaskIt
 		return aiResult{}, err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", "https://ai.api.cloud.yandex.net/v1/responses", bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://ai.api.cloud.yandex.net/v1/responses", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return aiResult{}, err
 	}
@@ -243,8 +422,7 @@ func (s *Service) callYandexAI(ctx context.Context, tasks []yougilemodule.TaskIt
 	req.Header.Set("Authorization", "Api-Key "+s.aiConfig.APIKey)
 	req.Header.Set("OpenAI-Project", s.aiConfig.FolderID)
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := (&http.Client{}).Do(req)
 	if err != nil {
 		return aiResult{}, fmt.Errorf("yandex ai request failed: %w", err)
 	}
@@ -256,13 +434,13 @@ func (s *Service) callYandexAI(ctx context.Context, tasks []yougilemodule.TaskIt
 	}
 
 	rawResponse := string(body)
-
 	debug := DebugLog{
 		PromptSentToAI: fullPrompt,
 		AIRawResponse:  rawResponse,
 		AIModelURI:     modelURI,
 		TasksSummary:   tasksSummary,
-		CoursesSummary: string(coursesJSON),
+		CoursesSummary: coursesSummary,
+		IntakesSummary: intakesSummary,
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -274,59 +452,147 @@ func (s *Service) callYandexAI(ctx context.Context, tasks []yougilemodule.TaskIt
 		return aiResult{debug: debug}, fmt.Errorf("parse yandex ai response: %w", err)
 	}
 
-	text := aiResp.getText()
+	text := strings.TrimSpace(aiResp.getText())
 	if text == "" {
-		return aiResult{recommendations: []AIRecommendation{}, debug: debug}, nil
+		return aiResult{
+			courseRecommendations: []AIRecommendation{},
+			intakeRecommendations: []AIIntakeRecommendation{},
+			debug:                 debug,
+		}, nil
 	}
 
-	text = strings.TrimSpace(text)
-	if start := strings.Index(text, "["); start >= 0 {
-		if end := strings.LastIndex(text, "]"); end > start {
+	if start := strings.Index(text, "{"); start >= 0 {
+		if end := strings.LastIndex(text, "}"); end > start {
 			text = text[start : end+1]
 		}
 	}
 
-	var parsed []struct {
-		CourseID string `json:"course_id"`
-		Title    string `json:"title"`
-		Reason   string `json:"reason"`
-	}
+	var parsed aiParsedResponse
 	if err := json.Unmarshal([]byte(text), &parsed); err != nil {
 		return aiResult{debug: debug}, fmt.Errorf("parse ai recommendations json: %w (raw: %s)", err, text)
 	}
 
 	courseMap := make(map[string]catalogmodule.Course, len(courses))
-	for _, c := range courses {
-		courseMap[c.ID.String()] = c
+	for _, course := range courses {
+		courseMap[course.ID.String()] = course
 	}
 
-	recommendations := make([]AIRecommendation, 0, len(parsed))
-	for _, p := range parsed {
-		course, exists := courseMap[p.CourseID]
-		if !exists {
-			// Курс из AI не найден в каталоге — всё равно добавим с данными от AI
-			recommendations = append(recommendations, AIRecommendation{
-				CourseID: p.CourseID,
-				Title:    p.Title,
-				Reason:   p.Reason,
-			})
+	intakeMap := make(map[string]courseintakesmodule.Intake, len(intakes))
+	for _, intake := range intakes {
+		intakeMap[intake.ID.String()] = intake
+	}
+
+	courseRecommendations := make([]AIRecommendation, 0, len(parsed.CourseRecommendations))
+	for _, item := range parsed.CourseRecommendations {
+		course, ok := courseMap[item.CourseID]
+		if !ok {
 			continue
 		}
-		rec := AIRecommendation{
-			CourseID: p.CourseID,
+
+		recommendation := AIRecommendation{
+			CourseID: course.ID.String(),
 			Title:    course.Title,
-			Reason:   p.Reason,
+			Reason:   item.Reason,
 		}
 		if course.ShortDescription != nil {
-			rec.ShortDescription = *course.ShortDescription
+			recommendation.ShortDescription = *course.ShortDescription
 		}
-		recommendations = append(recommendations, rec)
+		courseRecommendations = append(courseRecommendations, recommendation)
 	}
 
-	return aiResult{recommendations: recommendations, debug: debug}, nil
+	intakeRecommendations := make([]AIIntakeRecommendation, 0, len(parsed.IntakeRecommendations))
+	for _, item := range parsed.IntakeRecommendations {
+		intake, ok := intakeMap[item.IntakeID]
+		if !ok {
+			continue
+		}
+
+		recommendation := AIIntakeRecommendation{
+			IntakeID: intake.ID.String(),
+			Title:    intake.Title,
+			Reason:   item.Reason,
+		}
+		if intake.CourseID != nil {
+			recommendation.CourseID = intake.CourseID.String()
+		}
+		if intake.Description != nil {
+			recommendation.Description = *intake.Description
+		}
+		if intake.StartDate != nil {
+			recommendation.StartDate = *intake.StartDate
+		}
+		if intake.ApplicationDeadline != nil {
+			recommendation.ApplicationDeadline = intake.ApplicationDeadline.Format(time.RFC3339)
+		}
+		intakeRecommendations = append(intakeRecommendations, recommendation)
+	}
+
+	return aiResult{
+		courseRecommendations: courseRecommendations,
+		intakeRecommendations: intakeRecommendations,
+		debug:                 debug,
+	}, nil
 }
 
-// Handler
+func (s *Service) tryRecordAudit(
+	ctx context.Context,
+	userID uuid.UUID,
+	action string,
+	response RecommendResponse,
+	options RecommendOptions,
+	coursesErr error,
+	intakesErr error,
+	callErr error,
+) {
+	if s.auditService == nil || response.Debug == nil {
+		return
+	}
+
+	meta := map[string]any{
+		"tasks_analyzed":               response.Tasks,
+		"courses_in_pool":              response.CoursesInPool,
+		"intakes_in_pool":              response.IntakesInPool,
+		"course_recommendations_count": len(response.Recommendations),
+		"intake_recommendations_count": len(response.IntakeRecommendations),
+		"courses_source":               response.Debug.CoursesSource,
+		"intakes_source":               response.Debug.IntakesSource,
+	}
+	if coursesErr != nil {
+		meta["courses_error"] = coursesErr.Error()
+	}
+	if intakesErr != nil {
+		meta["intakes_error"] = intakesErr.Error()
+	}
+	if callErr != nil {
+		meta["error"] = callErr.Error()
+	}
+	if response.Debug.AIModelURI != "" {
+		meta["ai_model_uri"] = response.Debug.AIModelURI
+	}
+
+	changeSet := map[string]any{
+		"after": map[string]any{
+			"tasks_summary":          response.Debug.TasksSummary,
+			"courses_summary":        response.Debug.CoursesSummary,
+			"intakes_summary":        response.Debug.IntakesSummary,
+			"prompt_sent_to_ai":      response.Debug.PromptSentToAI,
+			"ai_raw_response":        response.Debug.AIRawResponse,
+			"recommendations":        response.Recommendations,
+			"intake_recommendations": response.IntakeRecommendations,
+		},
+	}
+
+	_ = s.auditService.RecordChange(ctx, audit.RecordInput{
+		UserID:     userID,
+		Action:     action,
+		EntityType: "ai_recommendations",
+		Meta:       meta,
+		ChangeSet:  changeSet,
+		Source:     audit.SourceSystem,
+		IP:         options.IP,
+		UserAgent:  options.UserAgent,
+	})
+}
 
 type Handler struct {
 	service *Service
@@ -343,11 +609,36 @@ func (h *Handler) Recommend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.service.Recommend(r.Context(), principal)
+	result, err := h.service.Recommend(r.Context(), principal, RecommendOptions{
+		IP:        requestIP(r),
+		UserAgent: optionalString(strings.TrimSpace(r.UserAgent())),
+	})
 	if err != nil {
 		httpx.WriteError(w, err)
 		return
 	}
 
 	httpx.WriteJSON(w, http.StatusOK, result)
+}
+
+func optionalString(value string) *string {
+	if value == "" {
+		return nil
+	}
+	return &value
+}
+
+func requestIP(r *http.Request) *string {
+	if forwarded := strings.TrimSpace(r.Header.Get("X-Forwarded-For")); forwarded != "" {
+		ip := strings.TrimSpace(strings.Split(forwarded, ",")[0])
+		return optionalString(ip)
+	}
+	if realIP := strings.TrimSpace(r.Header.Get("X-Real-IP")); realIP != "" {
+		return optionalString(realIP)
+	}
+	host, _, err := net.SplitHostPort(strings.TrimSpace(r.RemoteAddr))
+	if err == nil {
+		return optionalString(host)
+	}
+	return optionalString(strings.TrimSpace(r.RemoteAddr))
 }

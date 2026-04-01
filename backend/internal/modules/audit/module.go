@@ -3,6 +3,7 @@ package audit
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"time"
@@ -11,14 +12,24 @@ import (
 )
 
 type LogEntry struct {
-	ID          string         `json:"id"`
-	ActorUserID *string        `json:"actor_user_id,omitempty"`
-	UserID      *string        `json:"user_id,omitempty"`
-	EntityType  string         `json:"entity_type"`
-	EntityID    *string        `json:"entity_id,omitempty"`
-	Action      string         `json:"action"`
-	Meta        map[string]any `json:"meta,omitempty"`
-	CreatedAt   time.Time      `json:"created_at"`
+	ID          string    `json:"id"`
+	ActorUserID *string   `json:"actor_user_id,omitempty"`
+	UserID      *string   `json:"user_id,omitempty"`
+	EntityType  string    `json:"entity_type"`
+	EntityID    *string   `json:"entity_id,omitempty"`
+	Action      string    `json:"action"`
+	OldValues   any       `json:"old_values,omitempty"`
+	NewValues   any       `json:"new_values,omitempty"`
+	Meta        any       `json:"meta,omitempty"`
+	Source      string    `json:"source"`
+	RequestID   *string   `json:"request_id,omitempty"`
+	SessionID   *string   `json:"session_id,omitempty"`
+	ChangeSet   any       `json:"change_set,omitempty"`
+	ActorType   string    `json:"actor_type"`
+	ActorID     *string   `json:"actor_id,omitempty"`
+	IP          *string   `json:"ip,omitempty"`
+	UserAgent   *string   `json:"user_agent,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 type Service struct {
@@ -30,11 +41,31 @@ func NewService(database *sql.DB) *Service {
 }
 
 func (s *Service) List(ctx context.Context, limit int) ([]LogEntry, error) {
-	if limit <= 0 || limit > 200 {
-		limit = 50
+	if limit <= 0 {
+		limit = 100
+	}
+	if limit > 1000 {
+		limit = 1000
 	}
 	rows, err := s.db.QueryContext(ctx, `
-		select id::text, actor_user_id::text, user_id::text, entity_type, entity_id::text, action, meta, created_at
+		select id::text,
+		       actor_user_id::text,
+		       user_id::text,
+		       entity_type,
+		       entity_id::text,
+		       action,
+		       old_values,
+		       new_values,
+		       meta,
+		       source,
+		       request_id,
+		       session_id::text,
+		       change_set,
+		       actor_type,
+		       actor_id::text,
+		       ip::text,
+		       user_agent,
+		       created_at
 		from audit_logs
 		order by created_at desc
 		limit $1
@@ -47,16 +78,52 @@ func (s *Service) List(ctx context.Context, limit int) ([]LogEntry, error) {
 	var items []LogEntry
 	for rows.Next() {
 		var item LogEntry
+		var oldValuesBytes []byte
+		var newValuesBytes []byte
 		var metaBytes []byte
-		if err := rows.Scan(&item.ID, &item.ActorUserID, &item.UserID, &item.EntityType, &item.EntityID, &item.Action, &metaBytes, &item.CreatedAt); err != nil {
+		var changeSetBytes []byte
+		if err := rows.Scan(
+			&item.ID,
+			&item.ActorUserID,
+			&item.UserID,
+			&item.EntityType,
+			&item.EntityID,
+			&item.Action,
+			&oldValuesBytes,
+			&newValuesBytes,
+			&metaBytes,
+			&item.Source,
+			&item.RequestID,
+			&item.SessionID,
+			&changeSetBytes,
+			&item.ActorType,
+			&item.ActorID,
+			&item.IP,
+			&item.UserAgent,
+			&item.CreatedAt,
+		); err != nil {
 			return nil, err
 		}
-		if len(metaBytes) > 0 {
-			item.Meta = map[string]any{"raw": string(metaBytes)}
-		}
+		item.OldValues = decodeJSONValue(oldValuesBytes)
+		item.NewValues = decodeJSONValue(newValuesBytes)
+		item.Meta = decodeJSONValue(metaBytes)
+		item.ChangeSet = decodeJSONValue(changeSetBytes)
 		items = append(items, item)
 	}
 	return items, rows.Err()
+}
+
+func decodeJSONValue(payload []byte) any {
+	if len(payload) == 0 || string(payload) == "null" {
+		return nil
+	}
+
+	var value any
+	if err := json.Unmarshal(payload, &value); err != nil {
+		return map[string]any{"raw": string(payload)}
+	}
+
+	return value
 }
 
 type Handler struct {

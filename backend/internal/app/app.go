@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"moneyapp/backend/internal/config"
+	coreaudit "moneyapp/backend/internal/core/audit"
 	corehealth "moneyapp/backend/internal/core/health"
 	coreusers "moneyapp/backend/internal/core/users"
 	adminmodule "moneyapp/backend/internal/modules/admin"
@@ -128,12 +129,21 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 	universityService := universitymodule.NewService(universityRepo, appClock)
 	smartExportService := smartexportmodule.NewService(database)
 	analyticsService := analyticsmodule.NewService(database, queue)
+	auditEventRepo := coreaudit.NewRepository(database)
+	auditEventService := coreaudit.NewService(auditEventRepo, appClock)
 	auditService := auditmodule.NewService(database)
 	yougileService := yougilemodule.NewService(database, yougileRepo, queue, appClock)
 	employeesStatsRepo := employeesstatsmodule.NewRepository(database)
 	githubService := githubmodule.NewService(database, githubRepo, queue, appClock)
 	employeesStatsService := employeesstatsmodule.NewService(employeesStatsRepo)
-	aiRecommendationsService := airecommendationsmodule.NewService(database, yougileService, catalogService, cfg.Integrations.YandexAI)
+	aiRecommendationsService := airecommendationsmodule.NewService(
+		database,
+		yougileService,
+		catalogService,
+		courseIntakesService,
+		auditEventService,
+		cfg.Integrations.YandexAI,
+	)
 	healthService := corehealth.NewService(map[string]corehealth.CheckFunc{
 		"postgres": database.PingContext,
 	})
@@ -141,65 +151,65 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 	registerWorkerHandlers(queue, log, yougileService, githubService, outlookService)
 
 	container := &Container{
-		Config:                  cfg,
-		Logger:                  log,
-		DB:                      database,
-		Clock:                   appClock,
-		JWT:                     jwtManager,
-		Outbox:                  outboxService,
-		Queue:                   queue,
-		Validator:               validate,
-		HealthService:           healthService,
-		UsersService:            usersService,
-		OrgService:              orgService,
-		IdentityService:         identityService,
-		AdminService:            adminService,
-		CatalogService:          catalogService,
-		LearningService:         learningService,
-		TestingService:          testingService,
-		CertificatesService:     certificatesService,
-		CourseIntakesService:    courseIntakesService,
-		CourseRequestsService:   courseRequestsService,
-		ExternalTrainingService: externalTrainingService,
-		CalendarService:         calendarService,
-		LearningPlanService:     learningPlanService,
-		BoardSummaryService:     boardSummaryService,
-		DashboardAPIService:     dashboardAPIService,
-		OutlookService:          outlookService,
-		NotificationsService:    notificationsService,
-		UniversityService:       universityService,
-		SmartExportService:      smartExportService,
-		AnalyticsService:        analyticsService,
-		AuditService:            auditService,
-		YougileService:          yougileService,
-		GitHubService:           githubService,
-		EmployeesStatsService:       employeesStatsService,
-		AIRecommendationsService:    aiRecommendationsService,
-		HealthHandler:           corehealth.NewHandler(healthService),
-		UsersHandler:            coreusers.NewHandler(usersService, validate),
-		IdentityHandler:         identitymodule.NewHandler(identityService, validate),
-		AdminHandler:            adminmodule.NewHandler(adminService, validate),
-		CatalogHandler:          catalogmodule.NewHandler(catalogService, validate),
-		LearningHandler:         learningmodule.NewHandler(learningService, validate),
-		TestingHandler:          testingmodule.NewHandler(testingService, validate),
-		CertificatesHandler:     certificatesmodule.NewHandler(certificatesService, validate),
-		CourseIntakesHandler:    courseintakesmodule.NewHandler(courseIntakesService, validate),
-		CourseRequestsHandler:   courserequestsmodule.NewHandler(courseRequestsService, validate),
-		ExternalTrainingHandler: externaltrainingmodule.NewHandler(externalTrainingService, validate),
-		CalendarHandler:         calendarmodule.NewHandler(calendarService),
-		LearningPlanHandler:     learningplanmodule.NewHandler(learningPlanService),
-		BoardSummaryHandler:     boardsummarymodule.NewHandler(boardSummaryService),
-		DashboardAPIHandler:     dashboardapimodule.NewHandler(dashboardAPIService),
-		OutlookHandler:          outlookmodule.NewHandler(outlookService),
-		NotificationsHandler:    notificationsmodule.NewHandler(notificationsService),
-		UniversityHandler:       universitymodule.NewHandler(universityService, validate),
-		SmartExportHandler:      smartexportmodule.NewHandler(smartExportService, validate),
-		AnalyticsHandler:        analyticsmodule.NewHandler(analyticsService),
-		AuditHandler:            auditmodule.NewHandler(auditService),
-		YougileHandler:          yougilemodule.NewHandler(yougileService, validate),
-		GitHubHandler:           githubmodule.NewHandler(githubService, validate),
-		EmployeesStatsHandler:       employeesstatsmodule.NewHandler(employeesStatsService, validate),
-		AIRecommendationsHandler:    airecommendationsmodule.NewHandler(aiRecommendationsService),
+		Config:                   cfg,
+		Logger:                   log,
+		DB:                       database,
+		Clock:                    appClock,
+		JWT:                      jwtManager,
+		Outbox:                   outboxService,
+		Queue:                    queue,
+		Validator:                validate,
+		HealthService:            healthService,
+		UsersService:             usersService,
+		OrgService:               orgService,
+		IdentityService:          identityService,
+		AdminService:             adminService,
+		CatalogService:           catalogService,
+		LearningService:          learningService,
+		TestingService:           testingService,
+		CertificatesService:      certificatesService,
+		CourseIntakesService:     courseIntakesService,
+		CourseRequestsService:    courseRequestsService,
+		ExternalTrainingService:  externalTrainingService,
+		CalendarService:          calendarService,
+		LearningPlanService:      learningPlanService,
+		BoardSummaryService:      boardSummaryService,
+		DashboardAPIService:      dashboardAPIService,
+		OutlookService:           outlookService,
+		NotificationsService:     notificationsService,
+		UniversityService:        universityService,
+		SmartExportService:       smartExportService,
+		AnalyticsService:         analyticsService,
+		AuditService:             auditService,
+		YougileService:           yougileService,
+		GitHubService:            githubService,
+		EmployeesStatsService:    employeesStatsService,
+		AIRecommendationsService: aiRecommendationsService,
+		HealthHandler:            corehealth.NewHandler(healthService),
+		UsersHandler:             coreusers.NewHandler(usersService, validate),
+		IdentityHandler:          identitymodule.NewHandler(identityService, validate),
+		AdminHandler:             adminmodule.NewHandler(adminService, validate),
+		CatalogHandler:           catalogmodule.NewHandler(catalogService, validate),
+		LearningHandler:          learningmodule.NewHandler(learningService, validate),
+		TestingHandler:           testingmodule.NewHandler(testingService, validate),
+		CertificatesHandler:      certificatesmodule.NewHandler(certificatesService, validate),
+		CourseIntakesHandler:     courseintakesmodule.NewHandler(courseIntakesService, validate),
+		CourseRequestsHandler:    courserequestsmodule.NewHandler(courseRequestsService, validate),
+		ExternalTrainingHandler:  externaltrainingmodule.NewHandler(externalTrainingService, validate),
+		CalendarHandler:          calendarmodule.NewHandler(calendarService),
+		LearningPlanHandler:      learningplanmodule.NewHandler(learningPlanService),
+		BoardSummaryHandler:      boardsummarymodule.NewHandler(boardSummaryService),
+		DashboardAPIHandler:      dashboardapimodule.NewHandler(dashboardAPIService),
+		OutlookHandler:           outlookmodule.NewHandler(outlookService),
+		NotificationsHandler:     notificationsmodule.NewHandler(notificationsService),
+		UniversityHandler:        universitymodule.NewHandler(universityService, validate),
+		SmartExportHandler:       smartexportmodule.NewHandler(smartExportService, validate),
+		AnalyticsHandler:         analyticsmodule.NewHandler(analyticsService),
+		AuditHandler:             auditmodule.NewHandler(auditService),
+		YougileHandler:           yougilemodule.NewHandler(yougileService, validate),
+		GitHubHandler:            githubmodule.NewHandler(githubService, validate),
+		EmployeesStatsHandler:    employeesstatsmodule.NewHandler(employeesStatsService, validate),
+		AIRecommendationsHandler: airecommendationsmodule.NewHandler(aiRecommendationsService),
 	}
 
 	return container, nil

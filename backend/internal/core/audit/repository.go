@@ -26,18 +26,22 @@ func (r *Repository) base(exec ...db.DBTX) db.DBTX {
 func (r *Repository) Create(ctx context.Context, event Event, exec ...db.DBTX) error {
 	query := `
 		insert into audit_logs (
-			id, user_id, action, entity_type, entity_id, meta, source,
-			request_id, session_id, change_set, actor_type, actor_id, created_at
+			id, actor_user_id, user_id, entity_type, entity_id, action,
+			old_values, new_values, meta, source, request_id, session_id,
+			change_set, actor_type, actor_id, ip, user_agent, created_at
 		)
-		values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+		values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
 	`
 
 	_, err := r.base(exec...).ExecContext(ctx, query,
 		event.ID,
+		event.ActorUserID,
 		event.UserID,
-		event.Action,
 		event.EntityType,
 		event.EntityID,
+		event.Action,
+		event.OldValues,
+		event.NewValues,
 		event.Meta,
 		event.Source,
 		event.RequestID,
@@ -45,6 +49,8 @@ func (r *Repository) Create(ctx context.Context, event Event, exec ...db.DBTX) e
 		event.ChangeSet,
 		event.ActorType,
 		event.ActorID,
+		event.IP,
+		event.UserAgent,
 		event.CreatedAt,
 	)
 	return err

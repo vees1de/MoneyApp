@@ -44,6 +44,28 @@ func (s *Service) RecordChange(ctx context.Context, input RecordInput) error {
 		return err
 	}
 
+	oldValues := input.OldValues
+	if len(oldValues) == 0 {
+		if before, ok := input.ChangeSet["before"].(map[string]any); ok {
+			oldValues = before
+		}
+	}
+	oldValuesPayload, err := json.Marshal(oldValues)
+	if err != nil {
+		return err
+	}
+
+	newValues := input.NewValues
+	if len(newValues) == 0 {
+		if after, ok := input.ChangeSet["after"].(map[string]any); ok {
+			newValues = after
+		}
+	}
+	newValuesPayload, err := json.Marshal(newValues)
+	if err != nil {
+		return err
+	}
+
 	if input.Source == "" {
 		input.Source = SourceManual
 	}
@@ -63,6 +85,9 @@ func (s *Service) RecordChange(ctx context.Context, input RecordInput) error {
 			input.SessionID = &sessionID
 		}
 	}
+	if input.ActorUserID == nil && input.ActorType == "user" && input.ActorID != nil {
+		input.ActorUserID = input.ActorID
+	}
 
 	var requestID *string
 	if input.RequestID != "" {
@@ -70,19 +95,24 @@ func (s *Service) RecordChange(ctx context.Context, input RecordInput) error {
 	}
 
 	event := Event{
-		ID:         uuid.New(),
-		UserID:     input.UserID,
-		Action:     input.Action,
-		EntityType: input.EntityType,
-		EntityID:   input.EntityID,
-		Meta:       payload,
-		Source:     input.Source,
-		RequestID:  requestID,
-		SessionID:  input.SessionID,
-		ChangeSet:  changeSet,
-		ActorType:  input.ActorType,
-		ActorID:    input.ActorID,
-		CreatedAt:  s.clock.Now(),
+		ID:          uuid.New(),
+		ActorUserID: input.ActorUserID,
+		UserID:      input.UserID,
+		EntityType:  input.EntityType,
+		EntityID:    input.EntityID,
+		Action:      input.Action,
+		OldValues:   oldValuesPayload,
+		NewValues:   newValuesPayload,
+		Meta:        payload,
+		Source:      input.Source,
+		RequestID:   requestID,
+		SessionID:   input.SessionID,
+		ChangeSet:   changeSet,
+		ActorType:   input.ActorType,
+		ActorID:     input.ActorID,
+		IP:          input.IP,
+		UserAgent:   input.UserAgent,
+		CreatedAt:   s.clock.Now(),
 	}
 
 	return s.repo.Create(ctx, event)
