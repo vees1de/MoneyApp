@@ -5,10 +5,13 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/url"
+	"path"
 	"strings"
 	"time"
 
 	"moneyapp/backend/internal/platform/db"
+	"moneyapp/backend/internal/platform/uploads"
 
 	"github.com/google/uuid"
 )
@@ -27,6 +30,32 @@ func (r *Repository) base(exec ...db.DBTX) db.DBTX {
 	}
 
 	return r.db
+}
+
+func normalizeManagedAvatarURL(value *string) *string {
+	if value == nil {
+		return nil
+	}
+
+	trimmed := strings.TrimSpace(*value)
+	if trimmed == "" {
+		return nil
+	}
+
+	if relative, ok := uploads.ManagedRelativePath(trimmed, avatarPublicPrefix); ok {
+		normalized := uploads.PublicPath(avatarPublicPrefix, relative)
+		return &normalized
+	}
+
+	if parsed, err := url.Parse(trimmed); err == nil && parsed.Path != "" {
+		cleaned := path.Clean(parsed.Path)
+		if relative, ok := uploads.ManagedRelativePath(cleaned, avatarPublicPrefix); ok {
+			normalized := uploads.PublicPath(avatarPublicPrefix, relative)
+			return &normalized
+		}
+	}
+
+	return &trimmed
 }
 
 func (r *Repository) Create(ctx context.Context, user User, exec ...db.DBTX) error {
@@ -61,6 +90,7 @@ func (r *Repository) GetByID(ctx context.Context, userID uuid.UUID, exec ...db.D
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
+	user.AvatarURL = normalizeManagedAvatarURL(user.AvatarURL)
 	return user, err
 }
 
@@ -85,6 +115,7 @@ func (r *Repository) GetByEmail(ctx context.Context, email string, exec ...db.DB
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
+	user.AvatarURL = normalizeManagedAvatarURL(user.AvatarURL)
 	return user, err
 }
 
@@ -106,6 +137,7 @@ func (r *Repository) GetProfileBase(ctx context.Context, userID uuid.UUID, exec 
 		return Profile{}, err
 	}
 
+	profile.AvatarURL = normalizeManagedAvatarURL(profile.AvatarURL)
 	profile.ProfileRoles = []ProfileRole{}
 	profile.Teams = []DevelopmentTeam{}
 	return profile, nil
@@ -331,6 +363,7 @@ func (r *Repository) ListDevelopmentTeamsByUser(ctx context.Context, userID uuid
 		if !ok {
 			continue
 		}
+		member.AvatarURL = normalizeManagedAvatarURL(member.AvatarURL)
 		teams[index].Members = append(teams[index].Members, member)
 	}
 
@@ -392,6 +425,7 @@ func (r *Repository) GetDevelopmentTeamByID(ctx context.Context, teamID uuid.UUI
 		); err != nil {
 			return DevelopmentTeam{}, err
 		}
+		member.AvatarURL = normalizeManagedAvatarURL(member.AvatarURL)
 		team.Members = append(team.Members, member)
 	}
 
@@ -591,6 +625,7 @@ func (r *Repository) GetEmployeePublicProfile(ctx context.Context, userID uuid.U
 		return EmployeePublicProfile{}, err
 	}
 
+	profile.AvatarURL = normalizeManagedAvatarURL(profile.AvatarURL)
 	if hireDate != nil {
 		formatted := hireDate.Format("2006-01-02")
 		profile.HireDate = &formatted

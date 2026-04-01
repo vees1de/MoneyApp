@@ -23,10 +23,66 @@
     </div>
   </div>
 
+  @if (historyLoading()) {
+    <div class="ai-page__history-loading">
+      <mat-spinner diameter="24"></mat-spinner>
+      <p>Загружаем историю запусков из БД...</p>
+    </div>
+  }
+
+  @if (historyError(); as historyErrorMsg) {
+    <div class="ai-page__history-error">
+      <mat-icon>history</mat-icon>
+      <div class="ai-page__history-error-content">
+        <p>{{ historyErrorMsg }}</p>
+        <button mat-stroked-button (click)="loadHistory()">
+          <mat-icon>refresh</mat-icon>
+          Повторить загрузку истории
+        </button>
+      </div>
+    </div>
+  }
+
+  @if (history().length > 0) {
+    <mat-card class="ai-page__history">
+      <mat-card-header>
+        <mat-card-title>История запусков</mat-card-title>
+        <mat-card-subtitle>Сохранена в БД, можно открыть прошлые ответы или текущий job</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="ai-page__history-list">
+          @for (job of history(); track job.id) {
+            <button
+              type="button"
+              class="ai-page__history-item"
+              [class.ai-page__history-item--selected]="job.id === jobId()"
+              (click)="openJob(job.id)"
+            >
+              <div class="ai-page__history-item-top">
+                <strong>Запуск {{ job.created_at | date: 'dd.MM.yyyy HH:mm' }}</strong>
+                <span>{{ describeJobStatus(job.status) }}</span>
+              </div>
+              <div class="ai-page__history-item-meta">
+                <span>Попыток: {{ job.attempt }}</span>
+                <span>ID: {{ job.id }}</span>
+                @if (job.finished_at) {
+                  <span>Завершён: {{ job.finished_at | date: 'dd.MM.yyyy HH:mm' }}</span>
+                }
+                @if (job.last_error) {
+                  <span class="ai-page__history-item-error">{{ job.last_error }}</span>
+                }
+              </div>
+            </button>
+          }
+        </div>
+      </mat-card-content>
+    </mat-card>
+  }
+
   @if (loading()) {
     <div class="ai-page__loading">
       <mat-spinner diameter="48"></mat-spinner>
-      <p>Рекомендации считаются в фоне. Это может занять несколько секунд.</p>
+      <p>Рекомендации считаются в фоне. Обычно это занимает 10-20 секунд.</p>
     </div>
   }
 
@@ -162,6 +218,13 @@
             <h4>Модель</h4>
             <pre>{{ result.debug.ai_model_uri }}</pre>
           </div>
+
+          @if (result.debug.ai_request_duration_ms) {
+            <div class="ai-page__debug-section">
+              <h4>Время ответа AI</h4>
+              <pre>{{ result.debug.ai_request_duration_ms }} ms</pre>
+            </div>
+          }
 
           <div class="ai-page__debug-section">
             <h4>Источник курсов</h4>

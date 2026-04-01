@@ -46,10 +46,10 @@
       <mat-card class="profile-card">
         <mat-card-content class="profile-card__content profile-card__content--hero">
           <div class="profile-card__identity">
-            @if (currentProfile.avatar_url) {
+            @if (avatarUrl(currentProfile.avatar_url); as avatarSrc) {
               <img
                 class="profile-card__avatar"
-                [src]="currentProfile.avatar_url"
+                [src]="avatarSrc"
                 [alt]="profileName()"
               />
             } @else {
@@ -149,8 +149,8 @@
               @for (member of team.members; track member.user_id) {
                 <div class="team-member">
                   <div class="team-member__avatar">
-                    @if (member.avatar_url) {
-                      <img [src]="member.avatar_url" [alt]="member.display_name" />
+                    @if (avatarUrl(member.avatar_url); as memberAvatarSrc) {
+                      <img [src]="memberAvatarSrc" [alt]="member.display_name" />
                     } @else {
                       <span>{{ member.display_name.slice(0, 1).toUpperCase() }}</span>
                     }

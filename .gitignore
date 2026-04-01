@@ -33,6 +33,8 @@ backend/.tmp/
 backend/coverage.out
 backend/*.test
 backend/vendor/
+backend/uploads/
+/uploads/
 
 # Frontend / Node
 frontend/node_modules/

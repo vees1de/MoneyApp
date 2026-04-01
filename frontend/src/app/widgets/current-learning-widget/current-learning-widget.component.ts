@@ -2,11 +2,8 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
-import { forkJoin } from 'rxjs';
 
-import { CoursesApiService } from '@core/api/courses-api.service';
 import { EnrollmentsApiService } from '@core/api/enrollments-api.service';
-import type { Course } from '@entities/course';
 import type { Enrollment } from '@entities/enrollment';
 import { WidgetShellComponent } from '@app/widgets/widget-shell/widget-shell.component';
 
@@ -27,7 +24,6 @@ interface ProcessItem {
 })
 export class CurrentLearningWidgetComponent implements OnInit {
   private readonly enrollmentsApi = inject(EnrollmentsApiService);
-  private readonly coursesApi = inject(CoursesApiService);
 
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
@@ -51,12 +47,9 @@ export class CurrentLearningWidgetComponent implements OnInit {
   });
 
   ngOnInit(): void {
-    forkJoin({
-      enrollments: this.enrollmentsApi.listMy(),
-      courses: this.coursesApi.list({ limit: 300, offset: 0 }),
-    }).subscribe({
-      next: ({ enrollments, courses }) => {
-        this.items.set(this.mapToProcessItems(enrollments ?? [], courses ?? []).slice(0, 8));
+    this.enrollmentsApi.listMy().subscribe({
+      next: (enrollments) => {
+        this.items.set(this.mapToProcessItems(enrollments ?? []).slice(0, 8));
         this.loading.set(false);
       },
       error: () => {
@@ -80,9 +73,7 @@ export class CurrentLearningWidgetComponent implements OnInit {
     return this.items().filter((item) => item.status === tab).length;
   }
 
-  private mapToProcessItems(enrollments: Enrollment[], courses: Course[]): ProcessItem[] {
-    const courseMap = new Map(courses.map((course) => [course.id, course.title]));
-
+  private mapToProcessItems(enrollments: Enrollment[]): ProcessItem[] {
     return enrollments.map((item) => {
       const deadline = this.deadlineText(item.deadline_at);
       const isOverdue =
@@ -93,7 +84,7 @@ export class CurrentLearningWidgetComponent implements OnInit {
 
       return {
         id: item.id,
-        title: courseMap.get(item.course_id) || `Курс ${item.course_id.slice(0, 8)}`,
+        title: item.course_title?.trim() || `Курс ${item.course_id.slice(0, 8)}`,
         status: item.status,
         deadlineText: deadline,
         overdue: isOverdue,

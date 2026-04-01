@@ -4,8 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"os"
-	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -13,6 +11,7 @@ import (
 
 	"moneyapp/backend/internal/platform/db"
 	"moneyapp/backend/internal/platform/httpx"
+	"moneyapp/backend/internal/platform/uploads"
 
 	"github.com/google/uuid"
 )
@@ -141,9 +140,6 @@ func (s *Service) UploadAvatar(ctx context.Context, userID uuid.UUID, upload Ava
 	if strings.TrimSpace(s.uploadsDir) == "" {
 		return MeResponse{}, httpx.Internal("uploads_dir_not_configured")
 	}
-	if strings.TrimSpace(upload.BaseURL) == "" {
-		return MeResponse{}, httpx.BadRequest("invalid_base_url", "base URL is required")
-	}
 
 	profile, err := s.repo.GetProfileBase(ctx, userID)
 	if IsNotFound(err) {
@@ -160,15 +156,11 @@ func (s *Service) UploadAvatar(ctx context.Context, userID uuid.UUID, upload Ava
 	}
 
 	relativeKey := filepath.Join("profile-avatars", userID.String(), uuid.New().String()+ext)
-	targetPath := filepath.Join(s.uploadsDir, relativeKey)
-	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
-		return MeResponse{}, err
-	}
-	if err := os.WriteFile(targetPath, upload.Content, 0o644); err != nil {
+	if err := uploads.Save(s.uploadsDir, relativeKey, upload.Content); err != nil {
 		return MeResponse{}, err
 	}
 
-	avatarURL := strings.TrimRight(upload.BaseURL, "/") + avatarPublicPrefix + path.Clean(filepath.ToSlash(relativeKey))
+	avatarURL := uploads.PublicPath(avatarPublicPrefix, relativeKey)
 	profile.AvatarURL = &avatarURL
 	profile.UpdatedAt = time.Now().UTC()
 
@@ -176,15 +168,17 @@ func (s *Service) UploadAvatar(ctx context.Context, userID uuid.UUID, upload Ava
 		return s.repo.UpdateProfileFields(ctx, profile, tx)
 	})
 	if updateErr != nil {
-		_ = os.Remove(targetPath)
+		_ = uploads.Remove(s.uploadsDir, relativeKey)
 		if IsNotFound(updateErr) {
 			return MeResponse{}, httpx.NotFound("user_not_found", "user not found")
 		}
 		return MeResponse{}, updateErr
 	}
 
-	if oldAvatarPath := managedUploadFilePath(s.uploadsDir, upload.BaseURL, previousAvatarURL); oldAvatarPath != "" {
-		_ = os.Remove(oldAvatarPath)
+	if oldAvatarURL := previousAvatarURL; oldAvatarURL != nil {
+		if oldRelativeKey, ok := uploads.ManagedRelativePath(*oldAvatarURL, avatarPublicPrefix); ok {
+			_ = uploads.Remove(s.uploadsDir, oldRelativeKey)
+		}
 	}
 
 	return s.buildProfileResponse(ctx, userID)
@@ -538,30 +532,4 @@ func avatarExtension(contentType string) (string, error) {
 	default:
 		return "", httpx.BadRequest("unsupported_file_type", fmt.Sprintf("unsupported avatar content type: %s", contentType))
 	}
-}
-
-func managedUploadFilePath(uploadsDir string, baseURL string, assetURL *string) string {
-	if assetURL == nil || strings.TrimSpace(*assetURL) == "" {
-		return ""
-	}
-
-	trimmedBase := strings.TrimRight(strings.TrimSpace(baseURL), "/")
-	trimmedOld := strings.TrimSpace(*assetURL)
-	prefix := trimmedBase + avatarPublicPrefix
-	if !strings.HasPrefix(trimmedOld, prefix) {
-		return ""
-	}
-
-	relative := strings.TrimPrefix(trimmedOld, prefix)
-	if relative == "" {
-		return ""
-	}
-
-	candidate := filepath.Clean(filepath.Join(uploadsDir, filepath.FromSlash(relative)))
-	if !strings.HasPrefix(candidate, filepath.Clean(uploadsDir)+string(os.PathSeparator)) &&
-		filepath.Clean(candidate) != filepath.Clean(uploadsDir) {
-		return ""
-	}
-
-	return candidate
 }

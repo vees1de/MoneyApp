@@ -1,13 +1,9 @@
-﻿export type EnrollmentStatus =
-  | 'enrolled'
-  | 'in_progress'
-  | 'completed'
-  | 'canceled'
-  | string;
+﻿export type EnrollmentStatus = 'enrolled' | 'in_progress' | 'completed' | 'canceled' | string;
 
 export interface Enrollment {
   id: string;
   course_id: string;
+  course_title?: string | null;
   user_id: string;
   assignment_id?: string | null;
   source: string;

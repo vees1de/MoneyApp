@@ -2199,6 +2199,8 @@ components:
         course_id:
           type: string
           format: uuid
+        course_title:
+          type: string
         user_id:
           type: string
           format: uuid

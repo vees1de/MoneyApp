@@ -18,7 +18,7 @@ export class CertificatesApiService {
       .pipe(map((response) => unwrapListResponse(response)));
   }
 
-  upload(payload: Record<string, unknown>): Observable<Certificate> {
+  upload(payload: FormData): Observable<Certificate> {
     return this.http.post<Certificate>(`${this.base}/upload`, payload);
   }
 

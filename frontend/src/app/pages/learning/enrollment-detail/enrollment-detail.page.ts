@@ -4,34 +4,18 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { ReactiveFormsModule, FormBuilder } from '@angular/forms';
 import { catchError, forkJoin, of } from 'rxjs';
 
 import { CertificatesApiService } from '@core/api/certificates-api.service';
 import { EnrollmentsApiService } from '@core/api/enrollments-api.service';
+import { API_BASE_URL } from '@core/config/api.config';
 import type { Certificate } from '@entities/certificate';
 import type { Enrollment } from '@entities/enrollment';
-
-function normalizeText(value: string | null | undefined): string | null {
-  const trimmed = value?.trim();
-  return trimmed || null;
-}
 
 @Component({
   selector: 'app-page-learning-enrollment-detail',
   standalone: true,
-  imports: [
-    CommonModule,
-    RouterLink,
-    ReactiveFormsModule,
-    MatButtonModule,
-    MatCardModule,
-    MatIconModule,
-    MatInputModule,
-    MatProgressBarModule,
-  ],
+  imports: [CommonModule, RouterLink, MatButtonModule, MatCardModule, MatIconModule],
   templateUrl: './enrollment-detail.page.html',
   styleUrl: './enrollment-detail.page.scss',
 })
@@ -39,7 +23,6 @@ export class LearningEnrollmentDetailPageComponent implements OnInit {
   private readonly enrollmentsApi = inject(EnrollmentsApiService);
   private readonly certificatesApi = inject(CertificatesApiService);
   private readonly route = inject(ActivatedRoute);
-  private readonly fb = inject(FormBuilder);
 
   protected readonly loading = signal(true);
   protected readonly acting = signal(false);
@@ -47,15 +30,6 @@ export class LearningEnrollmentDetailPageComponent implements OnInit {
   protected readonly enrollment = signal<Enrollment | null>(null);
   protected readonly certificates = signal<Certificate[]>([]);
   protected readonly selectedCertificateFile = signal<File | null>(null);
-
-  protected readonly completionForm = this.fb.group({
-    notes: [''],
-  });
-
-  protected readonly progressForm = this.fb.group({
-    course_module_id: [''],
-    progress_percent: [0],
-  });
 
   protected readonly latestCertificate = computed<Certificate | null>(() => {
     const item = this.enrollment();
@@ -77,22 +51,23 @@ export class LearningEnrollmentDetailPageComponent implements OnInit {
   protected readonly canUploadCertificate = computed(() => {
     const item = this.enrollment();
     const certificate = this.latestCertificate();
-    if (!item || item.status !== 'completed') {
+    if (!item || item.status === 'completed' || item.status === 'canceled') {
       return false;
     }
 
     return !certificate || certificate.status === 'rejected';
   });
 
-  protected readonly canWorkOnCourse = computed(() => this.enrollment()?.status === 'in_progress');
-
   ngOnInit(): void {
     this.load();
   }
 
-  protected progressValue(item: Enrollment): number {
-    const value = Number(item.completion_percent);
-    return Number.isNaN(value) ? 0 : Math.max(0, Math.min(100, value));
+  protected shortId(value: string): string {
+    if (!value || value.length < 14) {
+      return value;
+    }
+
+    return `${value.slice(0, 8)}…${value.slice(-4)}`;
   }
 
   protected enrollmentStatusLabel(status: string): string {
@@ -104,6 +79,22 @@ export class LearningEnrollmentDetailPageComponent implements OnInit {
     };
 
     return labels[status] ?? status;
+  }
+
+  protected sourceLabel(source: string): string {
+    const labels: Record<string, string> = {
+      intake: 'Intake',
+      manager: 'Manager',
+      hr: 'HR',
+      self: 'Self',
+      catalog: 'Catalog',
+    };
+
+    return labels[source] ?? source;
+  }
+
+  protected mandatoryLabel(item: Enrollment): string {
+    return item.is_mandatory ? 'Обязательное' : 'По выбору';
   }
 
   protected certificateStatusLabel(status?: string | null): string {
@@ -120,70 +111,49 @@ export class LearningEnrollmentDetailPageComponent implements OnInit {
     return labels[status] ?? status;
   }
 
-  protected selectedCertificateFileName(): string {
-    return this.selectedCertificateFile()?.name ?? 'Файл не выбран';
-  }
-
-  protected updateProgress(): void {
-    const item = this.enrollment();
-    if (!item || this.acting() || this.progressForm.invalid || item.status !== 'in_progress') {
-      return;
+  protected certificateFileUrl(certificate: Certificate): string | null {
+    const storageKey = certificate.file_storage_key?.trim();
+    if (!storageKey) {
+      return null;
     }
 
-    this.acting.set(true);
-    this.error.set(null);
-    const value = this.progressForm.getRawValue();
-
-    this.enrollmentsApi
-      .updateProgress(item.id, {
-        course_module_id: value.course_module_id,
-        status: 'in_progress',
-        progress_percent: String(value.progress_percent ?? 0),
-      })
-      .subscribe({
-        next: (updated) => {
-          this.enrollment.set(updated);
-          this.acting.set(false);
-        },
-        error: () => {
-          this.error.set('Не удалось обновить прогресс.');
-          this.acting.set(false);
-        },
-      });
+    return `${API_BASE_URL}/uploads/${encodeURI(storageKey)}`;
   }
 
-  protected complete(): void {
+  protected certificateFlowMessage(): string {
     const item = this.enrollment();
-    if (!item || this.acting() || item.status !== 'in_progress') {
-      return;
+    if (!item) {
+      return '';
     }
 
-    this.acting.set(true);
-    this.error.set(null);
+    const certificate = this.latestCertificate();
+    if (!certificate) {
+      return item.status === 'completed'
+        ? 'Обучение уже завершено.'
+        : 'Загрузите сертификат. После апрува HR обучение завершится автоматически.';
+    }
 
-    this.enrollmentsApi
-      .complete(item.id, {
-        completion_type: 'manual',
-        notes:
-          normalizeText(this.completionForm.controls.notes.value) ??
-          'Завершено сотрудником вручную',
-      })
-      .subscribe({
-        next: (updated) => {
-          this.enrollment.set(updated);
-          this.acting.set(false);
-        },
-        error: () => {
-          this.error.set('Не удалось завершить обучение.');
-          this.acting.set(false);
-        },
-      });
+    switch (certificate.status) {
+      case 'uploaded':
+        return 'Сертификат отправлен на проверку HR. После апрува обучение завершится автоматически.';
+      case 'verified':
+        return 'Сертификат подтверждён HR. Обучение завершено автоматически.';
+      case 'rejected':
+        return 'HR отклонил сертификат. Загрузите новый файл, чтобы отправить его повторно.';
+      default:
+        return item.status === 'completed'
+          ? 'Обучение завершено автоматически.'
+          : 'Загрузите сертификат, чтобы отправить его на проверку.';
+    }
   }
 
   protected onCertificateFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement | null;
     const file = input?.files?.[0] ?? null;
     this.selectedCertificateFile.set(file);
+    if (input) {
+      input.value = '';
+    }
   }
 
   protected uploadCertificate(): void {
@@ -198,17 +168,19 @@ export class LearningEnrollmentDetailPageComponent implements OnInit {
 
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, '-');
     const timestamp = Date.now();
+    const storageKey = `certificates/${item.id}/${timestamp}-${safeName}`;
+    const formData = new FormData();
+    formData.append('enrollment_id', item.id);
+    formData.append('course_id', item.course_id);
+    formData.append('storage_provider', 'local');
+    formData.append('storage_key', storageKey);
+    formData.append('original_name', file.name);
+    formData.append('mime_type', file.type || 'application/octet-stream');
+    formData.append('size_bytes', String(Math.max(file.size, 1)));
+    formData.append('file', file, file.name);
 
     this.certificatesApi
-      .upload({
-        enrollment_id: item.id,
-        course_id: item.course_id,
-        storage_provider: 'local',
-        storage_key: `certificates/${item.id}/${timestamp}-${safeName}`,
-        original_name: file.name,
-        mime_type: file.type || 'application/octet-stream',
-        size_bytes: Math.max(file.size, 1),
-      })
+      .upload(formData)
       .subscribe({
         next: (certificate) => {
           this.certificates.update((items) => [certificate, ...items]);
