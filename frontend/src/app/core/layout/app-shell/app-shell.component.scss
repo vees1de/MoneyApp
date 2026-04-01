@@ -9,7 +9,9 @@
 .shell__toolbar {
   align-items: center;
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-areas: 'brand nav actions';
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  height: auto;
   min-height: 66px;
   gap: var(--space-3);
   padding: 0 var(--space-6);
@@ -19,6 +21,7 @@
 }
 
 .shell__brand {
+  grid-area: brand;
   align-items: center;
   color: var(--app-header-accent);
   display: inline-flex;
@@ -28,6 +31,7 @@
   letter-spacing: 0.06em;
   margin-right: var(--space-2);
   text-decoration: none;
+  white-space: nowrap;
 }
 
 .shell__brand-icon {
@@ -36,10 +40,14 @@
 }
 
 .shell__nav {
+  grid-area: nav;
   align-items: center;
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-1);
-  justify-self: center;
+  min-width: 0;
+  width: 100%;
+  justify-content: center;
 }
 
 .shell__nav-link {
@@ -55,9 +63,12 @@
 }
 
 .shell__toolbar-actions {
+  grid-area: actions;
   align-items: center;
   display: inline-flex;
   gap: var(--space-2);
+  justify-self: end;
+  min-width: max-content;
 }
 
 .shell__content {
@@ -137,12 +148,16 @@
 
 @media (max-width: 1280px) {
   .shell__toolbar {
-    grid-template-columns: 1fr auto;
+    align-items: start;
+    grid-template-areas:
+      'brand actions'
+      'nav nav';
+    grid-template-columns: minmax(0, 1fr) auto;
     padding-block: var(--space-2);
   }
 
   .shell__nav {
-    grid-column: 1 / -1;
+    justify-content: flex-start;
     justify-self: start;
     width: 100%;
   }

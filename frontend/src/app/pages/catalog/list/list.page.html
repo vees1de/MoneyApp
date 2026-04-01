@@ -56,50 +56,71 @@
   } @else {
     <section class="catalog-grid">
       @for (course of courses(); track trackByCourse($index, course)) {
-        <mat-card class="course-card">
-          <mat-card-header>
-            <mat-card-title>
-              <a [routerLink]="'/catalog/' + course.id">{{ course.title }}</a>
-            </mat-card-title>
-            <mat-card-subtitle>{{ formatCourseSubtitle(course) }}</mat-card-subtitle>
-          </mat-card-header>
+        <article class="course-card">
+          <div class="course-card__header">
+            <div class="course-card__header-copy">
+              @if (formatCourseSubtitle(course); as subtitle) {
+                <p class="course-card__subtitle">{{ subtitle }}</p>
+              }
+              <a class="course-card__title" [routerLink]="'/catalog/' + course.id">
+                {{ course.title }}
+              </a>
 
-          <mat-card-content class="course-card__content">
-            @if (course.short_description) {
-              <p class="course-card__description">{{ course.short_description }}</p>
+              @if (course.short_description) {
+                <p class="course-card__description">{{ course.short_description }}</p>
+              }
+            </div>
+
+            <div class="course-card__price">
+              <span class="course-card__price-label">Стоимость</span>
+              <strong class="course-card__price-value">{{ formatPrice(course) }}</strong>
+            </div>
+          </div>
+
+          <div class="course-card__stats">
+            <div class="course-card__stat">
+              <span class="course-card__stat-label">Уровень</span>
+              <strong class="course-card__stat-value">{{ formatMetaValue(course.level) }}</strong>
+            </div>
+
+            <div class="course-card__stat">
+              <span class="course-card__stat-label">Часы</span>
+              <strong class="course-card__stat-value">{{
+                formatDurationHours(course.duration_hours)
+              }}</strong>
+            </div>
+
+            <div class="course-card__stat">
+              <span class="course-card__stat-label">Язык</span>
+              <strong class="course-card__stat-value">{{
+                formatMetaValue(course.language)
+              }}</strong>
+            </div>
+          </div>
+
+          <div class="course-card__footer">
+            <div class="course-card__footer-meta">
+              <span class="course-card__footer-label">Обновлено</span>
+              <strong class="course-card__footer-value">{{
+                course.updated_at | date: 'dd.MM.yyyy HH:mm'
+              }}</strong>
+            </div>
+
+            @if (course.next_start_date) {
+              <div class="course-card__footer-meta">
+                <span class="course-card__footer-label">Старт</span>
+                <strong class="course-card__footer-value">{{
+                  course.next_start_date | date: 'dd.MM.yyyy'
+                }}</strong>
+              </div>
             }
 
-            <div class="course-card__pills">
-              <span [ngClass]="['course-pill', getLevelPillClass(course)]">
-                <span class="course-pill__label">Уровень</span>
-                <span class="course-pill__value">{{ formatMetaValue(course.level) }}</span>
-              </span>
-
-              <span [ngClass]="['course-pill', getDurationPillClass(course)]">
-                <span class="course-pill__label">Часы</span>
-                <span class="course-pill__value">{{
-                  formatDurationHours(course.duration_hours)
-                }}</span>
-              </span>
-
-              <span [ngClass]="['course-pill', getLanguagePillClass(course)]">
-                <span class="course-pill__label">Язык</span>
-                <span class="course-pill__value">{{ formatMetaValue(course.language) }}</span>
-              </span>
-            </div>
-
-            <div class="course-card__footer-meta">
-              <p>
-                <span class="kv__key">Стоимость:</span>
-                <span class="kv__value">{{ formatPrice(course) }}</span>
-              </p>
-              <p>
-                <span class="kv__key">Обновлено:</span>
-                <span class="kv__value">{{ course.updated_at | date: 'dd.MM.yyyy HH:mm' }}</span>
-              </p>
-            </div>
-          </mat-card-content>
-        </mat-card>
+            <a class="course-card__action" [routerLink]="'/catalog/' + course.id">
+              <span>Подробнее</span>
+              <mat-icon>arrow_forward</mat-icon>
+            </a>
+          </div>
+        </article>
       }
     </section>
 

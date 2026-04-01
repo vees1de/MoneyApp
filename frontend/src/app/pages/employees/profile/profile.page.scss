@@ -377,26 +377,6 @@
   }
 }
 
-.emp-course-card__progress {
-  display: grid;
-  gap: var(--space-1);
-}
-
-.emp-progress-row {
-  display: flex;
-  font-size: 0.85rem;
-  justify-content: space-between;
-
-  span {
-    color: var(--app-muted);
-    font-weight: 500;
-  }
-
-  strong {
-    color: var(--app-text);
-  }
-}
-
 .emp-course-card__dates {
   display: flex;
   flex-wrap: wrap;

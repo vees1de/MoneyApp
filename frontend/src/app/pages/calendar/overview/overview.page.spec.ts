@@ -52,7 +52,6 @@ describe('CalendarOverviewPageComponent', () => {
           source?: string;
         };
       }>;
-      unscheduledYougileTasks: () => unknown[];
     };
 
     const testTimeblock: YougileTask = {
@@ -101,7 +100,6 @@ describe('CalendarOverviewPageComponent', () => {
         source: 'yougile',
       },
     });
-    expect(component.unscheduledYougileTasks()).toEqual([]);
   });
 
   it('treats null learning plan buckets as empty arrays', () => {

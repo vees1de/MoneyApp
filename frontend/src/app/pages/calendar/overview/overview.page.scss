@@ -161,11 +161,6 @@
   padding-left: 1.1rem;
 }
 
-.calendar-banner--success {
-  background: rgba(16, 185, 129, 0.12);
-  border-color: rgba(16, 185, 129, 0.2);
-}
-
 .calendar-banner--error {
   background: rgba(239, 68, 68, 0.12);
   border-color: rgba(239, 68, 68, 0.2);
@@ -453,7 +448,6 @@
   .calendar-stage__legend {
     justify-content: flex-start;
   }
-
 }
 
 @media (max-width: 720px) {
@@ -479,5 +473,4 @@
     flex-direction: column;
     align-items: flex-start;
   }
-
 }

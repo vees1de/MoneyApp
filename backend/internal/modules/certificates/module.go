@@ -147,6 +147,20 @@ func (r *Repository) ListByUser(ctx context.Context, userID uuid.UUID, exec ...d
 	return items, rows.Err()
 }
 
+func (r *Repository) GetLatestByEnrollment(ctx context.Context, enrollmentID uuid.UUID, exec ...db.DBTX) (Certificate, error) {
+	var item Certificate
+	err := r.base(exec...).QueryRowContext(ctx, `
+		select id, user_id, course_id, enrollment_id, certificate_no, issued_by, issued_at::timestamptz,
+		       expires_at::timestamptz, status, file_id, uploaded_at, verified_at, verified_by, notes
+		from certificates
+		where enrollment_id = $1
+		order by uploaded_at desc
+		limit 1
+	`, enrollmentID).Scan(&item.ID, &item.UserID, &item.CourseID, &item.EnrollmentID, &item.CertificateNo, &item.IssuedBy,
+		&item.IssuedAt, &item.ExpiresAt, &item.Status, &item.FileID, &item.UploadedAt, &item.VerifiedAt, &item.VerifiedBy, &item.Notes)
+	return item, err
+}
+
 func (r *Repository) UpdateCertificate(ctx context.Context, item Certificate, exec ...db.DBTX) error {
 	_, err := r.base(exec...).ExecContext(ctx, `
 		update certificates

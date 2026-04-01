@@ -107,7 +107,7 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 	identityService := identitymodule.NewService(database, identityRepo, orgService, outboxService, queue, jwtManager, appClock, cfg.Auth.AccessTokenTTL, cfg.Auth.RefreshTokenTTL)
 	adminService := adminmodule.NewService(database, identityRepo, orgService, appClock)
 	catalogService := catalogmodule.NewService(catalogRepo, appClock)
-	learningService := learningmodule.NewService(database, learningRepo, orgService, catalogService, outboxService, appClock)
+	learningService := learningmodule.NewService(database, learningRepo, certificatesRepo, orgService, catalogService, outboxService, appClock)
 	testingService := testingmodule.NewService(database, testingRepo, appClock)
 	certificatesService := certificatesmodule.NewService(database, certificatesRepo, outboxService, appClock)
 	courseIntakesService := courseintakesmodule.NewService(
