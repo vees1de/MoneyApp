@@ -1,98 +1,148 @@
 <section class="catalog-detail-page">
-  <header class="catalog-detail-page__header">
-    <div>
-      <h1>Карточка курса</h1>
-    </div>
-
-    <div class="catalog-detail-page__header-actions">
-      <a
-        mat-stroked-button
-        routerLink="/catalog"
-        style="background-color: #fff; border: 1px solid var(--mat-sys-primary)"
-      >
-        <mat-icon>arrow_back</mat-icon>
-        Все курсы
-      </a>
-    </div>
-  </header>
-
   @if (loading()) {
     <div class="catalog-detail-skeleton"></div>
   } @else if (error()) {
     <p class="catalog-detail-page__error">{{ error() }}</p>
   } @else if (course(); as item) {
     <mat-card class="catalog-detail-card">
-      <mat-card-header>
-        <mat-card-title>{{ item.title }}</mat-card-title>
-        <mat-card-subtitle style="color: var(--app-muted)">{{
-          formatCourseSubtitle(item)
-        }}</mat-card-subtitle>
-      </mat-card-header>
+      <mat-card-content class="catalog-detail-card__layout">
+        <div class="catalog-detail-card__main">
+          <div class="catalog-detail-card__heading">
+            <h2 class="catalog-detail-card__title">{{ item.title }}</h2>
 
-      <mat-card-content class="catalog-detail-card__content">
-        @if (item.short_description) {
-          <p class="catalog-detail-card__description">{{ item.short_description }}</p>
-        }
-        @if (item.description) {
-          <p>{{ item.description }}</p>
-        }
+            @if (item.short_description || item.description) {
+              <p class="catalog-detail-card__description">
+                {{ item.short_description || item.description }}
+              </p>
+            }
 
-        <p>
-          <span class="kv__key">Уровень:</span>
-          <span class="kv__value">{{ item.level || '—' }}</span>
-        </p>
-        <p>
-          <span class="kv__key">Длительность:</span>
-          <span class="kv__value">{{ formatDurationLabel(item.duration_hours) }}</span>
-        </p>
-        <p>
-          <span class="kv__key">Язык:</span>
-          <span class="kv__value">{{ item.language || '—' }}</span>
-        </p>
-        <p>
-          <span class="kv__key">Стоимость:</span>
-          <span class="kv__value">{{ formatPrice(item) }}</span>
-        </p>
-        <p>
-          <span class="kv__key">Ссылка:</span>
-          <a class="kv__value" [href]="item.external_url" target="_blank">{{
-            item.external_url || '—'
-          }}</a>
-        </p>
-        <p>
-          <span class="kv__key">Старт:</span>
-          <span class="kv__value">{{
-            item.next_start_date ? (item.next_start_date | date: 'dd.MM.yyyy') : '—'
-          }}</span>
-        </p>
-        <p>
-          <span class="kv__key">Обновлено:</span>
-          <span class="kv__value">{{ item.updated_at | date: 'dd.MM.yyyy HH:mm' }}</span>
-        </p>
+            @if (
+              item.description &&
+              item.short_description &&
+              item.description !== item.short_description
+            ) {
+              <p
+                class="catalog-detail-card__description catalog-detail-card__description--secondary"
+              >
+                {{ item.description }}
+              </p>
+            }
+          </div>
 
-        <div class="catalog-detail-card__actions">
-          @if (item.external_url) {
+          <div class="catalog-detail-card__meta">
+            <span class="catalog-detail-card__meta-chip">
+              <mat-icon>apartment</mat-icon>
+              {{ formatSourceLabel(item) }}
+            </span>
+            <span class="catalog-detail-card__meta-chip">
+              <mat-icon>workspace_premium</mat-icon>
+              {{ formatValue(item.level, 'Уровень не указан') }}
+            </span>
+            <span class="catalog-detail-card__meta-chip">
+              <mat-icon>schedule</mat-icon>
+              {{ formatDurationLabel(item.duration_hours) }}
+            </span>
+            <span class="catalog-detail-card__meta-chip">
+              <mat-icon>payments</mat-icon>
+              {{ formatPrice(item) }}
+            </span>
+            <span class="catalog-detail-card__meta-chip">
+              <mat-icon>language</mat-icon>
+              {{ formatValue(item.language, 'Язык не указан') }}
+            </span>
+          </div>
+
+          <div class="catalog-detail-card__fields">
+            <div class="catalog-detail-card__field">
+              <span class="catalog-detail-card__field-label">Название</span>
+              <div class="catalog-detail-card__field-value">{{ item.title }}</div>
+            </div>
+
+            <div class="catalog-detail-card__field">
+              <span class="catalog-detail-card__field-label">Тип курса</span>
+              <div class="catalog-detail-card__field-value">
+                {{ formatValue(item.type, 'Не указан') }}
+              </div>
+            </div>
+
+            <div class="catalog-detail-card__field">
+              <span class="catalog-detail-card__field-label">Статус</span>
+              <div class="catalog-detail-card__field-value">
+                {{ formatStatusLabel(item.status) }}
+              </div>
+            </div>
+
+            <div class="catalog-detail-card__field">
+              <span class="catalog-detail-card__field-label">Стоимость</span>
+              <div class="catalog-detail-card__field-value">{{ formatPrice(item) }}</div>
+            </div>
+
+            <div class="catalog-detail-card__field">
+              <span class="catalog-detail-card__field-label">Язык</span>
+              <div class="catalog-detail-card__field-value">
+                {{ formatValue(item.language) }}
+              </div>
+            </div>
+
+            <div class="catalog-detail-card__field">
+              <span class="catalog-detail-card__field-label">Ссылка</span>
+              <div class="catalog-detail-card__field-value catalog-detail-card__field-value--link">
+                @if (resolveExternalUrl(item.external_url); as externalUrl) {
+                  <a [href]="externalUrl" target="_blank" rel="noopener noreferrer">
+                    {{ formatExternalUrl(item.external_url) }}
+                  </a>
+                } @else {
+                  <span>{{ formatExternalUrl(item.external_url) }}</span>
+                }
+              </div>
+            </div>
+
+            <div class="catalog-detail-card__field">
+              <span class="catalog-detail-card__field-label">Старт</span>
+              <div class="catalog-detail-card__field-value">
+                {{ item.next_start_date ? (item.next_start_date | date: 'dd.MM.yyyy') : '—' }}
+              </div>
+            </div>
+
+            <div class="catalog-detail-card__field">
+              <span class="catalog-detail-card__field-label">Обновлено</span>
+              <div class="catalog-detail-card__field-value">
+                {{ item.updated_at | date: 'dd.MM.yyyy HH:mm' }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="catalog-detail-card__aside">
+          <div class="catalog-detail-card__visual" aria-hidden="true">
+            <span class="catalog-detail-card__visual-mark"></span>
+          </div>
+          <div class="catalog-detail-card__actions">
             <a
               mat-flat-button
               color="primary"
-              [href]="item.external_url"
-              target="_blank"
-              rel="noopener noreferrer"
+              class="catalog-detail-card__action catalog-detail-card__action--primary"
+              routerLink="/suggestions/new"
+              [queryParams]="suggestionQueryParams(item)"
             >
-              <mat-icon>open_in_new</mat-icon>
-              Открыть оригинальный курс
+              <mat-icon>favorite</mat-icon>
+              Хочу этот курс
             </a>
-          }
 
-          <a
-            mat-stroked-button
-            routerLink="/suggestions/new"
-            [queryParams]="suggestionQueryParams(item)"
-          >
-            <mat-icon>favorite</mat-icon>
-            Хочу этот курс
-          </a>
-        </div>
+            @if (resolveExternalUrl(item.external_url); as externalUrl) {
+              <a
+                mat-stroked-button
+                class="catalog-detail-card__action catalog-detail-card__action--secondary"
+                [href]="externalUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <mat-icon>open_in_new</mat-icon>
+                Перейти к курсу
+              </a>
+            }
+          </div>
+        </aside>
       </mat-card-content>
     </mat-card>
   }

@@ -50,6 +50,15 @@ export class CatalogDetailPageComponent implements OnInit {
     return [sourceType, status].filter(Boolean).join(' · ');
   }
 
+  protected formatSourceLabel(course: Course): string {
+    return this.translateSourceType(course.source_type) || 'Источник не указан';
+  }
+
+  protected formatValue(value?: string | null, fallback = '—'): string {
+    const normalized = value?.trim();
+    return normalized || fallback;
+  }
+
   protected formatDurationHours(value?: string | null): string {
     const normalized = value?.trim();
 
@@ -84,6 +93,47 @@ export class CatalogDetailPageComponent implements OnInit {
     }
 
     return [price, currency].filter(Boolean).join(' ');
+  }
+
+  protected formatStatusLabel(value?: string | null): string {
+    return this.normalizeStatus(value) || 'Опубликован';
+  }
+
+  protected formatExternalUrl(value?: string | null): string {
+    const normalized = value?.trim();
+
+    if (!normalized) {
+      return '—';
+    }
+
+    return normalized.replace(/^https?:\/\//i, '').replace(/\/$/, '');
+  }
+
+  protected resolveExternalUrl(value?: string | null): string | null {
+    const normalized = value?.trim();
+
+    if (!normalized) {
+      return null;
+    }
+
+    return /^https?:\/\//i.test(normalized) ? normalized : `https://${normalized}`;
+  }
+
+  protected getCourseMonogram(title?: string | null): string {
+    const parts = title
+      ?.trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2);
+
+    if (!parts?.length) {
+      return 'C';
+    }
+
+    return parts
+      .map((part) => part[0])
+      .join('')
+      .toUpperCase();
   }
 
   protected suggestionQueryParams(course: Course): Record<string, string | null> {
