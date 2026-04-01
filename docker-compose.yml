@@ -81,9 +81,12 @@ services:
     environment:
       APP_ENV: ${APP_ENV:-production}
       HTTP_ADDR: :8080
+      HTTP_UPLOADS_DIR: /app/uploads
       FRONTEND_DIST_DIR: ""
       POSTGRES_HOST: postgres
       POSTGRES_PORT: "5432"
+    volumes:
+      - uploads_data:/app/uploads
     ports:
       - "127.0.0.1:${APP_PORT:-8080}:8080"
     healthcheck:
@@ -109,10 +112,14 @@ services:
     environment:
       APP_ENV: ${APP_ENV:-production}
       HTTP_ADDR: :8080
+      HTTP_UPLOADS_DIR: /app/uploads
       FRONTEND_DIST_DIR: ""
       POSTGRES_HOST: postgres
       POSTGRES_PORT: "5432"
+    volumes:
+      - uploads_data:/app/uploads
     command: ["./worker"]
 
 volumes:
   postgres_data:
+  uploads_data:

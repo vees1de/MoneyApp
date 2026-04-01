@@ -8,6 +8,7 @@ import { MatIconModule } from '@angular/material/icon';
 
 import { AuthSessionService } from '@core/auth/auth-session.service';
 import { AuthStateService } from '@core/auth/auth-state.service';
+import { resolveApiUrl } from '@core/api/url.util';
 import { identityUserDisplayName } from '@core/domain/identity.util';
 import { ProfileSettingsFacade } from '@features/profile-settings';
 
@@ -80,6 +81,10 @@ export class ProfileOverviewPageComponent implements OnInit {
 
   protected roleLabel(roleCode: string): string {
     return this.authState.roleLabel(roleCode);
+  }
+
+  protected avatarUrl(value?: string | null): string | null {
+    return resolveApiUrl(value);
   }
 
   protected async openEditDialog(): Promise<void> {

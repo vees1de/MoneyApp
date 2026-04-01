@@ -1,16 +1,21 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
 
 import { EnrollmentsApiService } from '@core/api/enrollments-api.service';
 import type { Enrollment } from '@entities/enrollment';
 
+interface LearningStat {
+  label: string;
+  value: number;
+  tone: 'primary' | 'success' | 'warning' | 'neutral';
+}
+
 @Component({
   selector: 'app-page-my-learning-list',
   standalone: true,
-  imports: [CommonModule, RouterLink, MatCardModule, MatProgressBarModule],
+  imports: [CommonModule, RouterLink, MatCardModule],
   templateUrl: './list.page.html',
   styleUrl: './list.page.scss',
 })
@@ -20,6 +25,28 @@ export class MyLearningListPageComponent implements OnInit {
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
   protected readonly enrollments = signal<Enrollment[]>([]);
+  protected readonly summaryItems = computed<LearningStat[]>(() => {
+    const items = this.enrollments();
+
+    return [
+      { label: 'Всего', value: items.length, tone: 'primary' },
+      {
+        label: 'В процессе',
+        value: items.filter((item) => item.status === 'in_progress').length,
+        tone: 'warning',
+      },
+      {
+        label: 'Назначено',
+        value: items.filter((item) => item.status === 'enrolled').length,
+        tone: 'neutral',
+      },
+      {
+        label: 'Завершено',
+        value: items.filter((item) => item.status === 'completed').length,
+        tone: 'success',
+      },
+    ];
+  });
 
   ngOnInit(): void {
     this.api.listMy().subscribe({
@@ -32,11 +59,6 @@ export class MyLearningListPageComponent implements OnInit {
         this.loading.set(false);
       },
     });
-  }
-
-  protected progressValue(item: Enrollment): number {
-    const value = Number(item.completion_percent);
-    return Number.isNaN(value) ? 0 : Math.max(0, Math.min(100, value));
   }
 
   protected trackByEnrollment(_index: number, item: Enrollment): string {
@@ -77,6 +99,21 @@ export class MyLearningListPageComponent implements OnInit {
     }
   }
 
+  protected cardToneClass(status: string): string {
+    switch (status) {
+      case 'completed':
+        return 'my-learning-card--done';
+      case 'in_progress':
+        return 'my-learning-card--active';
+      case 'enrolled':
+        return 'my-learning-card--pending';
+      case 'canceled':
+        return 'my-learning-card--canceled';
+      default:
+        return 'my-learning-card--default';
+    }
+  }
+
   protected sourceLabel(source: string): string {
     const labels: Record<string, string> = {
       intake: 'Intake',
@@ -93,20 +130,18 @@ export class MyLearningListPageComponent implements OnInit {
     return item.is_mandatory ? 'Обязательное' : 'По выбору';
   }
 
-  protected progressToneClass(item: Enrollment): string {
-    if (item.status === 'completed') {
-      return 'progress-block--done';
+  protected cardNote(item: Enrollment): string {
+    switch (item.status) {
+      case 'completed':
+        return 'Сертификат подтверждён, обучение закрыто автоматически.';
+      case 'in_progress':
+        return 'Загрузите сертификат на странице курса. После апрува HR обучение завершится автоматически.';
+      case 'enrolled':
+        return 'Курс назначен. Откройте карточку и загрузите сертификат, когда будете готовы.';
+      case 'canceled':
+        return 'Назначение отменено.';
+      default:
+        return 'Откройте карточку обучения для деталей.';
     }
-
-    const progress = this.progressValue(item);
-    if (progress >= 70) {
-      return 'progress-block--high';
-    }
-
-    if (progress >= 35) {
-      return 'progress-block--medium';
-    }
-
-    return 'progress-block--low';
   }
 }

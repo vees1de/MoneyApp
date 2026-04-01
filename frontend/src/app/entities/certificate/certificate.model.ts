@@ -7,6 +7,8 @@ export interface Certificate {
   expires_at?: string | null;
   status: string;
   file_id: string;
+  file_storage_key?: string | null;
+  file_original_name?: string | null;
   uploaded_at: string;
   verified_at?: string | null;
   verified_by?: string | null;

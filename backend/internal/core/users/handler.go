@@ -4,7 +4,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"net/url"
 	"strings"
 
 	platformauth "moneyapp/backend/internal/platform/auth"
@@ -118,7 +117,6 @@ func (h *Handler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 		OriginalName: header.Filename,
 		ContentType:  contentType,
 		Content:      content,
-		BaseURL:      requestBaseURL(r),
 	})
 	if err != nil {
 		httpx.WriteError(w, err)
@@ -254,27 +252,4 @@ func (h *Handler) LeaveCurrentDevelopmentTeam(w http.ResponseWriter, r *http.Req
 	}
 
 	httpx.WriteJSON(w, http.StatusOK, response)
-}
-
-func requestBaseURL(r *http.Request) string {
-	scheme := "http"
-	if r.TLS != nil {
-		scheme = "https"
-	}
-	if value := strings.TrimSpace(r.Header.Get("X-Forwarded-Proto")); value != "" {
-		scheme = value
-	}
-
-	host := strings.TrimSpace(r.Host)
-	if value := strings.TrimSpace(r.Header.Get("X-Forwarded-Host")); value != "" {
-		host = value
-	}
-
-	if origin := strings.TrimSpace(r.Header.Get("Origin")); origin != "" {
-		if parsed, err := url.Parse(origin); err == nil && parsed.Scheme != "" && parsed.Host != "" {
-			return parsed.Scheme + "://" + parsed.Host
-		}
-	}
-
-	return scheme + "://" + host
 }

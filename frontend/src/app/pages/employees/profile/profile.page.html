@@ -18,10 +18,10 @@
     <mat-card class="emp-hero">
       <mat-card-content class="emp-hero__content">
         <div class="emp-hero__identity">
-          @if (emp.avatar_url) {
+          @if (avatarUrl(emp.avatar_url); as avatarSrc) {
             <img
               class="emp-avatar"
-              [src]="emp.avatar_url"
+              [src]="avatarSrc"
               [alt]="fullName()"
             />
           } @else {
@@ -99,12 +99,12 @@
                 <div class="emp-team-card__members">
                   @for (member of team.members; track member.user_id) {
                     <div class="emp-team-member">
-                      <div class="emp-team-member__avatar">
-                        @if (member.avatar_url) {
-                          <img [src]="member.avatar_url" [alt]="member.display_name" />
-                        } @else {
-                          <span>{{ member.display_name.slice(0, 1).toUpperCase() }}</span>
-                        }
+                  <div class="emp-team-member__avatar">
+                    @if (avatarUrl(member.avatar_url); as memberAvatarSrc) {
+                      <img [src]="memberAvatarSrc" [alt]="member.display_name" />
+                    } @else {
+                      <span>{{ member.display_name.slice(0, 1).toUpperCase() }}</span>
+                    }
                       </div>
                       <div class="emp-team-member__meta">
                         <a [routerLink]="'/employees/' + member.user_id">{{ member.display_name }}</a>

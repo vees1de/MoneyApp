@@ -62,5 +62,4 @@ type AvatarUpload struct {
 	OriginalName string
 	ContentType  string
 	Content      []byte
-	BaseURL      string
 }

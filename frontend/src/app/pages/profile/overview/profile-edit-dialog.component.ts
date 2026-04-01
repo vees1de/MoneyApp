@@ -7,6 +7,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 
+import { resolveApiUrl } from '@core/api/url.util';
 import type { ProfileRole, UserProfile } from '@core/api/contracts';
 
 export interface ProfileEditDialogData {
@@ -46,7 +47,7 @@ export class ProfileEditDialogComponent implements OnDestroy {
     (this.data.profile.profile_roles ?? []).map((role) => role.code),
   );
   protected readonly selectedAvatarFile = signal<File | null>(null);
-  protected readonly previewUrl = signal<string | null>(this.data.profile.avatar_url ?? null);
+  protected readonly previewUrl = signal<string | null>(resolveApiUrl(this.data.profile.avatar_url));
 
   protected readonly form = this.fb.nonNullable.group({
     display_name: [this.data.profile.display_name ?? ''],

@@ -7,6 +7,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTabsModule } from '@angular/material/tabs';
 
+import { resolveApiUrl } from '@core/api/url.util';
 import { UsersApiService } from '@core/api/users-api.service';
 import type {
   EmployeePublicProfile,
@@ -105,6 +106,10 @@ export class EmployeeProfilePageComponent implements OnInit {
       case 'canceled': return 'status-badge--muted';
       default: return 'status-badge--muted';
     }
+  }
+
+  protected avatarUrl(value?: string | null): string | null {
+    return resolveApiUrl(value);
   }
 
   private loadProfile(userId: string): void {
