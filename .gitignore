@@ -34,7 +34,7 @@ backend/coverage.out
 backend/*.test
 backend/vendor/
 backend/uploads/
-uploads/
+/uploads/
 
 # Frontend / Node
 frontend/node_modules/
