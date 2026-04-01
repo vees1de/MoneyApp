@@ -564,6 +564,96 @@ func (r *Repository) TouchDevelopmentTeam(ctx context.Context, teamID uuid.UUID,
 	return err
 }
 
+func (r *Repository) GetEmployeePublicProfile(ctx context.Context, userID uuid.UUID, exec ...db.DBTX) (EmployeePublicProfile, error) {
+	var profile EmployeePublicProfile
+	var hireDate *time.Time
+	err := r.base(exec...).QueryRowContext(ctx, `
+		select u.id, u.email::text, u.display_name, u.avatar_url,
+		       ep.first_name, ep.last_name, ep.middle_name, ep.position_title,
+		       d.name, ep.hire_date
+		from users u
+		join employee_profiles ep on ep.user_id = u.id
+		left join departments d on d.id = ep.department_id
+		where u.id = $1
+	`, userID).Scan(
+		&profile.UserID,
+		&profile.Email,
+		&profile.DisplayName,
+		&profile.AvatarURL,
+		&profile.FirstName,
+		&profile.LastName,
+		&profile.MiddleName,
+		&profile.PositionTitle,
+		&profile.DepartmentName,
+		&hireDate,
+	)
+	if err != nil {
+		return EmployeePublicProfile{}, err
+	}
+
+	if hireDate != nil {
+		formatted := hireDate.Format("2006-01-02")
+		profile.HireDate = &formatted
+	}
+
+	profile.ProfileRoles = []ProfileRole{}
+	profile.Teams = []DevelopmentTeam{}
+	return profile, nil
+}
+
+func (r *Repository) ListEmployeeEnrollments(ctx context.Context, userID uuid.UUID, exec ...db.DBTX) ([]EmployeeEnrollmentItem, error) {
+	rows, err := r.base(exec...).QueryContext(ctx, `
+		select e.id, e.course_id, c.title, p.name, c.level,
+		       e.status, e.completion_percent, e.is_mandatory,
+		       e.enrolled_at, e.started_at, e.completed_at, e.deadline_at
+		from enrollments e
+		join courses c on c.id = e.course_id
+		left join providers p on p.id = c.provider_id
+		where e.user_id = $1
+		order by
+		  case e.status
+		    when 'in_progress' then 0
+		    when 'enrolled' then 1
+		    when 'completed' then 2
+		    else 3
+		  end,
+		  e.enrolled_at desc
+	`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := make([]EmployeeEnrollmentItem, 0, 16)
+	for rows.Next() {
+		var item EmployeeEnrollmentItem
+		var enrolledAt time.Time
+		var startedAt, completedAt, deadlineAt *time.Time
+		if err := rows.Scan(
+			&item.ID, &item.CourseID, &item.CourseTitle, &item.CourseProvider, &item.CourseLevel,
+			&item.Status, &item.CompletionPercent, &item.IsMandatory,
+			&enrolledAt, &startedAt, &completedAt, &deadlineAt,
+		); err != nil {
+			return nil, err
+		}
+		item.EnrolledAt = enrolledAt.Format(time.RFC3339)
+		if startedAt != nil {
+			f := startedAt.Format(time.RFC3339)
+			item.StartedAt = &f
+		}
+		if completedAt != nil {
+			f := completedAt.Format(time.RFC3339)
+			item.CompletedAt = &f
+		}
+		if deadlineAt != nil {
+			f := deadlineAt.Format(time.RFC3339)
+			item.DeadlineAt = &f
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
 func IsNotFound(err error) bool {
 	return errors.Is(err, sql.ErrNoRows)
 }

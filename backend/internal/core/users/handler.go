@@ -217,6 +217,28 @@ func (h *Handler) JoinDevelopmentTeam(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, response)
 }
 
+func (h *Handler) GetEmployeeProfile(w http.ResponseWriter, r *http.Request) {
+	_, ok := platformauth.PrincipalFromContext(r.Context())
+	if !ok {
+		httpx.WriteError(w, httpx.Unauthorized("unauthorized", "authorization required"))
+		return
+	}
+
+	userID, err := uuid.Parse(chi.URLParam(r, "userId"))
+	if err != nil {
+		httpx.WriteError(w, httpx.BadRequest("invalid_user_id", "invalid user id"))
+		return
+	}
+
+	response, err := h.service.GetEmployeePublicProfile(r.Context(), userID)
+	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+
+	httpx.WriteJSON(w, http.StatusOK, response)
+}
+
 func (h *Handler) LeaveCurrentDevelopmentTeam(w http.ResponseWriter, r *http.Request) {
 	principal, ok := platformauth.PrincipalFromContext(r.Context())
 	if !ok {

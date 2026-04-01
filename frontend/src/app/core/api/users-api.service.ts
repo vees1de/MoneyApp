@@ -6,6 +6,7 @@ import { API_BASE_URL } from '@core/config/api.config';
 import type {
   CreateDevelopmentTeamRequest,
   DevelopmentTeam,
+  EmployeeProfileResponse,
   ProfileMeResponse,
   ProfileRole,
   UpdateUserProfileRequest,
@@ -62,6 +63,10 @@ export class UsersApiService {
 
   leaveCurrentDevelopmentTeam(): Observable<ProfileMeResponse> {
     return this.http.post<ProfileMeResponse>(`${this.base}/development-teams/current/leave`, {});
+  }
+
+  getEmployeeProfile(userId: string): Observable<EmployeeProfileResponse> {
+    return this.http.get<EmployeeProfileResponse>(`${API_BASE_URL}/v1/employees/${userId}`);
   }
 
   listAdminUsers(): Observable<IdentityUserView[]> {

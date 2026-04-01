@@ -1,0 +1,245 @@
+<section class="emp-profile-page">
+  @if (loading()) {
+    <section class="emp-loading">
+      <div class="emp-skeleton emp-skeleton--hero"></div>
+      <div class="emp-skeleton emp-skeleton--courses"></div>
+    </section>
+  } @else if (error()) {
+    <section class="emp-error">
+      <mat-icon>error_outline</mat-icon>
+      <p>{{ error() }}</p>
+      <a mat-stroked-button routerLink="/catalog">
+        <mat-icon>arrow_back</mat-icon>
+        Вернуться
+      </a>
+    </section>
+  } @else if (profile(); as emp) {
+    <!-- Hero Card -->
+    <mat-card class="emp-hero">
+      <mat-card-content class="emp-hero__content">
+        <div class="emp-hero__identity">
+          @if (emp.avatar_url) {
+            <img
+              class="emp-avatar"
+              [src]="emp.avatar_url"
+              [alt]="fullName()"
+            />
+          } @else {
+            <div class="emp-avatar emp-avatar--fallback">
+              {{ avatarInitials() }}
+            </div>
+          }
+
+          <div class="emp-hero__info">
+            <h1>{{ fullName() }}</h1>
+            <p class="emp-hero__position">{{ emp.position_title || 'Должность не указана' }}</p>
+            <p class="emp-hero__email">{{ emp.email }}</p>
+
+            <div class="emp-hero__badges">
+              @if (emp.department_name) {
+                <span class="emp-badge emp-badge--dept">
+                  <mat-icon>business</mat-icon>
+                  {{ emp.department_name }}
+                </span>
+              }
+              @if (emp.hire_date) {
+                <span class="emp-badge emp-badge--date">
+                  <mat-icon>calendar_today</mat-icon>
+                  С {{ formatDate(emp.hire_date) }}
+                </span>
+              }
+              @for (role of emp.profile_roles; track role.code) {
+                <span class="emp-badge emp-badge--role">{{ role.name }}</span>
+              }
+            </div>
+          </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="emp-stats">
+          <div class="emp-stat">
+            <span class="emp-stat__value">{{ stats().total }}</span>
+            <span class="emp-stat__label">Всего курсов</span>
+          </div>
+          <div class="emp-stat emp-stat--progress">
+            <span class="emp-stat__value">{{ stats().inProgress }}</span>
+            <span class="emp-stat__label">В процессе</span>
+          </div>
+          <div class="emp-stat emp-stat--done">
+            <span class="emp-stat__value">{{ stats().completed }}</span>
+            <span class="emp-stat__label">Завершено</span>
+          </div>
+          @if (stats().mandatory > 0) {
+            <div class="emp-stat emp-stat--mandatory">
+              <span class="emp-stat__value">{{ stats().mandatory }}</span>
+              <span class="emp-stat__label">Обязательных</span>
+            </div>
+          }
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Teams -->
+    @if (emp.teams.length > 0) {
+      <mat-card class="emp-section">
+        <mat-card-content>
+          <h2 class="emp-section__title">
+            <mat-icon>groups</mat-icon>
+            Команды
+          </h2>
+          <div class="emp-teams">
+            @for (team of emp.teams; track team.id) {
+              <div class="emp-team-card">
+                <div class="emp-team-card__info">
+                  <strong>{{ team.name }}</strong>
+                  @if (team.description) {
+                    <p>{{ team.description }}</p>
+                  }
+                </div>
+                <div class="emp-team-card__members">
+                  @for (member of team.members; track member.user_id) {
+                    <div class="emp-team-member">
+                      <div class="emp-team-member__avatar">
+                        @if (member.avatar_url) {
+                          <img [src]="member.avatar_url" [alt]="member.display_name" />
+                        } @else {
+                          <span>{{ member.display_name.slice(0, 1).toUpperCase() }}</span>
+                        }
+                      </div>
+                      <div class="emp-team-member__meta">
+                        <a [routerLink]="'/employees/' + member.user_id">{{ member.display_name }}</a>
+                        <span>{{ member.email }}</span>
+                      </div>
+                      @if (member.is_lead) {
+                        <span class="emp-badge emp-badge--lead">Lead</span>
+                      }
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        </mat-card-content>
+      </mat-card>
+    }
+
+    <!-- Courses -->
+    <mat-card class="emp-section">
+      <mat-card-content>
+        <mat-tab-group>
+          <!-- In Progress -->
+          <mat-tab>
+            <ng-template mat-tab-label>
+              <mat-icon>school</mat-icon>
+              <span>Текущие курсы ({{ inProgressEnrollments().length }})</span>
+            </ng-template>
+
+            @if (inProgressEnrollments().length === 0) {
+              <div class="emp-empty">
+                <mat-icon>menu_book</mat-icon>
+                <p>Нет активных курсов</p>
+              </div>
+            } @else {
+              <div class="emp-courses">
+                @for (enrollment of inProgressEnrollments(); track enrollment.id) {
+                  <div class="emp-course-card">
+                    <div class="emp-course-card__header">
+                      <a class="emp-course-card__title" [routerLink]="'/catalog/' + enrollment.course_id">
+                        {{ enrollment.course_title }}
+                      </a>
+                      <span class="status-badge" [ngClass]="statusClass(enrollment.status)">
+                        {{ statusLabel(enrollment.status) }}
+                      </span>
+                    </div>
+
+                    <div class="emp-course-card__meta">
+                      @if (enrollment.course_provider) {
+                        <span><mat-icon>apartment</mat-icon> {{ enrollment.course_provider }}</span>
+                      }
+                      @if (enrollment.course_level) {
+                        <span><mat-icon>signal_cellular_alt</mat-icon> {{ enrollment.course_level }}</span>
+                      }
+                      @if (enrollment.is_mandatory) {
+                        <span class="emp-badge emp-badge--mandatory">Обязательный</span>
+                      }
+                    </div>
+
+                    <div class="emp-course-card__progress">
+                      <div class="emp-progress-row">
+                        <span>Прогресс</span>
+                        <strong>{{ formatProgress(enrollment.completion_percent) }}%</strong>
+                      </div>
+                      <mat-progress-bar
+                        mode="determinate"
+                        [value]="formatProgress(enrollment.completion_percent)"
+                      ></mat-progress-bar>
+                    </div>
+
+                    <div class="emp-course-card__dates">
+                      <span>Записан: {{ formatDate(enrollment.enrolled_at) }}</span>
+                      @if (enrollment.started_at) {
+                        <span>Начат: {{ formatDate(enrollment.started_at) }}</span>
+                      }
+                      @if (enrollment.deadline_at) {
+                        <span>Дедлайн: {{ formatDate(enrollment.deadline_at) }}</span>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          </mat-tab>
+
+          <!-- Completed -->
+          <mat-tab>
+            <ng-template mat-tab-label>
+              <mat-icon>verified</mat-icon>
+              <span>Пройденные ({{ completedEnrollments().length }})</span>
+            </ng-template>
+
+            @if (completedEnrollments().length === 0) {
+              <div class="emp-empty">
+                <mat-icon>emoji_events</mat-icon>
+                <p>Нет завершённых курсов</p>
+              </div>
+            } @else {
+              <div class="emp-courses">
+                @for (enrollment of completedEnrollments(); track enrollment.id) {
+                  <div class="emp-course-card emp-course-card--completed">
+                    <div class="emp-course-card__header">
+                      <a class="emp-course-card__title" [routerLink]="'/catalog/' + enrollment.course_id">
+                        {{ enrollment.course_title }}
+                      </a>
+                      <span class="status-badge status-badge--success">
+                        {{ statusLabel(enrollment.status) }}
+                      </span>
+                    </div>
+
+                    <div class="emp-course-card__meta">
+                      @if (enrollment.course_provider) {
+                        <span><mat-icon>apartment</mat-icon> {{ enrollment.course_provider }}</span>
+                      }
+                      @if (enrollment.course_level) {
+                        <span><mat-icon>signal_cellular_alt</mat-icon> {{ enrollment.course_level }}</span>
+                      }
+                      @if (enrollment.is_mandatory) {
+                        <span class="emp-badge emp-badge--mandatory">Обязательный</span>
+                      }
+                    </div>
+
+                    <div class="emp-course-card__dates">
+                      @if (enrollment.completed_at) {
+                        <span>Завершён: {{ formatDate(enrollment.completed_at) }}</span>
+                      }
+                      <span>Записан: {{ formatDate(enrollment.enrolled_at) }}</span>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          </mat-tab>
+        </mat-tab-group>
+      </mat-card-content>
+    </mat-card>
+  }
+</section>

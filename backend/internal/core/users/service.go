@@ -337,6 +337,47 @@ func (s *Service) LeaveCurrentDevelopmentTeam(ctx context.Context, userID uuid.U
 	return s.buildProfileResponse(ctx, userID)
 }
 
+func (s *Service) GetEmployeePublicProfile(ctx context.Context, userID uuid.UUID) (EmployeeProfileResponse, error) {
+	profile, err := s.repo.GetEmployeePublicProfile(ctx, userID)
+	if IsNotFound(err) {
+		return EmployeeProfileResponse{}, httpx.NotFound("employee_not_found", "employee profile not found")
+	}
+	if err != nil {
+		return EmployeeProfileResponse{}, err
+	}
+
+	profileRoles, err := s.repo.ListUserProfileRoles(ctx, userID)
+	if err != nil {
+		return EmployeeProfileResponse{}, err
+	}
+	if profileRoles == nil {
+		profileRoles = []ProfileRole{}
+	}
+	profile.ProfileRoles = profileRoles
+
+	teams, err := s.repo.ListDevelopmentTeamsByUser(ctx, userID)
+	if err != nil {
+		return EmployeeProfileResponse{}, err
+	}
+	if teams == nil {
+		teams = []DevelopmentTeam{}
+	}
+	profile.Teams = teams
+
+	enrollments, err := s.repo.ListEmployeeEnrollments(ctx, userID)
+	if err != nil {
+		return EmployeeProfileResponse{}, err
+	}
+	if enrollments == nil {
+		enrollments = []EmployeeEnrollmentItem{}
+	}
+
+	return EmployeeProfileResponse{
+		Profile:     profile,
+		Enrollments: enrollments,
+	}, nil
+}
+
 func (s *Service) buildProfileResponse(ctx context.Context, userID uuid.UUID) (MeResponse, error) {
 	profile, err := s.repo.GetProfileBase(ctx, userID)
 	if IsNotFound(err) {

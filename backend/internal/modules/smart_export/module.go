@@ -90,6 +90,9 @@ func (s *Service) Export(r *http.Request, req SmartExportRequest) ([]byte, strin
 		return nil, "", err
 	}
 
+	// Translate enum values to Russian
+	LocalizeRows(qr)
+
 	// Generate XLSX
 	sheetName := src.Label
 	data, err := GenerateXLSX(qr, sheetName)

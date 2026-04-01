@@ -1,0 +1,471 @@
+:host {
+  display: block;
+}
+
+.emp-profile-page {
+  display: grid;
+  gap: var(--space-6);
+}
+
+// Loading
+.emp-loading {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.emp-skeleton {
+  animation: emp-shimmer 1.25s ease-in-out infinite;
+  background: linear-gradient(90deg, rgb(8 15 29 / 5%), rgb(8 15 29 / 11%), rgb(8 15 29 / 5%));
+  background-size: 200% 100%;
+  border-radius: var(--radius-md);
+}
+
+.emp-skeleton--hero {
+  height: 260px;
+}
+
+.emp-skeleton--courses {
+  height: 400px;
+}
+
+@keyframes emp-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+// Error
+.emp-error {
+  align-items: center;
+  color: var(--status-error);
+  display: flex;
+  flex-direction: column;
+  font-weight: 600;
+  gap: var(--space-3);
+  padding: var(--space-8) 0;
+  text-align: center;
+
+  mat-icon {
+    font-size: 48px;
+    height: 48px;
+    width: 48px;
+  }
+}
+
+// Hero
+.emp-hero {
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-soft);
+}
+
+.emp-hero__content {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.emp-hero__identity {
+  align-items: flex-start;
+  display: flex;
+  gap: var(--space-5);
+}
+
+.emp-avatar {
+  border-radius: 22px;
+  flex: 0 0 100px;
+  height: 100px;
+  object-fit: cover;
+  width: 100px;
+}
+
+.emp-avatar--fallback {
+  align-items: center;
+  background: linear-gradient(135deg, var(--app-primary), #7f90f0);
+  color: #fff;
+  display: inline-flex;
+  font-size: 1.8rem;
+  font-weight: 700;
+  justify-content: center;
+}
+
+.emp-hero__info {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.emp-hero__info h1 {
+  font-size: clamp(1.5rem, 2.8vw, 2rem);
+  margin: 0;
+}
+
+.emp-hero__position {
+  color: var(--app-text);
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.emp-hero__email {
+  color: var(--app-muted);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.emp-hero__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: var(--space-1);
+}
+
+// Badges
+.emp-badge {
+  align-items: center;
+  background: var(--app-surface-muted);
+  border-radius: 999px;
+  color: var(--app-muted);
+  display: inline-flex;
+  font-size: 0.82rem;
+  font-weight: 600;
+  gap: 0.3rem;
+  padding: 0.35rem 0.7rem;
+
+  mat-icon {
+    font-size: 15px;
+    height: 15px;
+    width: 15px;
+  }
+}
+
+.emp-badge--dept {
+  background: rgb(86 106 230 / 10%);
+  color: var(--app-primary);
+}
+
+.emp-badge--date {
+  background: rgb(46 125 50 / 8%);
+  color: var(--status-success);
+}
+
+.emp-badge--role {
+  background: rgb(63 81 181 / 10%);
+  color: #3f51b5;
+}
+
+.emp-badge--lead {
+  background: rgb(46 125 50 / 10%);
+  color: var(--status-success);
+}
+
+.emp-badge--mandatory {
+  background: rgb(198 40 40 / 8%);
+  color: var(--status-error);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+// Stats
+.emp-stats {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+
+.emp-stat {
+  background: var(--app-surface-soft);
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-sm);
+  display: grid;
+  gap: 0.15rem;
+  padding: var(--space-3) var(--space-4);
+  text-align: center;
+}
+
+.emp-stat__value {
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.emp-stat__label {
+  color: var(--app-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.emp-stat--progress .emp-stat__value { color: var(--status-info); }
+.emp-stat--done .emp-stat__value { color: var(--status-success); }
+.emp-stat--mandatory .emp-stat__value { color: var(--status-warning); }
+
+// Sections
+.emp-section {
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-soft);
+}
+
+.emp-section__title {
+  align-items: center;
+  display: flex;
+  font-size: 1.1rem;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-4);
+}
+
+// Teams
+.emp-teams {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.emp-team-card {
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-sm);
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.emp-team-card__info {
+  display: grid;
+  gap: 0.25rem;
+
+  p {
+    color: var(--app-muted);
+    font-size: 0.9rem;
+    margin: 0;
+  }
+}
+
+.emp-team-card__members {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.emp-team-member {
+  align-items: center;
+  border: 1px solid var(--app-border);
+  border-radius: 14px;
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+}
+
+.emp-team-member__avatar {
+  align-items: center;
+  background: linear-gradient(135deg, var(--app-primary), #7f90f0);
+  border-radius: 50%;
+  color: #fff;
+  display: flex;
+  flex: 0 0 36px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  height: 36px;
+  justify-content: center;
+  overflow: hidden;
+  width: 36px;
+
+  img {
+    height: 100%;
+    object-fit: cover;
+    width: 100%;
+  }
+}
+
+.emp-team-member__meta {
+  display: grid;
+  flex: 1;
+  gap: 0.1rem;
+
+  a {
+    color: var(--app-text);
+    font-weight: 600;
+    text-decoration: none;
+
+    &:hover {
+      color: var(--app-primary);
+    }
+  }
+
+  span {
+    color: var(--app-muted);
+    font-size: 0.82rem;
+  }
+}
+
+// Courses
+.emp-empty {
+  align-items: center;
+  color: var(--app-muted);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-8) 0;
+
+  mat-icon {
+    font-size: 40px;
+    height: 40px;
+    opacity: 0.4;
+    width: 40px;
+  }
+
+  p {
+    font-weight: 500;
+  }
+}
+
+.emp-courses {
+  display: grid;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+}
+
+.emp-course-card {
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-sm);
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  transition: border-color 0.15s;
+
+  &:hover {
+    border-color: var(--app-primary-soft);
+  }
+}
+
+.emp-course-card--completed {
+  border-left: 3px solid var(--status-success);
+}
+
+.emp-course-card__header {
+  align-items: flex-start;
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+}
+
+.emp-course-card__title {
+  color: var(--app-text);
+  font-size: 1rem;
+  font-weight: 700;
+  text-decoration: none;
+
+  &:hover {
+    color: var(--app-primary);
+  }
+}
+
+.emp-course-card__meta {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+
+  > span {
+    align-items: center;
+    color: var(--app-muted);
+    display: inline-flex;
+    font-size: 0.85rem;
+    font-weight: 500;
+    gap: 0.25rem;
+
+    mat-icon {
+      font-size: 16px;
+      height: 16px;
+      width: 16px;
+    }
+  }
+}
+
+.emp-course-card__progress {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.emp-progress-row {
+  display: flex;
+  font-size: 0.85rem;
+  justify-content: space-between;
+
+  span {
+    color: var(--app-muted);
+    font-weight: 500;
+  }
+
+  strong {
+    color: var(--app-text);
+  }
+}
+
+.emp-course-card__dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+
+  span {
+    color: var(--app-muted);
+    font-size: 0.82rem;
+    font-weight: 500;
+  }
+}
+
+// Status badges
+.status-badge {
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.25rem 0.6rem;
+  white-space: nowrap;
+}
+
+.status-badge--success {
+  background: rgb(46 125 50 / 10%);
+  color: var(--status-success);
+}
+
+.status-badge--info {
+  background: rgb(25 118 210 / 10%);
+  color: var(--status-info);
+}
+
+.status-badge--warning {
+  background: rgb(237 173 53 / 12%);
+  color: var(--status-warning);
+}
+
+.status-badge--muted {
+  background: var(--app-surface-muted);
+  color: var(--app-muted);
+}
+
+// Tabs
+::ng-deep .mat-mdc-tab-labels {
+  gap: var(--space-2);
+}
+
+::ng-deep .mat-mdc-tab .mdc-tab__text-label {
+  align-items: center;
+  display: flex;
+  gap: 0.35rem;
+}
+
+// Responsive
+@media (max-width: 768px) {
+  .emp-hero__identity {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .emp-hero__badges {
+    justify-content: center;
+  }
+
+  .emp-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .emp-course-card__header {
+    flex-direction: column;
+  }
+}
