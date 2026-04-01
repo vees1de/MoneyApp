@@ -111,6 +111,11 @@
   font-size: 0.79rem;
 }
 
+.rows__icon {
+  width: 29px;
+  height: 29px;
+}
+
 .rows__amount {
   font-size: 1.48rem;
   font-weight: 500;
@@ -118,16 +123,20 @@
 
 .kv__key {
   color: var(--app-muted);
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   font-weight: 500;
+  width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .kv__value {
   color: var(--app-text);
   display: inline-block;
-  font-size: 0.92rem;
-  font-weight: 500;
-  max-width: 26ch;
+  font-size: 14px;
+  font-weight: 400;
+  width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
   vertical-align: bottom;
@@ -175,6 +184,7 @@
   0% {
     background-position: 100% 0;
   }
+
   100% {
     background-position: -100% 0;
   }

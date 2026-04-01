@@ -50,7 +50,9 @@
 
         <div class="intakes-ai-banner__text">
           <h2>Подобрать курс с помощью ИИ</h2>
-          <p>Запустите AI-рекомендации и получите список курсов и открытых наборов под ваши задачи.</p>
+          <p>
+            Запустите AI-рекомендации и получите список курсов и открытых наборов под ваши задачи.
+          </p>
         </div>
       </div>
 
@@ -76,26 +78,34 @@
       @for (item of intakes(); track item.id) {
         <mat-card class="intake-card">
           <mat-card-header>
-            <mat-card-title>
-              <a [routerLink]="'/intakes/' + item.id">{{ item.title }}</a>
+            <mat-card-title [routerLink]="'/intakes/' + item.id" class="intake-card__title">
+              <a>{{ item.title }}</a>
+              <div class="intake-card__arrow">
+                <img src="arrow-icon.svg" alt="" />
+              </div>
             </mat-card-title>
-            <mat-card-subtitle>{{ statusLabel(item.status) }}</mat-card-subtitle>
+            <mat-card-subtitle class="intake-card__subtitle">{{
+              statusLabel(item.status)
+            }}</mat-card-subtitle>
           </mat-card-header>
 
           <mat-card-content class="intake-card__content">
-            <p>
+            <p class="intake-card__meta">
+              <mat-icon class="intake-card__meta-icon" aria-hidden="true">calendar_month</mat-icon>
               <span class="kv__key">Старт: </span>
               <span class="kv__value">{{
                 item.start_date ? (item.start_date | date: 'dd.MM.yyyy') : '—'
               }}</span>
             </p>
-            <p>
+            <p class="intake-card__meta">
+              <mat-icon class="intake-card__meta-icon" aria-hidden="true">calendar_month</mat-icon>
               <span class="kv__key">Финиш: </span>
               <span class="kv__value">{{
                 item.end_date ? (item.end_date | date: 'dd.MM.yyyy') : '—'
               }}</span>
             </p>
-            <p>
+            <p class="intake-card__meta">
+              <mat-icon class="intake-card__meta-icon" aria-hidden="true">hourglass_bottom</mat-icon>
               <span class="kv__key">Дедлайн заявки: </span>
               <span class="kv__value">
                 {{
@@ -105,12 +115,14 @@
                 }}
               </span>
             </p>
-            <p>
+            <p class="intake-card__meta">
+              <mat-icon class="intake-card__meta-icon" aria-hidden="true">group</mat-icon>
               <span class="kv__key">Лимит участников: </span>
               <span class="kv__value">{{ item.max_participants ?? 'не ограничен' }}</span>
             </p>
 
-            <p>
+            <p class="intake-card__meta">
+              <mat-icon class="intake-card__meta-icon" aria-hidden="true">currency_ruble</mat-icon>
               <span class="kv__key">Цена: </span>
               <span class="kv__value"
                 >{{ item.price || '—' }} {{ item.price_currency || 'RUB' }}</span

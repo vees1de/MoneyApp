@@ -26,8 +26,8 @@
             [selected]="activeSource()?.key === source.key"
             (click)="selectSource(source)"
           >
-            <span class="source-chip__label">{{ source.label }}</span>
-            <span class="source-chip__meta">{{ source.columns.length }} полей</span>
+            <span class="source-chip__label">{{ source.label }} </span>
+            <span class="source-chip__meta">({{ source.columns.length }})</span>
           </mat-chip-option>
         }
       </mat-chip-listbox>
@@ -126,14 +126,21 @@
 
           <div class="column-actions">
             <button mat-stroked-button type="button" (click)="selectAllColumns()">Все</button>
-            <button mat-stroked-button type="button" (click)="deselectAllColumns()">Очистить</button>
+            <button mat-stroked-button type="button" (click)="deselectAllColumns()">
+              Очистить
+            </button>
             <button mat-stroked-button type="button" (click)="selectDefaultColumns()">База</button>
           </div>
 
           <div class="column-list" cdkDropList (cdkDropListDropped)="onColumnDrop($event)">
             @for (item of columnSelections(); track item.column.key; let i = $index) {
               <div class="column-item" cdkDrag>
-                <button class="column-item__drag" type="button" cdkDragHandle aria-label="Переместить столбец">
+                <button
+                  class="column-item__drag"
+                  type="button"
+                  cdkDragHandle
+                  aria-label="Переместить столбец"
+                >
                   <mat-icon>drag_indicator</mat-icon>
                 </button>
 
@@ -154,7 +161,9 @@
         <section class="config-section">
           <div class="config-section__row">
             <h3>Фильтры</h3>
-            <button mat-button type="button" class="reset-link" (click)="resetFilters()">Сбросить</button>
+            <button mat-button type="button" class="reset-link" (click)="resetFilters()">
+              Сбросить
+            </button>
           </div>
 
           <form class="filter-grid" [formGroup]="filterForm">
@@ -214,7 +223,6 @@
             }
           </form>
         </section>
-
       </aside>
     </section>
   } @else if (!facade.sourcesLoading() && !facade.sourcesError()) {
