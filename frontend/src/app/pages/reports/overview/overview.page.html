@@ -1,11 +1,234 @@
-﻿<section class="page-shell">
-  <header class="page-header">
-    <h1>ReportsOverviewPageComponent</h1>
-    <p>Route: <code>/reports/overview</code></p>
+<section class="export-page">
+  <!-- Header -->
+  <header class="export-header">
+    <div class="export-header__text">
+      <h1>HR Аналитика</h1>
+      <p>Умная выгрузка данных в Excel с настройкой колонок, фильтров и сортировки</p>
+    </div>
   </header>
 
-  <main class="page-content">
-    <p>Page scaffold created. Connect real widgets and data flows next.</p>
-    <a routerLink="/">Go to root</a>
-  </main>
+  <!-- Step 1: Source Selection -->
+  <mat-card class="export-step">
+    <mat-card-content>
+      <div class="step-label">
+        <span class="step-number">1</span>
+        <span class="step-title">Выберите источник данных</span>
+      </div>
+
+      @if (facade.sourcesLoading()) {
+        <div class="export-loading">
+          <mat-spinner diameter="28"></mat-spinner>
+          <span>Загрузка источников...</span>
+        </div>
+      } @else if (facade.sourcesError()) {
+        <div class="export-error">
+          <mat-icon>error_outline</mat-icon>
+          <span>{{ facade.sourcesError() }}</span>
+          <button mat-stroked-button (click)="facade.load()">Повторить</button>
+        </div>
+      } @else {
+        <div class="source-grid">
+          @for (source of facade.sources(); track source.key) {
+            <button
+              class="source-card"
+              [class.source-card--active]="activeSource()?.key === source.key"
+              (click)="selectSource(source)"
+            >
+              <span class="source-card__label">{{ source.label }}</span>
+              <span class="source-card__meta">{{ source.columns.length }} колонок</span>
+            </button>
+          }
+        </div>
+      }
+    </mat-card-content>
+  </mat-card>
+
+  @if (activeSource()) {
+    <!-- Step 2: Column Picker -->
+    <mat-card class="export-step">
+      <mat-card-content>
+        <div class="step-label">
+          <span class="step-number">2</span>
+          <span class="step-title">Настройте колонки</span>
+          <span class="step-subtitle">{{ selectedCount() }} из {{ totalCount() }} выбрано</span>
+        </div>
+
+        <div class="column-actions">
+          <button mat-stroked-button (click)="selectAllColumns()">
+            <mat-icon>check_box</mat-icon>
+            Все
+          </button>
+          <button mat-stroked-button (click)="deselectAllColumns()">
+            <mat-icon>check_box_outline_blank</mat-icon>
+            Ни одной
+          </button>
+          <button mat-stroked-button (click)="selectDefaultColumns()">
+            <mat-icon>restart_alt</mat-icon>
+            По умолчанию
+          </button>
+        </div>
+
+        <div
+          class="column-list"
+          cdkDropList
+          (cdkDropListDropped)="onColumnDrop($event)"
+        >
+          @for (item of columnSelections(); track item.column.key; let i = $index) {
+            <div class="column-item" cdkDrag>
+              <div class="column-item__drag" cdkDragHandle>
+                <mat-icon>drag_indicator</mat-icon>
+              </div>
+              <mat-checkbox
+                [checked]="item.selected"
+                (change)="toggleColumn(i)"
+                color="primary"
+              >
+                <div class="column-item__info">
+                  <span class="column-item__label">{{ item.column.label }}</span>
+                  <span class="column-item__type">
+                    <mat-icon>{{ getColumnTypeIcon(item.column.type) }}</mat-icon>
+                    {{ getColumnTypeLabel(item.column.type) }}
+                  </span>
+                </div>
+              </mat-checkbox>
+              @if (item.column.default) {
+                <span class="column-item__default-badge">default</span>
+              }
+            </div>
+          }
+        </div>
+
+        @if (selectedCount() > 0) {
+          <div class="selected-preview">
+            <span class="selected-preview__title">Порядок колонок в Excel:</span>
+            <div class="selected-chips">
+              @for (item of selectedColumns(); track item.column.key; let i = $index) {
+                <span class="selected-chip">
+                  <span class="selected-chip__index">{{ i + 1 }}</span>
+                  {{ item.column.label }}
+                </span>
+              }
+            </div>
+          </div>
+        }
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Step 3: Filters -->
+    <mat-card class="export-step">
+      <mat-card-content>
+        <div class="step-label">
+          <span class="step-number">3</span>
+          <span class="step-title">Фильтры и сортировка</span>
+          <span class="step-subtitle">опционально</span>
+        </div>
+
+        <form class="filter-grid" [formGroup]="filterForm">
+          <mat-form-field appearance="outline">
+            <mat-label>Поиск</mat-label>
+            <mat-icon matPrefix>search</mat-icon>
+            <input matInput formControlName="search" placeholder="ФИО, email, название..." />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Статусы</mat-label>
+            <mat-select formControlName="statuses" multiple>
+              @for (opt of statusOptions; track opt.value) {
+                <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Уровни</mat-label>
+            <mat-select formControlName="levels" multiple>
+              @for (opt of levelOptions; track opt.value) {
+                <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Дата от</mat-label>
+            <input matInput type="date" formControlName="date_from" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Дата до</mat-label>
+            <input matInput type="date" formControlName="date_to" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Сортировка</mat-label>
+            <mat-select formControlName="sort_by">
+              <mat-option value="">Без сортировки</mat-option>
+              @for (item of selectedColumns(); track item.column.key) {
+                <mat-option [value]="item.column.key">{{ item.column.label }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+
+          @if (filterForm.controls.sort_by.value) {
+            <mat-form-field appearance="outline">
+              <mat-label>Направление</mat-label>
+              <mat-select formControlName="sort_dir">
+                @for (opt of sortDirOptions; track opt.value) {
+                  <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+          }
+
+          <div class="filter-actions">
+            <button mat-stroked-button type="button" (click)="resetFilters()">
+              <mat-icon>restart_alt</mat-icon>
+              Сбросить фильтры
+            </button>
+          </div>
+        </form>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Step 4: Export -->
+    <mat-card class="export-step export-step--action">
+      <mat-card-content>
+        <div class="export-action-bar">
+          <div class="export-action-bar__info">
+            <div class="step-label">
+              <span class="step-number">4</span>
+              <span class="step-title">Выгрузка</span>
+            </div>
+            <p class="export-action-bar__summary">
+              <strong>{{ activeSource()?.label }}</strong> &middot;
+              {{ selectedCount() }} колонок
+            </p>
+          </div>
+
+          <div class="export-action-bar__buttons">
+            @if (facade.exporting()) {
+              <mat-spinner diameter="28"></mat-spinner>
+            }
+
+            @if (facade.exportError()) {
+              <span class="export-action-bar__error">
+                <mat-icon>error_outline</mat-icon>
+                {{ facade.exportError() }}
+              </span>
+            }
+
+            <button
+              mat-flat-button
+              color="primary"
+              class="export-button"
+              [disabled]="!canExport()"
+              (click)="exportExcel()"
+            >
+              <mat-icon>download</mat-icon>
+              Скачать Excel
+            </button>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  }
 </section>
