@@ -10,6 +10,7 @@
 .agile__stats,
 .agile__body,
 .agile__boards,
+.agile__columns-grid,
 .agile__board-metrics,
 .agile__tasks,
 .agile__task-list,
@@ -44,12 +45,13 @@
   grid-column: 1 / -1;
 }
 
-.agile__hero,
+.agile__overview,
 .agile__panel,
 .agile__stat-card,
 .agile__board-card,
 .agile__task,
 .agile__task-card,
+.agile__column-card,
 .agile__company-card,
 .agile__modal {
   background:
@@ -58,7 +60,7 @@
   border-radius: var(--radius-md);
 }
 
-.agile__hero,
+.agile__overview,
 .agile__panel,
 .agile__modal,
 .agile__stat-card,
@@ -67,7 +69,7 @@
   padding: var(--space-4);
 }
 
-.agile__hero,
+.agile__overview,
 .agile__panel,
 .agile__modal,
 .agile__section {
@@ -75,12 +77,11 @@
   gap: var(--space-4);
 }
 
-.agile__hero {
+.agile__overview {
   gap: var(--space-3);
-  min-height: 132px;
 }
 
-.agile__hero-copy,
+.agile__overview-copy,
 .agile__company-copy,
 .agile__task-copy,
 .agile__task-card-copy {
@@ -88,7 +89,7 @@
   gap: 6px;
 }
 
-.agile__hero-copy h3,
+.agile__overview-copy h3,
 .agile__section-head h3,
 .agile__hint,
 .agile__message,
@@ -123,7 +124,7 @@
 .agile__meta-row,
 .agile__modal-actions,
 .agile__modal-head,
-.agile__hero-top {
+.agile__overview-head {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
@@ -132,7 +133,7 @@
 
 .agile__toolbar,
 .agile__modal-head,
-.agile__hero-top {
+.agile__overview-head {
   justify-content: space-between;
 }
 
@@ -203,7 +204,7 @@
   padding: var(--space-3);
 }
 
-.agile__section--tasks {
+.agile__section--columns {
   padding-top: var(--space-2);
 }
 
@@ -221,6 +222,10 @@
   display: grid;
   gap: var(--space-3);
   padding: 14px 16px;
+}
+
+.agile__columns-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .agile__board-top,
@@ -243,6 +248,50 @@
   border: 1px solid var(--app-border);
   border-radius: var(--radius-md);
   padding: 14px 16px;
+}
+
+.agile__column-card {
+  color: var(--app-text);
+  cursor: pointer;
+  display: grid;
+  gap: 10px;
+  font: inherit;
+  padding: 14px 16px;
+  text-align: left;
+  transition:
+    border-color 0.18s ease,
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+  width: 100%;
+}
+
+.agile__column-card:hover {
+  border-color: var(--app-primary);
+  box-shadow: 0 10px 24px rgb(79 137 168 / 10%);
+  transform: translateY(-1px);
+}
+
+.agile__column-card:focus-visible {
+  outline: 2px solid var(--app-primary);
+  outline-offset: 2px;
+}
+
+.agile__column-card-top {
+  align-items: baseline;
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+}
+
+.agile__column-card-top span {
+  color: var(--app-muted);
+  font-weight: 700;
+}
+
+.agile__column-card-meta {
+  color: var(--app-muted);
+  display: grid;
+  gap: 4px;
 }
 
 .agile__task-card-copy {
@@ -306,6 +355,12 @@
   width: min(100%, 760px);
 }
 
+.agile__modal--tasks {
+  max-height: min(84vh, 840px);
+  max-width: 980px;
+  width: min(100%, 980px);
+}
+
 .agile__icon-button {
   background: transparent;
   border: 0;
@@ -320,6 +375,7 @@
   .agile__body,
   .agile__stats,
   .agile__boards,
+  .agile__columns-grid,
   .agile__board-metrics,
   .agile__settings-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -331,6 +387,7 @@
   .agile__body,
   .agile__stats,
   .agile__boards,
+  .agile__columns-grid,
   .agile__board-metrics,
   .agile__settings-grid,
   .agile__task-card-meta {
@@ -345,7 +402,7 @@
   .agile__company-card,
   .agile__modal-head,
   .agile__modal-actions,
-  .agile__hero-top {
+  .agile__overview-head {
     flex-direction: column;
   }
 

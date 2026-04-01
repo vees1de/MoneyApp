@@ -147,7 +147,10 @@ func NewRouter(container *Container) http.Handler {
 				r.Post("/development-teams/{id}/join", container.UsersHandler.JoinDevelopmentTeam)
 			})
 
-			r.Get("/employees/{userId}", container.UsersHandler.GetEmployeeProfile)
+			r.Route("/employees", func(r chi.Router) {
+				r.Get("/learning-stats", container.EmployeesStatsHandler.LearningStats)
+				r.Get("/{userId}", container.UsersHandler.GetEmployeeProfile)
+			})
 
 			r.Route("/admin", func(r chi.Router) {
 				r.With(middleware.RBAC("users.read")).Get("/users", container.AdminHandler.ListUsers)
@@ -319,10 +322,6 @@ func NewRouter(container *Container) http.Handler {
 			r.Route("/sessions", func(r chi.Router) {
 				r.With(middleware.RBAC("programs.manage")).Post("/{id}/trainer-feedback", container.UniversityHandler.TrainerFeedback)
 				r.Post("/{id}/participant-feedback", container.UniversityHandler.ParticipantFeedback)
-			})
-
-			r.Route("/employees", func(r chi.Router) {
-				r.Get("/learning-stats", container.EmployeesStatsHandler.LearningStats)
 			})
 
 			r.Route("/analytics", func(r chi.Router) {

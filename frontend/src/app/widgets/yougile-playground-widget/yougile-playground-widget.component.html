@@ -8,27 +8,30 @@
       <p class="agile__message agile__message--success">{{ actionNotice() }}</p>
     }
 
-    <section class="agile__hero">
+    <section class="agile__overview">
       @if (connectionLoading()) {
         <p class="agile__hint">Загружаю подключение...</p>
       } @else if (currentConnection(); as connection) {
-        <div class="agile__hero-top">
-          <span class="agile__status-pill">{{ connectionStatusLabel(connection.status) }}</span>
-          <button mat-stroked-button type="button" (click)="openSettingsModal()">Настройки</button>
-        </div>
+        <div class="agile__overview-head">
+          <div class="agile__overview-copy">
+            <span class="agile__eyebrow">YouGile</span>
+            <h3>{{ connectionLabel(connection) }}</h3>
+            <div class="agile__meta-row">
+              <span>{{ connection.yougile_company_id }}</span>
+              <span>{{ formatSyncTime(connection.last_success_sync_at) }}</span>
+            </div>
+          </div>
 
-        <div class="agile__hero-copy">
-          <span class="agile__eyebrow">YouGile</span>
-          <h3>{{ connectionLabel(connection) }}</h3>
-          <div class="agile__meta-row">
-            <span>{{ connection.yougile_company_id }}</span>
-            <span>{{ formatSyncTime(connection.last_success_sync_at) }}</span>
+          <div class="agile__actions">
+            <span class="agile__status-pill">{{ connectionStatusLabel(connection.status) }}</span>
+            <button mat-stroked-button type="button" (click)="openSettingsModal()">Настройки</button>
           </div>
         </div>
       } @else {
-        <div class="agile__hero-copy">
+        <div class="agile__overview-copy">
           <span class="agile__eyebrow">YouGile</span>
           <h3>Подключите agile</h3>
+          <p class="agile__hint">Чтобы видеть колонки и задачи, подключите компанию.</p>
         </div>
 
         <div class="agile__actions">
@@ -66,6 +69,34 @@
             <button mat-stroked-button type="button" (click)="reloadSummary()">Обновить</button>
           </div>
         </div>
+
+        <section class="agile__section agile__section--columns">
+          <div class="agile__section-head">
+            <h3>Первые 4 колонки</h3>
+            <button mat-stroked-button type="button" (click)="openTasksModal()">Все задачи</button>
+          </div>
+
+          @if (tasksLoading() && !columnCards().length) {
+            <p class="agile__hint">Загружаю колонки...</p>
+          } @else if (!columnCards().length) {
+            <p class="agile__hint">Колонок пока нет.</p>
+          } @else {
+            <div class="agile__columns-grid">
+              @for (column of columnCards(); track trackColumn($index, column)) {
+                <button class="agile__column-card" type="button" (click)="openTasksModal()">
+                  <div class="agile__column-card-top">
+                    <strong>{{ column.title }}</strong>
+                    <span>{{ column.tasksTotal }}</span>
+                  </div>
+
+                  <div class="agile__column-card-meta">
+                    <span>{{ column.boardTitle }}</span>
+                  </div>
+                </button>
+              }
+            </div>
+          }
+        </section>
 
         @if (summaryLoading()) {
           <p class="agile__hint">Подгружаю summary...</p>
@@ -140,48 +171,53 @@
               }
             </section>
           </div>
-        }
-
-        <section class="agile__section agile__section--tasks">
-          <div class="agile__section-head">
-            <h3>Текущие задачи</h3>
-          </div>
-
-          @if (tasksLoading()) {
-            <p class="agile__hint">Загружаю задачи...</p>
-          } @else if (tasksError()) {
-            <p class="agile__message agile__message--error">{{ tasksError() }}</p>
-          } @else if (!visibleTasks().length) {
-            <p class="agile__hint">Активных задач не найдено.</p>
-          } @else {
-            <ul class="agile__task-list">
-              @for (task of visibleTasks(); track task.id) {
-                <li class="agile__task-card">
-                  <div class="agile__task-card-copy">
-                    <div class="agile__task-card-top">
-                      <strong>{{ task.title }}</strong>
-                      <span>{{ taskIdentifier(task) }}</span>
-                    </div>
-                    <div class="agile__task-card-meta">
-                      <span>{{ taskBoardLabel(task) }}</span>
-                      <span>{{ taskColumnLabel(task) }}</span>
-                      @if (task.assigned?.length) {
-                        <span>Исполнители: {{ task.assigned?.length }}</span>
-                      }
-                    </div>
-                  </div>
-
-                  <div class="agile__task-card-side">
-                    <span>{{ taskDeadlineLabel(task) }}</span>
-                  </div>
-                </li>
-              }
-            </ul>
           }
         </section>
-      </section>
     }
   </section>
+
+  @if (tasksModalOpen()) {
+    <div class="agile__modal-backdrop" (click)="closeTasksModal()">
+      <section class="agile__modal agile__modal--tasks" (click)="$event.stopPropagation()">
+        <div class="agile__modal-head">
+          <h3>Текущие задачи</h3>
+          <button class="agile__icon-button" type="button" (click)="closeTasksModal()">×</button>
+        </div>
+
+        @if (tasksLoading()) {
+          <p class="agile__hint">Загружаю задачи...</p>
+        } @else if (tasksError()) {
+          <p class="agile__message agile__message--error">{{ tasksError() }}</p>
+        } @else if (!visibleTasks().length) {
+          <p class="agile__hint">Активных задач не найдено.</p>
+        } @else {
+          <ul class="agile__task-list">
+            @for (task of visibleTasks(); track task.id) {
+              <li class="agile__task-card">
+                <div class="agile__task-card-copy">
+                  <div class="agile__task-card-top">
+                    <strong>{{ task.title }}</strong>
+                    <span>{{ taskIdentifier(task) }}</span>
+                  </div>
+                  <div class="agile__task-card-meta">
+                    <span>{{ taskBoardLabel(task) }}</span>
+                    <span>{{ taskColumnLabel(task) }}</span>
+                    @if (task.assigned?.length) {
+                      <span>Исполнители: {{ task.assigned?.length }}</span>
+                    }
+                  </div>
+                </div>
+
+                <div class="agile__task-card-side">
+                  <span>{{ taskDeadlineLabel(task) }}</span>
+                </div>
+              </li>
+            }
+          </ul>
+        }
+      </section>
+    </div>
+  }
 
   @if (modalOpen()) {
     <div class="agile__modal-backdrop" (click)="closeConnectModal()">

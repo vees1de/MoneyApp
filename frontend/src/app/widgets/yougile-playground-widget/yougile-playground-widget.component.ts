@@ -18,6 +18,11 @@ import type {
   YougileTask,
 } from '@entities/yougile';
 
+type YougileColumnCard = YougileColumn & {
+  boardTitle: string;
+  tasksTotal: number;
+};
+
 @Component({
   selector: 'app-yougile-playground-widget',
   standalone: true,
@@ -49,6 +54,7 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
   protected readonly syncingConnection = signal(false);
   protected readonly deletingConnection = signal(false);
   protected readonly modalOpen = signal(false);
+  protected readonly tasksModalOpen = signal(false);
   protected readonly reconnectMode = signal(false);
   protected readonly discoveringCompanies = signal(false);
   protected readonly connectingConnection = signal(false);
@@ -97,23 +103,44 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
     );
   });
 
-  protected readonly visibleTasks = computed(() => {
-    const selectedBoardId = this.selectedBoardId();
-    const activeTasks = this.tasks().filter(
-      (item) => !item.deleted && !item.archived && !item.completed,
-    );
+  protected readonly activeTasks = computed(() =>
+    this.tasks().filter((item) => !item.deleted && !item.archived && !item.completed),
+  );
 
-    const filteredTasks = selectedBoardId
+  protected readonly filteredTasks = computed(() => {
+    const selectedBoardId = this.selectedBoardId();
+    const activeTasks = this.activeTasks();
+
+    return selectedBoardId
       ? activeTasks.filter(
           (item) =>
             item.boardId === selectedBoardId ||
             this.columnBelongsToBoard(item.columnId, selectedBoardId),
         )
       : activeTasks;
+  });
 
-    return [...filteredTasks]
-      .sort((left, right) => this.taskSortValue(left) - this.taskSortValue(right))
-      .slice(0, 12);
+  protected readonly visibleTasks = computed(() =>
+    [...this.filteredTasks()].sort((left, right) => this.taskSortValue(left) - this.taskSortValue(right)),
+  );
+
+  protected readonly columnCards = computed((): YougileColumnCard[] => {
+    const selectedBoardId = this.selectedBoardId();
+    const columns = this.columns().filter((item) => !item.deleted);
+    const filteredColumns = selectedBoardId
+      ? columns.filter((item) => item.yougile_board_id === selectedBoardId)
+      : columns;
+    const taskCounts = new Map<string, number>();
+
+    for (const task of this.filteredTasks()) {
+      taskCounts.set(task.columnId, (taskCounts.get(task.columnId) ?? 0) + 1);
+    }
+
+    return filteredColumns.slice(0, 4).map((column) => ({
+      ...column,
+      boardTitle: this.resolveBoardByColumn(column.yougile_column_id)?.title?.trim() ?? 'Без доски',
+      tasksTotal: taskCounts.get(column.yougile_column_id) ?? 0,
+    }));
   });
 
   ngOnInit(): void {
@@ -162,6 +189,14 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
     this.reconnectMode.set(false);
     this.modalError.set(null);
     this.resetModalState(true);
+  }
+
+  protected openTasksModal(): void {
+    this.tasksModalOpen.set(true);
+  }
+
+  protected closeTasksModal(): void {
+    this.tasksModalOpen.set(false);
   }
 
   protected async discoverCompanies(): Promise<void> {
@@ -407,6 +442,10 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
 
   protected trackBoard(_: number, item: YougileBoard): string {
     return item.yougile_board_id;
+  }
+
+  protected trackColumn(_: number, item: YougileColumnCard): string {
+    return item.yougile_column_id;
   }
 
   protected trackCompany(_: number, item: YougileCompanyOption): string {

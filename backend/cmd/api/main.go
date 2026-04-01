@@ -6,11 +6,16 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/joho/godotenv"
+
 	"moneyapp/backend/internal/app"
 	"moneyapp/backend/internal/config"
 )
 
 func main() {
+	// Load .env from multiple candidate paths (project root, backend/, cwd)
+	_ = godotenv.Load(".env", "../.env", "../../.env")
+
 	cfg := config.MustLoad()
 
 	application, err := app.New(cfg)
