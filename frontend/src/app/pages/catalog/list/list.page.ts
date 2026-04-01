@@ -3,7 +3,6 @@ import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, ParamMap, Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
@@ -41,7 +40,6 @@ type CatalogQueryState = {
     ReactiveFormsModule,
     RouterLink,
     MatButtonModule,
-    MatCardModule,
     MatFormFieldModule,
     MatIconModule,
     MatSelectModule,
@@ -198,11 +196,6 @@ export class CatalogListPageComponent implements OnInit, OnDestroy {
     }
 
     return `${state.offset + 1}-${state.offset + count}`;
-  }
-
-  protected pageMetaLabel(): string {
-    const state = this.readStateFromForm();
-    return `Лимит ${state.limit} · Offset ${state.offset}`;
   }
 
   protected formatCourseSubtitle(course: Course): string {

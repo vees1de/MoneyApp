@@ -1,27 +1,8 @@
 <section class="catalog-layout">
-  <aside class="catalog-layout__widgets">
-    <app-catalog-focus-widget />
-    <app-catalog-tracks-widget />
-    <app-catalog-deadlines-widget />
-  </aside>
-
   <div class="catalog-layout__main">
-    <section class="catalog-hero">
-      <div>
-        <p class="catalog-hero__eyebrow">Каталог обучения</p>
-        <h1>Курсы и программы</h1>
-        <p class="catalog-hero__description">
-          Подберите программу под текущие цели команды и сотрудника.
-        </p>
-      </div>
+    <div class="catalog-title-wrap">
+      <h1>Курсы</h1>
 
-      <div class="catalog-hero__meta">
-        <span class="catalog-hero__meta-label">Диапазон</span>
-        <strong class="catalog-hero__meta-value">{{ pageRangeLabel() }}</strong>
-      </div>
-    </section>
-
-    <section class="catalog-surface">
       <mat-tab-group
         class="catalog-tabs"
         [selectedIndex]="activeTabIndex()"
@@ -32,47 +13,9 @@
           <mat-tab [label]="preset.label"></mat-tab>
         }
       </mat-tab-group>
+    </div>
 
-      <form class="catalog-filters" [formGroup]="form" (ngSubmit)="submitFilters()">
-        <mat-form-field appearance="outline">
-          <mat-label>Статус</mat-label>
-          <mat-select formControlName="status">
-            @for (item of statusOptions; track item.value) {
-              <mat-option [value]="item.value">{{ item.label }}</mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
-
-        <mat-form-field appearance="outline">
-          <mat-label>Источник</mat-label>
-          <mat-select formControlName="source_type">
-            @for (item of sourceTypeOptions; track item.value) {
-              <mat-option [value]="item.value">{{ item.label }}</mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
-
-        <mat-form-field appearance="outline">
-          <mat-label>Уровень</mat-label>
-          <mat-select formControlName="level">
-            @for (item of levelOptions; track item.value) {
-              <mat-option [value]="item.value">{{ item.label }}</mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
-
-        <div class="catalog-filters__actions">
-          <button mat-flat-button color="primary" type="submit">
-            <mat-icon>tune</mat-icon>
-            Применить
-          </button>
-          <button mat-stroked-button type="button" (click)="resetFilters()">
-            <mat-icon>restart_alt</mat-icon>
-            Сбросить
-          </button>
-        </div>
-      </form>
-
+    <section class="catalog-surface">
       @if (loading()) {
         <section class="catalog-grid catalog-grid--skeleton">
           <div class="catalog-skeleton"></div>
@@ -88,70 +31,52 @@
         <section class="catalog-grid">
           @for (course of courses(); track trackByCourse($index, course)) {
             <article class="course-card">
-              <div class="course-card__header">
-                <div class="course-card__header-copy">
-                  @if (formatCourseSubtitle(course); as subtitle) {
-                    <p class="course-card__subtitle">{{ subtitle }}</p>
-                  }
-                  <a class="course-card__title" [routerLink]="'/catalog/' + course.id">
-                    {{ course.title }}
-                  </a>
-
-                  @if (course.short_description) {
-                    <p class="course-card__description">{{ course.short_description }}</p>
-                  }
-                </div>
-
-                <div class="course-card__price">
-                  <span class="course-card__price-label">Стоимость</span>
-                  <strong class="course-card__price-value">{{ formatPrice(course) }}</strong>
-                </div>
+              <div class="course-card__visual">
+                <a class="course-card__title" [routerLink]="'/catalog/' + course.id">
+                  {{ course.title }}
+                </a>
               </div>
 
-              <div class="course-card__stats">
-                <div class="course-card__stat">
-                  <span class="course-card__stat-label">Уровень</span>
-                  <strong class="course-card__stat-value">{{
-                    formatMetaValue(course.level)
-                  }}</strong>
-                </div>
-
-                <div class="course-card__stat">
-                  <span class="course-card__stat-label">Часы</span>
-                  <strong class="course-card__stat-value">{{
-                    formatDurationHours(course.duration_hours)
-                  }}</strong>
-                </div>
-
-                <div class="course-card__stat">
-                  <span class="course-card__stat-label">Язык</span>
-                  <strong class="course-card__stat-value">{{
-                    formatMetaValue(course.language)
-                  }}</strong>
-                </div>
-              </div>
-
-              <div class="course-card__footer">
-                <div class="course-card__footer-meta">
-                  <span class="course-card__footer-label">Обновлено</span>
-                  <strong class="course-card__footer-value">{{
-                    course.updated_at | date: 'dd.MM.yyyy HH:mm'
-                  }}</strong>
-                </div>
-
-                @if (course.next_start_date) {
-                  <div class="course-card__footer-meta">
-                    <span class="course-card__footer-label">Старт</span>
-                    <strong class="course-card__footer-value">{{
-                      course.next_start_date | date: 'dd.MM.yyyy'
-                    }}</strong>
-                  </div>
+              <div class="course-card__body">
+                @if (course.short_description) {
+                  <p class="course-card__description">{{ course.short_description }}</p>
                 }
 
-                <a class="course-card__action" [routerLink]="'/catalog/' + course.id">
-                  <span>Подробнее</span>
-                  <mat-icon>arrow_forward</mat-icon>
-                </a>
+                <div class="course-card__meta">
+                  <span class="course-card__meta-chip">
+                    <mat-icon>workspace_premium</mat-icon>
+                    {{ formatMetaValue(course.level) }}
+                  </span>
+
+                  <span class="course-card__meta-chip">
+                    <mat-icon>schedule</mat-icon>
+                    {{ formatDurationHours(course.duration_hours) }} ч.
+                  </span>
+
+                  <span class="course-card__meta-chip">
+                    <mat-icon>language</mat-icon>
+                    {{ formatPrice(course) }}
+                  </span>
+
+                  @if (course.next_start_date) {
+                    <span class="course-card__meta-chip">
+                      <mat-icon>event</mat-icon>
+                      {{ course.next_start_date | date: 'dd.MM.yyyy' }}
+                    </span>
+                  }
+                </div>
+
+                <img
+                  class="img-card"
+                  [src]="
+                    $index % 4 === 0
+                      ? './python.png'
+                      : $index % 5 === 0
+                        ? './aws.png'
+                        : 'yandexlogo.png'
+                  "
+                  alt=""
+                />
               </div>
             </article>
           }
@@ -161,9 +86,7 @@
           <div class="catalog-pagination__summary">
             <span class="catalog-pagination__eyebrow">Каталог</span>
             <strong class="catalog-pagination__range">{{ pageRangeLabel() }}</strong>
-            <span class="catalog-pagination__meta"
-              >Страница {{ currentPage() }} · {{ pageMetaLabel() }}</span
-            >
+            <span class="catalog-pagination__meta">Страница {{ currentPage() }}</span>
           </div>
 
           <div class="catalog-pagination__actions">
@@ -204,4 +127,10 @@
       }
     </section>
   </div>
+
+  <aside class="catalog-layout__widgets">
+    <app-catalog-focus-widget />
+    <app-catalog-tracks-widget />
+    <app-catalog-deadlines-widget />
+  </aside>
 </section>
