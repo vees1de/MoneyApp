@@ -140,7 +140,7 @@ func Load() (*Config, error) {
 			YandexAI: YandexAIConfig{
 				APIKey:   getEnv("YANDEX_AI_API_KEY", ""),
 				FolderID: getEnv("YANDEX_AI_FOLDER_ID", "b1gste4lfr39is20f5r8"),
-				Model:    getEnv("YANDEX_AI_MODEL", "deepseek-v32/latest"),
+				Model:    getEnv("YANDEX_AI_MODEL", "gpt-oss-20b/latest"),
 			},
 		},
 	}

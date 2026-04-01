@@ -62,7 +62,7 @@ jobs:
           DEPLOY_ENV: ${{ secrets.DEPLOY_ENV }}
           YANDEX_AI_API_KEY: ${{ secrets.YANDEX_AI_API_KEY }}
           YANDEX_AI_FOLDER_ID: ${{ secrets.YANDEX_AI_FOLDER_ID || 'b1gste4lfr39is20f5r8' }}
-          YANDEX_AI_MODEL: ${{ secrets.YANDEX_AI_MODEL || 'deepseek-v32/latest' }}
+          YANDEX_AI_MODEL: ${{ secrets.YANDEX_AI_MODEL || 'gpt-oss-20b/latest' }}
         run: |
           if [ -n "${DEPLOY_ENV}" ]; then
             printf '%s\n' "${DEPLOY_ENV}" > .env
