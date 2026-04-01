@@ -26,6 +26,16 @@ export interface AIDebugLog {
   ai_raw_response: string;
   ai_model_uri: string;
   ai_request_duration_ms?: number | null;
+  ai_response_id?: string | null;
+  ai_response_status?: string | null;
+  ai_response_error_code?: string | null;
+  ai_response_error_msg?: string | null;
+  ai_incomplete_reason?: string | null;
+  ai_input_tokens?: number | null;
+  ai_output_tokens?: number | null;
+  ai_reasoning_tokens?: number | null;
+  ai_total_tokens?: number | null;
+  ai_output_text_length?: number | null;
   tasks_summary: string;
   courses_summary: string;
   intakes_summary: string;

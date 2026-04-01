@@ -154,6 +154,7 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 		courseIntakesService,
 		auditEventService,
 		cfg.Integrations.YandexAI,
+		log,
 	)
 	healthService := corehealth.NewService(map[string]corehealth.CheckFunc{
 		"postgres": database.PingContext,

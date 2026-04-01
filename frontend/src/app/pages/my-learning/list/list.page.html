@@ -1,27 +1,18 @@
 <section class="my-learning-page">
-  <header class="my-learning-hero">
-    <div class="my-learning-hero__copy">
-      <p class="my-learning-hero__eyebrow">Моё обучение</p>
-      <h1>Только курсы и сроки.</h1>
-      <p class="my-learning-hero__description">Название курса, статус и дедлайн. Ничего лишнего.</p>
+  <header class="my-learning-header">
+    <div class="my-learning-header__copy">
+      <p class="my-learning-header__eyebrow">Моё обучение</p>
+      <h1>Список курсов</h1>
+      <p class="my-learning-header__description">
+        Фильтры сверху, единые карточки ниже. Фокус только на сроках, статусе и открытии курса.
+      </p>
     </div>
 
-    <div class="my-learning-hero__aside">
-      <div class="my-learning-summary">
-        @for (item of summaryItems(); track item.label) {
-          <article class="my-learning-summary__item">
-            <strong>{{ item.value }}</strong>
-            <span>{{ item.label }}</span>
-          </article>
-        }
-      </div>
-
-      @if (primaryEnrollment(); as item) {
-        <a class="my-learning-hero__cta" [routerLink]="'/learning/' + item.id">
-          {{ primaryActionLabel() }}
-        </a>
-      }
-    </div>
+    @if (primaryEnrollment(); as item) {
+      <a class="app-button app-button--primary" [routerLink]="'/learning/' + item.id">
+        {{ primaryActionLabel() }}
+      </a>
+    }
   </header>
 
   @if (loading()) {
@@ -32,42 +23,83 @@
     <section class="my-learning-state my-learning-state--error">
       <p class="my-learning-page__error">{{ error() }}</p>
     </section>
-  } @else if (cards().length === 0) {
+  } @else if (orderedEnrollments().length === 0) {
     <section class="my-learning-state">
-      <p>У вас пока нет обучения.</p>
+      <p>У вас пока нет назначенного обучения.</p>
     </section>
   } @else {
-    <section class="my-learning-list">
-      @for (item of cards(); track trackByEnrollment($index, item)) {
-        <article [ngClass]="['learning-card', item.deadlineToneClass]">
-          <div class="learning-card__main">
-            <div class="learning-card__topline">
-              <p class="learning-card__meta">{{ item.sourceLabel }} · {{ item.mandatoryLabel }}</p>
+    <section class="my-learning-toolbar">
+      <div class="my-learning-filters" role="tablist" aria-label="Фильтр курсов">
+        @for (filter of filterItems(); track filter.key) {
+          <button
+            type="button"
+            [ngClass]="['filter-chip', isFilterActive(filter.key) ? 'filter-chip--active' : '']"
+            (click)="setFilter(filter.key)"
+          >
+            <span>{{ filter.label }}</span>
+            <span class="filter-chip__count">{{ filter.count }}</span>
+          </button>
+        }
+      </div>
+
+      <p class="my-learning-toolbar__meta">{{ resultLabel() }}</p>
+    </section>
+
+    @if (filteredCards().length === 0) {
+      <section class="my-learning-state">
+        <p>В выбранном фильтре курсов нет.</p>
+      </section>
+    } @else {
+      <section class="my-learning-list">
+        @for (item of filteredCards(); track trackByEnrollment($index, item)) {
+          <article class="learning-card">
+            <div class="learning-card__header">
+              <div class="learning-card__header-copy">
+                <a class="learning-card__title" [routerLink]="'/learning/' + item.id">
+                  {{ item.title }}
+                </a>
+                <p class="learning-card__caption">
+                  {{ item.sourceLabel }} · {{ item.mandatoryLabel }}
+                </p>
+              </div>
+
               <span [ngClass]="['status-pill', item.statusClass]">{{ item.statusLabel }}</span>
             </div>
 
-            <a class="learning-card__title" [routerLink]="'/learning/' + item.id">
-              {{ item.title }}
-            </a>
+            <div class="learning-card__meta-grid">
+              <div class="meta-item">
+                <span class="meta-item__label">Дедлайн</span>
+                <strong [ngClass]="['meta-item__value', item.deadlineClass]">{{
+                  item.deadlineText
+                }}</strong>
+                <span class="meta-item__hint">{{ item.deadlineHint }}</span>
+              </div>
 
-            <p class="learning-card__footnote">{{ item.metaLabel }}</p>
-          </div>
+              <div class="meta-item">
+                <span class="meta-item__label">Прогресс</span>
+                <strong class="meta-item__value meta-item__value--default">{{
+                  item.progressText
+                }}</strong>
+                <span class="meta-item__hint">{{ item.statusLabel }}</span>
+              </div>
 
-          <div class="learning-card__deadline">
-            <span class="learning-card__deadline-label">Дедлайн</span>
-            <strong>{{ item.deadlineLabel }}</strong>
-            <span class="learning-card__deadline-caption">{{ item.deadlineCaption }}</span>
-          </div>
+              <div class="meta-item">
+                <span class="meta-item__label">Последняя активность</span>
+                <strong class="meta-item__value meta-item__value--default">{{
+                  item.activityText
+                }}</strong>
+                <span class="meta-item__hint">Данные по записи</span>
+              </div>
+            </div>
 
-          <div class="learning-card__actions">
-            @if (item.progressLabel) {
-              <span class="learning-card__progress">{{ item.progressLabel }}</span>
-            }
-
-            <a class="learning-card__link" [routerLink]="'/learning/' + item.id"> Открыть </a>
-          </div>
-        </article>
-      }
-    </section>
+            <div class="learning-card__actions">
+              <a class="app-button app-button--secondary" [routerLink]="'/learning/' + item.id">
+                Открыть
+              </a>
+            </div>
+          </article>
+        }
+      </section>
+    }
   }
 </section>

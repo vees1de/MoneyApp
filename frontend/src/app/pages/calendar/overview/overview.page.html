@@ -1,79 +1,69 @@
 <section class="calendar-page">
-  <header class="calendar-page__header">
-    <div class="calendar-page__copy">
-      <span class="calendar-page__eyebrow">Календарь</span>
-      <h1>Таймблоки Yougile, текущие наборы и риски</h1>
+  <header class="calendar-card calendar-page__header">
+    <div class="calendar-page__intro">
+      <span class="calendar-page__eyebrow">Календарь обучения</span>
+      <h1>Назначения, дедлайны и риски в одном окне</h1>
       <p>
-        На странице показаны Yougile задачи как timeblocks, текущие наборы сотрудника и пересечения
-        по времени.
+        Быстро проверяйте таймблоки Yougile, ближайшие наборы и конфликтные пересечения без
+        переключения между разделами.
       </p>
     </div>
 
     <div class="calendar-page__actions">
-      <button
-        mat-flat-button
-        color="primary"
-        type="button"
-        (click)="refreshOverview()"
-        [disabled]="anyBusy()"
-      >
-        <mat-icon>refresh</mat-icon>
-        {{ anyBusy() ? 'Обновляем...' : 'Обновить' }}
-      </button>
-    </div>
-  </header>
-
-  @if (yougileLoading()) {
-    <section class="calendar-connection calendar-connection--loading">
-      <div class="calendar-connection__copy">
-        <span class="calendar-connection__label">Yougile</span>
-        <strong>Проверяю подключение...</strong>
-        <p>Загружаю задачи и статус связи.</p>
-      </div>
-    </section>
-  } @else if (showYougileConnection() && yougileConnection(); as currentConnection) {
-    <section class="calendar-connection">
-      <div class="calendar-connection__copy">
-        <span class="calendar-connection__label">Yougile</span>
-        <strong>{{ currentConnection.title || currentConnection.yougile_company_id }}</strong>
-        <p>{{ yougileConnectionStatusLabel(currentConnection.status) }}</p>
-
-        <div class="calendar-connection__meta">
-          <span>{{ timeblockCount() }} таймблоков</span>
-          <span>Последний sync: {{ formatDateTime(currentConnection.last_sync_at) }}</span>
-        </div>
-      </div>
-
-      <div class="calendar-connection__actions">
+      @if (yougileConnection()) {
         <a mat-stroked-button routerLink="/playground">
-          <mat-icon>open_in_new</mat-icon>
-          Открыть подключение
+          <mat-icon>settings_ethernet</mat-icon>
+          Интеграция
         </a>
-      </div>
 
-      @if (currentConnection.last_error) {
-        <div class="calendar-note calendar-note--warning">
-          <mat-icon>error_outline</mat-icon>
-          <span>{{ currentConnection.last_error }}</span>
-        </div>
-      }
-    </section>
-  } @else {
-    <section class="calendar-connection calendar-connection--empty">
-      <div class="calendar-connection__copy">
-        <span class="calendar-connection__label">Yougile</span>
-        <strong>Подключение не найдено</strong>
-        <p>Подключите Yougile, чтобы timeblocks и backlog из досок появились в календаре.</p>
-      </div>
+        <button
+          mat-flat-button
+          color="primary"
+          type="button"
+          (click)="refreshOverview()"
+          [disabled]="anyBusy()"
+        >
+          <mat-icon>refresh</mat-icon>
+          {{ anyBusy() ? 'Обновляем...' : 'Обновить календарь' }}
+        </button>
+      } @else {
+        <button
+          mat-stroked-button
+          type="button"
+          (click)="refreshOverview()"
+          [disabled]="anyBusy()"
+        >
+          <mat-icon>refresh</mat-icon>
+          Проверить снова
+        </button>
 
-      <div class="calendar-connection__actions">
         <a mat-flat-button color="primary" routerLink="/playground">
           <mat-icon>link</mat-icon>
           Подключить Yougile
         </a>
-      </div>
-    </section>
-  }
+      }
+    </div>
+  </header>
+
+  <section class="calendar-summary">
+    <article class="calendar-card calendar-summary__item">
+      <span class="calendar-summary__label">Таймблоки</span>
+      <strong>{{ timeblockCount() }}</strong>
+      <p>Окна задач из Yougile на текущем календаре</p>
+    </article>
+
+    <article class="calendar-card calendar-summary__item">
+      <span class="calendar-summary__label">Текущие наборы</span>
+      <strong>{{ currentSetsCount() }}</strong>
+      <p>Активные и предстоящие обучения с дедлайнами</p>
+    </article>
+
+    <article class="calendar-card calendar-summary__item">
+      <span class="calendar-summary__label">Риски</span>
+      <strong>{{ riskCount() }}</strong>
+      <p>Пересечения, которые требуют внимания менеджера</p>
+    </article>
+  </section>
 
   @if (anyBusy()) {
     <mat-progress-bar mode="indeterminate"></mat-progress-bar>
@@ -82,136 +72,226 @@
   @if (issueMessages().length > 0) {
     <section class="calendar-banner calendar-banner--error">
       <div>
-        <strong>Ошибка.</strong>
+        <strong>Ошибка загрузки данных.</strong>
         <ul class="calendar-banner__list">
           @for (message of issueMessages(); track message) {
             <li>{{ message }}</li>
           }
         </ul>
       </div>
+
       <button mat-button type="button" (click)="clearError()">Закрыть</button>
     </section>
   }
 
   <section class="calendar-workspace">
-    <div class="calendar-stage">
-      <div class="calendar-stage__header">
-        <div>
-          <span class="calendar-stage__eyebrow">Календарь</span>
-          <h2>Таймблоки и окна</h2>
-          <p>
-            Yougile задачи строятся из <code>deadline.startDate</code> и
-            <code>deadline.deadline</code>. Наборы подсвечиваются отдельным цветом по дедлайну.
-          </p>
-        </div>
+    <div class="calendar-workspace__main">
+      @if (yougileLoading()) {
+        <section class="calendar-card calendar-connection calendar-connection--loading">
+          <span class="calendar-section-label">Интеграция</span>
+          <h2>Проверяем подключение Yougile</h2>
+          <p>Загружаем статус связи и окна задач для календаря.</p>
+        </section>
+      } @else if (yougileConnection(); as currentConnection) {
+        <section class="calendar-card calendar-connection">
+          <div class="calendar-connection__header">
+            <div>
+              <span class="calendar-section-label">Интеграция</span>
+              <h2>{{ currentConnection.title || currentConnection.yougile_company_id }}</h2>
+              <p>Источник таймблоков для назначения обучения и контроля занятости.</p>
+            </div>
 
-        <div class="calendar-stage__legend">
-          <span class="calendar-legend__item">
-            <i class="calendar-legend__swatch calendar-legend__swatch--yougile"></i>
-            Yougile
-          </span>
-          <span class="calendar-legend__item">
-            <i class="calendar-legend__swatch calendar-legend__swatch--learning"></i>
-            Наборы
-          </span>
-          <span class="calendar-legend__item">
-            <i class="calendar-legend__swatch calendar-legend__swatch--risk"></i>
-            Риски
-          </span>
-        </div>
-      </div>
-
-      <div class="calendar-stage__calendar">
-        @if (!yougileLoading()) {
-          <full-calendar [options]="calendarOptions" [events]="calendarEvents()">
-            <ng-template #noEventsContent>
-              <div class="calendar-stage__empty-state">
-                <mat-icon>event_busy</mat-icon>
-                <span>Задачи и наборы без сроков не попадают на сетку календаря.</span>
-              </div>
-            </ng-template>
-          </full-calendar>
-        } @else {
-          <div class="calendar-stage__placeholder">
-            <mat-icon>hourglass_empty</mat-icon>
-            <span>Загружаем задачи...</span>
+            <span
+              class="calendar-badge"
+              [class.calendar-badge--warning]="
+                currentConnection.status !== 'active' || !!currentConnection.last_error
+              "
+            >
+              {{ yougileConnectionStatusLabel(currentConnection.status) }}
+            </span>
           </div>
-        }
-      </div>
 
-      <div class="calendar-stage__note">
-        <mat-icon>info</mat-icon>
-        <p>
-          Все временные окна показаны в локальном часовом поясе. Задачи без срока попадают в
-          отдельный backlog ниже.
-        </p>
-      </div>
+          <div class="calendar-connection__meta">
+            <div class="calendar-meta">
+              <span class="calendar-meta__label">Таймблоков</span>
+              <strong>{{ timeblockCount() }}</strong>
+            </div>
+
+            <div class="calendar-meta">
+              <span class="calendar-meta__label">Последний sync</span>
+              <strong>{{ formatDateTime(currentConnection.last_sync_at) }}</strong>
+            </div>
+
+            <div class="calendar-meta">
+              <span class="calendar-meta__label">Компания</span>
+              <strong>{{ currentConnection.yougile_company_id || '—' }}</strong>
+            </div>
+          </div>
+
+          @if (currentConnection.last_error) {
+            <div class="calendar-inline-note calendar-inline-note--warning">
+              <mat-icon>error_outline</mat-icon>
+              <span>{{ currentConnection.last_error }}</span>
+            </div>
+          }
+        </section>
+      } @else {
+        <section class="calendar-card calendar-connection calendar-connection--empty">
+          <span class="calendar-section-label">Интеграция</span>
+          <h2>Подключение Yougile не найдено</h2>
+          <p>Настройте интеграцию, чтобы задачи и временные окна появились в календаре.</p>
+          <div class="calendar-inline-note">
+            <mat-icon>info</mat-icon>
+            <span>После подключения экран начнет показывать таймблоки и конфликты автоматически.</span>
+          </div>
+        </section>
+      }
+
+      <section class="calendar-card calendar-surface">
+        <div class="calendar-surface__header">
+          <div>
+            <span class="calendar-section-label">Основной контент</span>
+            <h2>Календарь назначений</h2>
+            <p>Неделя, день и месяц для контроля загрузки сотрудника и учебных дедлайнов.</p>
+          </div>
+
+          <div class="calendar-surface__legend" aria-label="Легенда календаря">
+            <span class="calendar-legend__item">
+              <i class="calendar-legend__swatch calendar-legend__swatch--yougile"></i>
+              Yougile
+            </span>
+            <span class="calendar-legend__item">
+              <i class="calendar-legend__swatch calendar-legend__swatch--learning"></i>
+              Наборы
+            </span>
+            <span class="calendar-legend__item">
+              <i class="calendar-legend__swatch calendar-legend__swatch--risk"></i>
+              Риски
+            </span>
+          </div>
+        </div>
+
+        <div class="calendar-surface__calendar">
+          @if (!yougileLoading()) {
+            <full-calendar [options]="calendarOptions" [events]="calendarEvents()">
+              <ng-template #noEventsContent>
+                <div class="calendar-surface__empty-state">
+                  <mat-icon>event_busy</mat-icon>
+                  <span>Событий с датами пока нет. Задачи без срока не выводятся в сетку.</span>
+                </div>
+              </ng-template>
+            </full-calendar>
+          } @else {
+            <div class="calendar-surface__placeholder">
+              <mat-icon>hourglass_empty</mat-icon>
+              <span>Загружаем календарь...</span>
+            </div>
+          }
+        </div>
+
+        <div class="calendar-surface__footer">
+          <span>Все события показаны в локальном часовом поясе пользователя.</span>
+          <span>Задачи без срока остаются вне календарной сетки и требуют отдельной обработки.</span>
+        </div>
+      </section>
     </div>
 
     <aside class="calendar-sidebar">
-      <mat-card class="calendar-panel">
-        <mat-card-header>
-          <mat-card-title>Текущие наборы</mat-card-title>
-          <mat-card-subtitle>{{ currentSetsCount() }} активных и предстоящих</mat-card-subtitle>
-        </mat-card-header>
+      <section class="calendar-card calendar-panel">
+        <header class="calendar-panel__header">
+          <div>
+            <span class="calendar-section-label">Сайдбар</span>
+            <h2>Текущие наборы</h2>
+          </div>
+          <span class="calendar-panel__count">{{ currentSetsCount() }}</span>
+        </header>
 
-        <mat-card-content class="calendar-panel__content">
-          @if (learningSets().length > 0) {
-            <div class="learning-list">
-              @for (item of learningSets(); track item.id) {
-                <article
-                  class="learning-item"
-                  [class.learning-item--upcoming]="item.bucket === 'upcoming'"
-                >
-                  <div class="learning-item__head">
-                    <strong>{{ item.title }}</strong>
-                    <span>{{ item.statusLabel }}</span>
-                  </div>
+        <p class="calendar-panel__description">
+          Активные и предстоящие программы, которые нужно быстро просканировать.
+        </p>
 
-                  <div class="learning-item__footer">
-                    <span>{{ item.deadlineLabel }}</span>
-                    <span>{{ item.statusLabel }}</span>
-                  </div>
-                </article>
-              }
-            </div>
-          } @else {
-            <div class="calendar-empty">
-              <mat-icon>school</mat-icon>
-              <p>Сейчас нет активных или предстоящих наборов.</p>
-            </div>
-          }
-        </mat-card-content>
-      </mat-card>
+        @if (learningLoading()) {
+          <div class="calendar-empty">
+            <mat-icon>hourglass_empty</mat-icon>
+            <p>Загружаем наборы...</p>
+          </div>
+        } @else if (learningSets().length > 0) {
+          <div class="calendar-list">
+            @for (item of learningSets(); track item.id) {
+              <article
+                class="calendar-list-item"
+                [class.calendar-list-item--accent]="item.bucket === 'upcoming'"
+              >
+                <div class="calendar-list-item__row">
+                  <strong>{{ item.title }}</strong>
+                  <span class="calendar-tag" [class.calendar-tag--accent]="item.bucket === 'upcoming'">
+                    {{ item.statusLabel }}
+                  </span>
+                </div>
 
-      <mat-card class="calendar-panel calendar-panel--risk">
-        <mat-card-header>
-          <mat-card-title>Пересечения</mat-card-title>
-          <mat-card-subtitle>{{ riskCount() }} блоков риска</mat-card-subtitle>
-        </mat-card-header>
+                <div class="calendar-list-item__meta">
+                  <span>Дедлайн</span>
+                  <span>{{ item.deadlineLabel }}</span>
+                </div>
+              </article>
+            }
+          </div>
+        } @else {
+          <div class="calendar-empty">
+            <mat-icon>school</mat-icon>
+            <p>Сейчас нет активных или предстоящих наборов.</p>
+          </div>
+        }
+      </section>
 
-        <mat-card-content class="calendar-panel__content">
-          @if (riskBlocks().length > 0) {
-            <div class="risk-list">
-              @for (item of riskBlocks(); track item.id) {
-                <article class="risk-item" [class.risk-item--high]="item.severity === 'high'">
-                  <div class="risk-item__head">
-                    <strong>{{ item.title }}</strong>
-                    <span>{{ formatRiskSeverity(item.severity) }}</span>
-                  </div>
-                  <p>{{ item.reason }}</p>
+      <section class="calendar-card calendar-panel calendar-panel--risk">
+        <header class="calendar-panel__header">
+          <div>
+            <span class="calendar-section-label">Сайдбар</span>
+            <h2>Риски и пересечения</h2>
+          </div>
+          <span class="calendar-panel__count">{{ riskCount() }}</span>
+        </header>
+
+        <p class="calendar-panel__description">
+          Конфликты расписания и дедлайнов, которые могут повлиять на прохождение обучения.
+        </p>
+
+        @if (anyBusy()) {
+          <div class="calendar-empty">
+            <mat-icon>hourglass_empty</mat-icon>
+            <p>Проверяем пересечения...</p>
+          </div>
+        } @else if (riskBlocks().length > 0) {
+          <div class="calendar-list">
+            @for (item of riskBlocks(); track item.id) {
+              <article
+                class="calendar-list-item calendar-list-item--risk"
+                [class.calendar-list-item--critical]="item.severity === 'high'"
+              >
+                <div class="calendar-list-item__row">
+                  <strong>{{ item.title }}</strong>
+                  <span class="calendar-tag" [class.calendar-tag--critical]="item.severity === 'high'">
+                    {{ formatRiskSeverity(item.severity) }}
+                  </span>
+                </div>
+
+                <p>{{ item.reason }}</p>
+
+                <div class="calendar-list-item__meta">
+                  <span>Окно</span>
                   <span>{{ item.window }}</span>
-                </article>
-              }
-            </div>
-          } @else {
-            <div class="calendar-empty">
-              <mat-icon>verified</mat-icon>
-              <p>Пересечений не найдено.</p>
-            </div>
-          }
-        </mat-card-content>
-      </mat-card>
+                </div>
+              </article>
+            }
+          </div>
+        } @else {
+          <div class="calendar-empty">
+            <mat-icon>verified</mat-icon>
+            <p>Пересечений не найдено.</p>
+          </div>
+        }
+      </section>
     </aside>
   </section>
 </section>

@@ -42,16 +42,17 @@ export class AppShellComponent {
   protected readonly authState = inject(AuthStateService);
   protected readonly notificationsOpen = signal(false);
   protected readonly navItems = computed<HeaderNavItem[]>(() => {
+    const isHr = this.authState.hasRole('hr');
     const items: Array<HeaderNavItem & { visible: boolean }> = [
-      {
-        label: 'Курсы',
-        route: '/catalog',
-        visible: this.authState.hasPermission(PERMISSIONS.coursesRead),
-      },
       {
         label: 'Набор',
         route: '/intakes',
         visible: true,
+      },
+      {
+        label: 'Курсы',
+        route: '/catalog',
+        visible: this.authState.hasPermission(PERMISSIONS.coursesRead),
       },
       {
         label: 'Заявки',
@@ -61,15 +62,17 @@ export class AppShellComponent {
       {
         label: 'Мое обучение',
         route: '/my-learning',
-        visible: this.authState.hasAnyPermission([
-          PERMISSIONS.enrollmentsRead,
-          PERMISSIONS.enrollmentsManage,
-        ]),
+        visible:
+          !isHr &&
+          this.authState.hasAnyPermission([
+            PERMISSIONS.enrollmentsRead,
+            PERMISSIONS.enrollmentsManage,
+          ]),
       },
       {
         label: 'Календарь',
         route: '/calendar/overview',
-        visible: this.authState.hasPermission(PERMISSIONS.enrollmentsRead),
+        visible: !isHr && this.authState.hasPermission(PERMISSIONS.enrollmentsRead),
       },
       {
         label: 'Сотрудники',

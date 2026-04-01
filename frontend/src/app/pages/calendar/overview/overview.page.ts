@@ -2,7 +2,6 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { FullCalendarModule } from '@fullcalendar/angular';
@@ -70,7 +69,6 @@ interface LearningSetCard {
     RouterLink,
     FullCalendarModule,
     MatButtonModule,
-    MatCardModule,
     MatIconModule,
     MatProgressBarModule,
   ],
@@ -108,14 +106,6 @@ export class CalendarOverviewPageComponent implements OnInit {
   protected readonly anyBusy = computed(
     () => this.calendarLoading() || this.yougileLoading() || this.learningLoading(),
   );
-  protected readonly showYougileConnection = computed(() => {
-    const connection = this.yougileConnection();
-    if (!connection) {
-      return true;
-    }
-
-    return connection.status !== 'active' || !!connection.last_error;
-  });
   protected readonly issueMessages = computed(() => {
     const messages = [this.yougileError(), this.learningError()].filter(
       (value): value is string => !!value,
@@ -256,10 +246,6 @@ export class CalendarOverviewPageComponent implements OnInit {
 
   protected formatRiskSeverity(severity: 'high' | 'medium'): string {
     return severity === 'high' ? 'Высокий' : 'Средний';
-  }
-
-  protected trackById(_: number, item: { id: string }): string {
-    return item.id;
   }
 
   private async loadYougileOverview(): Promise<void> {

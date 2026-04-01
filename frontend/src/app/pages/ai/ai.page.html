@@ -219,10 +219,54 @@
             <pre>{{ result.debug.ai_model_uri }}</pre>
           </div>
 
+          @if (result.debug.ai_response_id) {
+            <div class="ai-page__debug-section">
+              <h4>ID ответа</h4>
+              <pre>{{ result.debug.ai_response_id }}</pre>
+            </div>
+          }
+
+          @if (result.debug.ai_response_status) {
+            <div class="ai-page__debug-section">
+              <h4>Статус ответа</h4>
+              <pre>{{ result.debug.ai_response_status }}</pre>
+            </div>
+          }
+
+          @if (result.debug.ai_incomplete_reason) {
+            <div class="ai-page__debug-section">
+              <h4>Причина неполного ответа</h4>
+              <pre>{{ result.debug.ai_incomplete_reason }}</pre>
+            </div>
+          }
+
+          @if (result.debug.ai_response_error_code || result.debug.ai_response_error_msg) {
+            <div class="ai-page__debug-section">
+              <h4>Ошибка ответа AI</h4>
+              <pre>
+{{ result.debug.ai_response_error_code || 'no code' }}
+{{ result.debug.ai_response_error_msg || 'no message' }}
+              </pre>
+            </div>
+          }
+
           @if (result.debug.ai_request_duration_ms) {
             <div class="ai-page__debug-section">
               <h4>Время ответа AI</h4>
               <pre>{{ result.debug.ai_request_duration_ms }} ms</pre>
+            </div>
+          }
+
+          @if (result.debug.ai_input_tokens || result.debug.ai_output_tokens || result.debug.ai_total_tokens) {
+            <div class="ai-page__debug-section">
+              <h4>Token usage</h4>
+              <pre>
+input: {{ result.debug.ai_input_tokens || 0 }}
+output: {{ result.debug.ai_output_tokens || 0 }}
+reasoning: {{ result.debug.ai_reasoning_tokens || 0 }}
+total: {{ result.debug.ai_total_tokens || 0 }}
+output text length: {{ result.debug.ai_output_text_length || 0 }}
+              </pre>
             </div>
           }
 

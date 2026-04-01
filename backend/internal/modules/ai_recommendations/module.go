@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"sort"
@@ -53,6 +54,16 @@ type DebugLog struct {
 	AIRawResponse       string `json:"ai_raw_response"`
 	AIModelURI          string `json:"ai_model_uri"`
 	AIRequestDurationMs int64  `json:"ai_request_duration_ms,omitempty"`
+	AIResponseID        string `json:"ai_response_id,omitempty"`
+	AIResponseStatus    string `json:"ai_response_status,omitempty"`
+	AIResponseErrorCode string `json:"ai_response_error_code,omitempty"`
+	AIResponseErrorMsg  string `json:"ai_response_error_msg,omitempty"`
+	AIIncompleteReason  string `json:"ai_incomplete_reason,omitempty"`
+	AIInputTokens       int    `json:"ai_input_tokens,omitempty"`
+	AIOutputTokens      int    `json:"ai_output_tokens,omitempty"`
+	AIReasoningTokens   int    `json:"ai_reasoning_tokens,omitempty"`
+	AITotalTokens       int    `json:"ai_total_tokens,omitempty"`
+	AIOutputTextLength  int    `json:"ai_output_text_length,omitempty"`
 	TasksSummary        string `json:"tasks_summary"`
 	CoursesSummary      string `json:"courses_summary"`
 	IntakesSummary      string `json:"intakes_summary"`
@@ -77,28 +88,111 @@ type RecommendOptions struct {
 }
 
 type yandexRequest struct {
-	Model           string  `json:"model"`
-	Temperature     float64 `json:"temperature"`
-	Instructions    string  `json:"instructions"`
-	Input           string  `json:"input"`
-	MaxOutputTokens int     `json:"max_output_tokens"`
+	Model           string             `json:"model"`
+	Temperature     float64            `json:"temperature"`
+	Instructions    string             `json:"instructions"`
+	Input           string             `json:"input"`
+	MaxOutputTokens int                `json:"max_output_tokens"`
+	Text            *yandexRequestText `json:"text,omitempty"`
+}
+
+type yandexRequestText struct {
+	Format yandexTextResponseFormat `json:"format"`
+}
+
+type yandexTextResponseFormat struct {
+	Type        string         `json:"type"`
+	Name        string         `json:"name,omitempty"`
+	Description string         `json:"description,omitempty"`
+	Schema      map[string]any `json:"schema,omitempty"`
 }
 
 type yandexResponse struct {
-	Output []struct {
-		Content []struct {
-			Text string `json:"text"`
-		} `json:"content"`
-	} `json:"output"`
+	ID               string                  `json:"id"`
+	Status           string                  `json:"status"`
+	OutputText       string                  `json:"output_text"`
+	Error            *yandexResponseError    `json:"error,omitempty"`
+	IncompleteDetail *yandexIncompleteDetail `json:"incomplete_details,omitempty"`
+	Usage            *yandexUsage            `json:"usage,omitempty"`
+	Output           []yandexOutputItem      `json:"output,omitempty"`
+}
+
+type yandexResponseError struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+type yandexIncompleteDetail struct {
+	Reason string `json:"reason"`
+}
+
+type yandexUsage struct {
+	InputTokens   int                  `json:"input_tokens"`
+	OutputTokens  int                  `json:"output_tokens"`
+	TotalTokens   int                  `json:"total_tokens"`
+	InputDetails  *yandexInputDetails  `json:"input_tokens_details,omitempty"`
+	OutputDetails *yandexOutputDetails `json:"output_tokens_details,omitempty"`
+}
+
+type yandexInputDetails struct {
+	CachedTokens int `json:"cached_tokens"`
+}
+
+type yandexOutputDetails struct {
+	ReasoningTokens int `json:"reasoning_tokens"`
+}
+
+type yandexOutputItem struct {
+	Type    string                `json:"type,omitempty"`
+	Content []yandexOutputContent `json:"content,omitempty"`
+}
+
+type yandexOutputContent struct {
+	Type    string `json:"type,omitempty"`
+	Text    string `json:"text,omitempty"`
+	Refusal string `json:"refusal,omitempty"`
 }
 
 func (r yandexResponse) getText() string {
+	if text := strings.TrimSpace(r.OutputText); text != "" {
+		return text
+	}
+
 	for _, output := range r.Output {
 		if len(output.Content) > 0 {
-			return output.Content[0].Text
+			for _, content := range output.Content {
+				if content.Type == "output_text" && strings.TrimSpace(content.Text) != "" {
+					return content.Text
+				}
+			}
+			for _, content := range output.Content {
+				if strings.TrimSpace(content.Text) != "" && content.Type == "" {
+					return content.Text
+				}
+			}
 		}
 	}
 	return ""
+}
+
+func (r yandexResponse) incompleteReason() string {
+	if r.IncompleteDetail == nil {
+		return ""
+	}
+	return r.IncompleteDetail.Reason
+}
+
+func (r yandexResponse) usageTokens() (int, int, int, int) {
+	if r.Usage == nil {
+		return 0, 0, 0, 0
+	}
+
+	reasoningTokens := 0
+	if r.Usage.OutputDetails != nil {
+		reasoningTokens = r.Usage.OutputDetails.ReasoningTokens
+	}
+
+	return r.Usage.InputTokens, r.Usage.OutputTokens, r.Usage.TotalTokens, reasoningTokens
 }
 
 type aiParsedResponse struct {
@@ -126,6 +220,7 @@ type Service struct {
 	courseIntakesService *courseintakesmodule.Service
 	auditService         *audit.Service
 	aiConfig             config.YandexAIConfig
+	logger               *slog.Logger
 }
 
 func NewService(
@@ -136,6 +231,7 @@ func NewService(
 	courseIntakesService *courseintakesmodule.Service,
 	auditService *audit.Service,
 	aiConfig config.YandexAIConfig,
+	logger *slog.Logger,
 ) *Service {
 	return &Service{
 		db:                   db,
@@ -145,6 +241,25 @@ func NewService(
 		courseIntakesService: courseIntakesService,
 		auditService:         auditService,
 		aiConfig:             aiConfig,
+		logger:               logger,
+	}
+}
+
+func (s *Service) logInfo(msg string, args ...any) {
+	if s != nil && s.logger != nil {
+		s.logger.Info(msg, args...)
+	}
+}
+
+func (s *Service) logWarn(msg string, args ...any) {
+	if s != nil && s.logger != nil {
+		s.logger.Warn(msg, args...)
+	}
+}
+
+func (s *Service) logError(msg string, args ...any) {
+	if s != nil && s.logger != nil {
+		s.logger.Error(msg, args...)
 	}
 }
 
@@ -167,6 +282,7 @@ func (s *Service) Recommend(ctx context.Context, principal platformauth.Principa
 	}
 
 	if len(activeTasks) == 0 {
+		s.logInfo("ai recommendations skipped: no active tasks", "user_id", principal.UserID.String())
 		response := RecommendResponse{
 			Tasks:                 0,
 			CoursesInPool:         0,
@@ -187,6 +303,12 @@ func (s *Service) Recommend(ctx context.Context, principal platformauth.Principa
 	intakes, intakesErr := s.courseIntakesService.ListIntakes(ctx, "open")
 
 	if coursesErr != nil && intakesErr != nil {
+		s.logError(
+			"ai recommendations pool fetch failed",
+			"user_id", principal.UserID.String(),
+			"courses_error", coursesErr.Error(),
+			"intakes_error", intakesErr.Error(),
+		)
 		debug := &DebugLog{
 			TasksSummary:   buildTasksSummary(activeTasks),
 			CoursesSummary: "Не удалось получить опубликованные курсы",
@@ -209,6 +331,11 @@ func (s *Service) Recommend(ctx context.Context, principal platformauth.Principa
 	}
 
 	if len(courses) == 0 && len(intakes) == 0 {
+		s.logWarn(
+			"ai recommendations skipped: empty course and intake pools",
+			"user_id", principal.UserID.String(),
+			"tasks_count", len(activeTasks),
+		)
 		debug := &DebugLog{
 			TasksSummary:   buildTasksSummary(activeTasks),
 			CoursesSummary: "Нет опубликованных курсов в пуле /api/v1/courses?limit=50&offset=0",
@@ -235,6 +362,13 @@ func (s *Service) Recommend(ctx context.Context, principal platformauth.Principa
 	}
 
 	if strings.TrimSpace(s.aiConfig.APIKey) == "" {
+		s.logWarn(
+			"ai recommendations using heuristic fallback: yandex key missing or invalid",
+			"user_id", principal.UserID.String(),
+			"tasks_count", len(activeTasks),
+			"courses_count", len(courses),
+			"intakes_count", len(intakes),
+		)
 		result := recommendHeuristically(activeTasks, courses, intakes, yandexAIKeyIssueMessage)
 		result.debug.CoursesSource = "/api/v1/courses?limit=50&offset=0"
 		result.debug.IntakesSource = "/api/v1/intakes?status=open"
@@ -257,6 +391,14 @@ func (s *Service) Recommend(ctx context.Context, principal platformauth.Principa
 		return response, nil
 	}
 
+	s.logInfo(
+		"ai recommendations ai request starting",
+		"user_id", principal.UserID.String(),
+		"tasks_count", len(activeTasks),
+		"courses_count", len(courses),
+		"intakes_count", len(intakes),
+		"api_key_configured", true,
+	)
 	result, err := s.callYandexAI(ctx, activeTasks, courses, intakes)
 	result.debug.CoursesSource = "/api/v1/courses?limit=50&offset=0"
 	result.debug.IntakesSource = "/api/v1/intakes?status=open"
@@ -277,11 +419,31 @@ func (s *Service) Recommend(ctx context.Context, principal platformauth.Principa
 	}
 
 	if err != nil {
+		s.logWarn(
+			"ai recommendations using heuristic fallback after yandex error",
+			"user_id", principal.UserID.String(),
+			"error", err.Error(),
+			"request_duration_ms", result.debug.AIRequestDurationMs,
+			"response_status", result.debug.AIResponseStatus,
+			"incomplete_reason", result.debug.AIIncompleteReason,
+		)
 		fallback := recommendHeuristically(activeTasks, courses, intakes, err.Error())
 		fallback.debug.CoursesSource = "/api/v1/courses?limit=50&offset=0"
 		fallback.debug.IntakesSource = "/api/v1/intakes?status=open"
+		fallback.debug.AIModelURI = result.debug.AIModelURI
+		fallback.debug.AIRequestDurationMs = result.debug.AIRequestDurationMs
 		fallback.debug.PromptSentToAI = result.debug.PromptSentToAI
 		fallback.debug.AIRawResponse = result.debug.AIRawResponse
+		fallback.debug.AIResponseID = result.debug.AIResponseID
+		fallback.debug.AIResponseStatus = result.debug.AIResponseStatus
+		fallback.debug.AIResponseErrorCode = result.debug.AIResponseErrorCode
+		fallback.debug.AIResponseErrorMsg = result.debug.AIResponseErrorMsg
+		fallback.debug.AIIncompleteReason = result.debug.AIIncompleteReason
+		fallback.debug.AIInputTokens = result.debug.AIInputTokens
+		fallback.debug.AIOutputTokens = result.debug.AIOutputTokens
+		fallback.debug.AIReasoningTokens = result.debug.AIReasoningTokens
+		fallback.debug.AITotalTokens = result.debug.AITotalTokens
+		fallback.debug.AIOutputTextLength = result.debug.AIOutputTextLength
 		if coursesErr != nil {
 			fallback.debug.CoursesError = coursesErr.Error()
 		}
@@ -301,6 +463,18 @@ func (s *Service) Recommend(ctx context.Context, principal platformauth.Principa
 		return response, nil
 	}
 
+	s.logInfo(
+		"ai recommendations completed",
+		"user_id", principal.UserID.String(),
+		"tasks_count", len(activeTasks),
+		"courses_count", len(courses),
+		"intakes_count", len(intakes),
+		"course_recommendations", len(response.Recommendations),
+		"intake_recommendations", len(response.IntakeRecommendations),
+		"request_duration_ms", result.debug.AIRequestDurationMs,
+		"response_status", result.debug.AIResponseStatus,
+		"incomplete_reason", result.debug.AIIncompleteReason,
+	)
 	s.tryRecordAudit(ctx, principal.UserID, "ai.recommendations.completed", response, options, coursesErr, intakesErr, nil)
 	return response, nil
 }
@@ -584,6 +758,61 @@ func buildIntakesSummary(intakes []courseintakesmodule.Intake) string {
 	return string(payload)
 }
 
+func yandexRecommendationResponseText() yandexRequestText {
+	return yandexRequestText{
+		Format: yandexTextResponseFormat{
+			Type:        "json_schema",
+			Name:        "ai_recommendations",
+			Description: "Structured recommendations for courses and intakes.",
+			Schema:      yandexRecommendationSchema(),
+		},
+	}
+}
+
+func yandexRecommendationSchema() map[string]any {
+	return map[string]any{
+		"type":                 "object",
+		"additionalProperties": false,
+		"required":             []string{"course_recommendations", "intake_recommendations"},
+		"properties": map[string]any{
+			"course_recommendations": map[string]any{
+				"type": "array",
+				"items": map[string]any{
+					"type":                 "object",
+					"additionalProperties": false,
+					"required":             []string{"course_id", "reason"},
+					"properties": map[string]any{
+						"course_id": map[string]any{"type": "string"},
+						"reason":    map[string]any{"type": "string"},
+					},
+				},
+			},
+			"intake_recommendations": map[string]any{
+				"type": "array",
+				"items": map[string]any{
+					"type":                 "object",
+					"additionalProperties": false,
+					"required":             []string{"intake_id", "reason"},
+					"properties": map[string]any{
+						"intake_id": map[string]any{"type": "string"},
+						"reason":    map[string]any{"type": "string"},
+					},
+				},
+			},
+		},
+	}
+}
+
+func truncateForLog(value string, max int) string {
+	if max <= 0 {
+		return ""
+	}
+	if len(value) <= max {
+		return value
+	}
+	return value[:max] + "..."
+}
+
 func (s *Service) getActiveYougileConnection(ctx context.Context, userID uuid.UUID) (uuid.UUID, error) {
 	var connectionID uuid.UUID
 	err := s.db.QueryRowContext(ctx, `
@@ -636,20 +865,40 @@ func (s *Service) callYandexAI(ctx context.Context, tasks []yougilemodule.TaskIt
 	)
 
 	modelURI := fmt.Sprintf("gpt://%s/%s", s.aiConfig.FolderID, s.aiConfig.Model)
+	responseTextFormat := yandexRecommendationResponseText()
 	reqData := yandexRequest{
 		Model:           modelURI,
-		Temperature:     0.3,
+		Temperature:     0.2,
 		Instructions:    instructions,
 		Input:           input,
-		MaxOutputTokens: 2500,
+		MaxOutputTokens: 256,
+		Text:            &responseTextFormat,
 	}
 
 	fullPrompt := fmt.Sprintf("=== INSTRUCTIONS ===\n%s\n\n=== INPUT ===\n%s", instructions, input)
+	debug := DebugLog{
+		PromptSentToAI: fullPrompt,
+		AIModelURI:     modelURI,
+		TasksSummary:   tasksSummary,
+		CoursesSummary: coursesSummary,
+		IntakesSummary: intakesSummary,
+	}
 
 	jsonData, err := json.Marshal(reqData)
 	if err != nil {
-		return aiResult{}, err
+		return aiResult{debug: debug}, err
 	}
+
+	s.logInfo(
+		"yandex ai request prepared",
+		"model_uri", modelURI,
+		"tasks_count", len(tasks),
+		"courses_count", len(courses),
+		"intakes_count", len(intakes),
+		"request_bytes", len(jsonData),
+		"input_bytes", len(input),
+		"max_output_tokens", reqData.MaxOutputTokens,
+	)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://ai.api.cloud.yandex.net/v1/responses", bytes.NewBuffer(jsonData))
 	if err != nil {
@@ -659,48 +908,133 @@ func (s *Service) callYandexAI(ctx context.Context, tasks []yougilemodule.TaskIt
 	req.Header.Set("Authorization", "Api-Key "+s.aiConfig.APIKey)
 	req.Header.Set("OpenAI-Project", s.aiConfig.FolderID)
 
-	resp, err := (&http.Client{}).Do(req)
+	client := &http.Client{Timeout: 20 * time.Second}
+	resp, err := client.Do(req)
 	if err != nil {
-		return aiResult{}, fmt.Errorf("yandex ai request failed: %w", err)
+		s.logError(
+			"yandex ai request failed",
+			"model_uri", modelURI,
+			"error", err.Error(),
+			"elapsed_ms", time.Since(requestStartedAt).Milliseconds(),
+		)
+		debug.AIRequestDurationMs = time.Since(requestStartedAt).Milliseconds()
+		return aiResult{debug: debug}, fmt.Errorf("yandex ai request failed: %w", err)
 	}
 	defer resp.Body.Close()
-
-	debug := DebugLog{
-		PromptSentToAI: fullPrompt,
-		AIModelURI:     modelURI,
-		TasksSummary:   tasksSummary,
-		CoursesSummary: coursesSummary,
-		IntakesSummary: intakesSummary,
-	}
 
 	body, err := io.ReadAll(resp.Body)
 	debug.AIRequestDurationMs = time.Since(requestStartedAt).Milliseconds()
 	if err != nil {
+		s.logError(
+			"read yandex ai response failed",
+			"model_uri", modelURI,
+			"status_code", resp.StatusCode,
+			"elapsed_ms", debug.AIRequestDurationMs,
+			"error", err.Error(),
+		)
 		return aiResult{debug: debug}, fmt.Errorf("read yandex ai response: %w", err)
 	}
 
 	rawResponse := string(body)
 	debug.AIRawResponse = rawResponse
 
+	var aiResp yandexResponse
+	if err := json.Unmarshal(body, &aiResp); err != nil {
+		s.logError(
+			"parse yandex ai response failed",
+			"model_uri", modelURI,
+			"status_code", resp.StatusCode,
+			"elapsed_ms", debug.AIRequestDurationMs,
+			"response_bytes", len(body),
+			"error", err.Error(),
+			"response_snippet", truncateForLog(rawResponse, 600),
+		)
+		if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+			return aiResult{debug: debug}, httpx.BadRequest("yandex_ai_key_missing_or_invalid", yandexAIKeyIssueMessage)
+		}
+		return aiResult{debug: debug}, fmt.Errorf("parse yandex ai response: %w", err)
+	}
+
+	debug.AIResponseID = aiResp.ID
+	debug.AIResponseStatus = aiResp.Status
+	debug.AIIncompleteReason = aiResp.incompleteReason()
+	debug.AIInputTokens, debug.AIOutputTokens, debug.AITotalTokens, debug.AIReasoningTokens = aiResp.usageTokens()
+	if aiResp.Error != nil {
+		debug.AIResponseErrorCode = aiResp.Error.Code
+		debug.AIResponseErrorMsg = aiResp.Error.Message
+	}
+
+	text := strings.TrimSpace(aiResp.getText())
+	debug.AIOutputTextLength = len(text)
+
+	s.logInfo(
+		"yandex ai response received",
+		"model_uri", modelURI,
+		"status_code", resp.StatusCode,
+		"response_status", aiResp.Status,
+		"response_id", aiResp.ID,
+		"elapsed_ms", debug.AIRequestDurationMs,
+		"response_bytes", len(body),
+		"output_text_length", debug.AIOutputTextLength,
+		"incomplete_reason", debug.AIIncompleteReason,
+		"input_tokens", debug.AIInputTokens,
+		"output_tokens", debug.AIOutputTokens,
+		"reasoning_tokens", debug.AIReasoningTokens,
+		"total_tokens", debug.AITotalTokens,
+		"error_code", debug.AIResponseErrorCode,
+		"error_message", debug.AIResponseErrorMsg,
+	)
+
 	if resp.StatusCode != http.StatusOK {
 		if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
 			return aiResult{debug: debug}, httpx.BadRequest("yandex_ai_key_missing_or_invalid", yandexAIKeyIssueMessage)
 		}
-		return aiResult{debug: debug}, fmt.Errorf("yandex ai returned status %d: %s", resp.StatusCode, rawResponse)
+		if aiResp.Error != nil {
+			debug.AIResponseErrorCode = aiResp.Error.Code
+			debug.AIResponseErrorMsg = aiResp.Error.Message
+		}
+		return aiResult{debug: debug}, fmt.Errorf("yandex ai returned status %d: %s", resp.StatusCode, truncateForLog(rawResponse, 1200))
 	}
 
-	var aiResp yandexResponse
-	if err := json.Unmarshal(body, &aiResp); err != nil {
-		return aiResult{debug: debug}, fmt.Errorf("parse yandex ai response: %w", err)
+	if aiResp.Error != nil {
+		s.logWarn(
+			"yandex ai response reported error",
+			"model_uri", modelURI,
+			"response_id", aiResp.ID,
+			"response_status", aiResp.Status,
+			"error_code", aiResp.Error.Code,
+			"error_message", aiResp.Error.Message,
+		)
 	}
 
-	text := strings.TrimSpace(aiResp.getText())
 	if text == "" {
+		s.logWarn(
+			"yandex ai response had empty output text",
+			"model_uri", modelURI,
+			"response_id", aiResp.ID,
+			"response_status", aiResp.Status,
+			"incomplete_reason", debug.AIIncompleteReason,
+			"input_tokens", debug.AIInputTokens,
+			"output_tokens", debug.AIOutputTokens,
+			"reasoning_tokens", debug.AIReasoningTokens,
+			"total_tokens", debug.AITotalTokens,
+			"response_snippet", truncateForLog(rawResponse, 600),
+		)
 		return aiResult{
 			courseRecommendations: []AIRecommendation{},
 			intakeRecommendations: []AIIntakeRecommendation{},
 			debug:                 debug,
-		}, nil
+		}, fmt.Errorf("yandex ai returned empty response: status=%s incomplete_reason=%s", aiResp.Status, aiResp.incompleteReason())
+	}
+
+	if aiResp.Status != "" && aiResp.Status != "completed" {
+		s.logWarn(
+			"yandex ai response finished with non-completed status",
+			"model_uri", modelURI,
+			"response_id", aiResp.ID,
+			"response_status", aiResp.Status,
+			"incomplete_reason", debug.AIIncompleteReason,
+		)
 	}
 
 	if start := strings.Index(text, "{"); start >= 0 {
@@ -711,6 +1045,14 @@ func (s *Service) callYandexAI(ctx context.Context, tasks []yougilemodule.TaskIt
 
 	var parsed aiParsedResponse
 	if err := json.Unmarshal([]byte(text), &parsed); err != nil {
+		s.logError(
+			"parse ai recommendations json failed",
+			"model_uri", modelURI,
+			"response_id", aiResp.ID,
+			"response_status", aiResp.Status,
+			"error", err.Error(),
+			"response_snippet", truncateForLog(text, 800),
+		)
 		return aiResult{debug: debug}, fmt.Errorf("parse ai recommendations json: %w (raw: %s)", err, text)
 	}
 
@@ -769,6 +1111,16 @@ func (s *Service) callYandexAI(ctx context.Context, tasks []yougilemodule.TaskIt
 		intakeRecommendations = append(intakeRecommendations, recommendation)
 	}
 
+	s.logInfo(
+		"yandex ai response parsed",
+		"model_uri", modelURI,
+		"response_id", aiResp.ID,
+		"response_status", aiResp.Status,
+		"course_recommendations", len(courseRecommendations),
+		"intake_recommendations", len(intakeRecommendations),
+		"duration_ms", debug.AIRequestDurationMs,
+	)
+
 	return aiResult{
 		courseRecommendations: courseRecommendations,
 		intakeRecommendations: intakeRecommendations,
@@ -798,6 +1150,14 @@ func (s *Service) tryRecordAudit(
 		"intake_recommendations_count": len(response.IntakeRecommendations),
 		"courses_source":               response.Debug.CoursesSource,
 		"intakes_source":               response.Debug.IntakesSource,
+		"ai_response_id":               response.Debug.AIResponseID,
+		"ai_response_status":           response.Debug.AIResponseStatus,
+		"ai_incomplete_reason":         response.Debug.AIIncompleteReason,
+		"ai_input_tokens":              response.Debug.AIInputTokens,
+		"ai_output_tokens":             response.Debug.AIOutputTokens,
+		"ai_reasoning_tokens":          response.Debug.AIReasoningTokens,
+		"ai_total_tokens":              response.Debug.AITotalTokens,
+		"ai_output_text_length":        response.Debug.AIOutputTextLength,
 	}
 	if coursesErr != nil {
 		meta["courses_error"] = coursesErr.Error()
@@ -819,6 +1179,14 @@ func (s *Service) tryRecordAudit(
 			"intakes_summary":        response.Debug.IntakesSummary,
 			"prompt_sent_to_ai":      response.Debug.PromptSentToAI,
 			"ai_raw_response":        response.Debug.AIRawResponse,
+			"ai_response_id":         response.Debug.AIResponseID,
+			"ai_response_status":     response.Debug.AIResponseStatus,
+			"ai_incomplete_reason":   response.Debug.AIIncompleteReason,
+			"ai_input_tokens":        response.Debug.AIInputTokens,
+			"ai_output_tokens":       response.Debug.AIOutputTokens,
+			"ai_reasoning_tokens":    response.Debug.AIReasoningTokens,
+			"ai_total_tokens":        response.Debug.AITotalTokens,
+			"ai_output_text_length":  response.Debug.AIOutputTextLength,
 			"recommendations":        response.Recommendations,
 			"intake_recommendations": response.IntakeRecommendations,
 		},

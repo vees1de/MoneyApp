@@ -5,9 +5,12 @@ import { RouterLink } from '@angular/router';
 import { EnrollmentsApiService } from '@core/api/enrollments-api.service';
 import type { Enrollment } from '@entities/enrollment';
 
-interface LearningSummaryItem {
+type LearningFilterKey = 'all' | 'active' | 'attention' | 'completed';
+
+interface LearningFilterItem {
+  key: LearningFilterKey;
   label: string;
-  value: number;
+  count: number;
 }
 
 interface LearningCardView {
@@ -15,14 +18,13 @@ interface LearningCardView {
   title: string;
   sourceLabel: string;
   mandatoryLabel: string;
-  status: string;
   statusLabel: string;
   statusClass: string;
-  deadlineLabel: string;
-  deadlineCaption: string;
-  deadlineToneClass: string;
-  metaLabel: string;
-  progressLabel: string | null;
+  deadlineText: string;
+  deadlineHint: string;
+  deadlineClass: string;
+  progressText: string;
+  activityText: string;
 }
 
 @Component({
@@ -35,11 +37,11 @@ interface LearningCardView {
 export class MyLearningListPageComponent implements OnInit {
   private readonly api = inject(EnrollmentsApiService);
   private readonly shortDateFormatter = new Intl.DateTimeFormat('ru-RU', {
-    day: 'numeric',
-    month: 'long',
+    day: '2-digit',
+    month: 'short',
   });
   private readonly shortDateTimeFormatter = new Intl.DateTimeFormat('ru-RU', {
-    day: 'numeric',
+    day: '2-digit',
     month: 'short',
     hour: '2-digit',
     minute: '2-digit',
@@ -48,28 +50,62 @@ export class MyLearningListPageComponent implements OnInit {
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
   protected readonly enrollments = signal<Enrollment[]>([]);
+  protected readonly selectedFilter = signal<LearningFilterKey>('all');
 
   protected readonly orderedEnrollments = computed(() =>
     [...this.enrollments()].sort((left, right) => this.compareEnrollments(left, right)),
   );
 
-  protected readonly cards = computed<LearningCardView[]>(() =>
-    this.orderedEnrollments().map((item) => this.toCardView(item)),
-  );
-
-  protected readonly summaryItems = computed<LearningSummaryItem[]>(() => {
-    const items = this.enrollments();
+  protected readonly filterItems = computed<LearningFilterItem[]>(() => {
+    const items = this.orderedEnrollments();
 
     return [
-      { label: 'Активно', value: items.filter((item) => this.isActive(item)).length },
-      { label: 'Скоро срок', value: items.filter((item) => this.isDueSoon(item)).length },
-      { label: 'Завершено', value: items.filter((item) => item.status === 'completed').length },
+      { key: 'all', label: 'Все', count: items.length },
+      {
+        key: 'active',
+        label: 'Активные',
+        count: items.filter((item) => this.isActive(item)).length,
+      },
+      {
+        key: 'attention',
+        label: 'Требуют внимания',
+        count: items.filter((item) => this.needsAttention(item)).length,
+      },
+      {
+        key: 'completed',
+        label: 'Завершённые',
+        count: items.filter((item) => item.status === 'completed').length,
+      },
     ];
   });
 
+  protected readonly filteredEnrollments = computed(() => {
+    const items = this.orderedEnrollments();
+
+    switch (this.selectedFilter()) {
+      case 'active':
+        return items.filter((item) => this.isActive(item));
+      case 'attention':
+        return items.filter((item) => this.needsAttention(item));
+      case 'completed':
+        return items.filter((item) => item.status === 'completed');
+      default:
+        return items;
+    }
+  });
+
+  protected readonly filteredCards = computed<LearningCardView[]>(() =>
+    this.filteredEnrollments().map((item) => this.toCardView(item)),
+  );
+
   protected readonly primaryEnrollment = computed(() => {
     const items = this.orderedEnrollments();
-    return items.find((item) => this.isActive(item)) ?? items[0] ?? null;
+    return (
+      items.find((item) => this.needsAttention(item)) ??
+      items.find((item) => this.isActive(item)) ??
+      items[0] ??
+      null
+    );
   });
 
   protected readonly primaryActionLabel = computed(() => {
@@ -78,8 +114,12 @@ export class MyLearningListPageComponent implements OnInit {
       return '';
     }
 
-    return this.isActive(item) ? 'Открыть ближайший курс' : 'Открыть обучение';
+    return this.needsAttention(item) ? 'Открыть приоритетный курс' : 'Открыть ближайший курс';
   });
+
+  protected readonly resultLabel = computed(() =>
+    this.formatCourseCount(this.filteredCards().length),
+  );
 
   ngOnInit(): void {
     this.api.listMy().subscribe({
@@ -96,6 +136,14 @@ export class MyLearningListPageComponent implements OnInit {
 
   protected trackByEnrollment(_index: number, item: LearningCardView): string {
     return item.id;
+  }
+
+  protected setFilter(filter: LearningFilterKey): void {
+    this.selectedFilter.set(filter);
+  }
+
+  protected isFilterActive(filter: LearningFilterKey): boolean {
+    return this.selectedFilter() === filter;
   }
 
   private compareEnrollments(left: Enrollment, right: Enrollment): number {
@@ -134,14 +182,13 @@ export class MyLearningListPageComponent implements OnInit {
       title: item.course_title?.trim() || `Курс ${item.course_id.slice(0, 8)}`,
       sourceLabel: this.sourceLabel(item.source),
       mandatoryLabel: item.is_mandatory ? 'Обязательное' : 'По выбору',
-      status: item.status,
       statusLabel: this.statusLabel(item.status),
-      statusClass: this.statusChipClass(item.status),
-      deadlineLabel: this.deadlineLabel(item.deadline_at),
-      deadlineCaption: this.deadlineCaption(item),
-      deadlineToneClass: this.deadlineToneClass(item),
-      metaLabel: this.metaLabel(item),
-      progressLabel: this.progressLabel(item),
+      statusClass: this.statusClass(item.status),
+      deadlineText: this.deadlineText(item.deadline_at),
+      deadlineHint: this.deadlineHint(item),
+      deadlineClass: this.deadlineClass(item),
+      progressText: this.progressText(item),
+      activityText: this.activityText(item),
     };
   }
 
@@ -168,94 +215,87 @@ export class MyLearningListPageComponent implements OnInit {
     return labels[status] ?? status;
   }
 
-  private statusChipClass(status: string): string {
+  private statusClass(status: string): string {
     switch (status) {
       case 'completed':
-        return 'status-pill--done';
+        return 'status-pill--success';
       case 'in_progress':
-        return 'status-pill--active';
+        return 'status-pill--info';
       case 'enrolled':
-        return 'status-pill--pending';
+        return 'status-pill--warning';
       case 'canceled':
-        return 'status-pill--canceled';
+        return 'status-pill--critical';
       default:
         return 'status-pill--default';
     }
   }
 
-  private deadlineToneClass(item: Enrollment): string {
-    if (this.isOverdue(item)) {
-      return 'learning-card--overdue';
-    }
-    if (this.isDueSoon(item)) {
-      return 'learning-card--soon';
-    }
-    if (item.status === 'completed') {
-      return 'learning-card--done';
-    }
-    return 'learning-card--default';
-  }
-
-  private deadlineLabel(value?: string | null): string {
+  private deadlineText(value?: string | null): string {
     const date = this.parseDate(value);
     if (!date) {
-      return 'Без дедлайна';
+      return 'Не задан';
     }
-    return this.shortDateFormatter.format(date);
+    return this.shortDateFormatter.format(date).replace('.', '');
   }
 
-  private deadlineCaption(item: Enrollment): string {
+  private deadlineHint(item: Enrollment): string {
     const date = this.parseDate(item.deadline_at);
     if (!date) {
-      return 'Срок не задан';
+      return 'Без ограничения по сроку';
     }
     if (item.status === 'completed') {
       return 'Срок закрыт';
     }
 
-    const today = Date.now();
-    const diff = date.getTime() - today;
-    const days = Math.ceil(diff / 86_400_000);
-
+    const days = Math.ceil((date.getTime() - Date.now()) / 86_400_000);
     if (days < 0) {
-      return 'Просрочено';
+      return `Просрочено на ${Math.abs(days)} дн.`;
     }
     if (days === 0) {
-      return 'Сегодня';
+      return 'Требует действия сегодня';
     }
-    if (days === 1) {
-      return '1 день';
+    if (days <= 7) {
+      return `Осталось ${days} дн.`;
     }
-    if (days <= 4) {
-      return `${days} дня`;
-    }
-    return `${days} дней`;
+    return 'Срок в норме';
   }
 
-  private metaLabel(item: Enrollment): string {
-    if (item.status === 'completed' && item.completed_at) {
-      return `Завершено ${this.formatDateTime(item.completed_at)}`;
+  private deadlineClass(item: Enrollment): string {
+    if (this.isOverdue(item)) {
+      return 'meta-item__value--critical';
     }
-    if (item.last_activity_at) {
-      return `Активность ${this.formatDateTime(item.last_activity_at)}`;
+    if (this.isDueSoon(item)) {
+      return 'meta-item__value--warning';
     }
-    if (item.started_at) {
-      return `Начато ${this.formatDateTime(item.started_at)}`;
+    if (item.status === 'completed') {
+      return 'meta-item__value--success';
     }
-    return `Назначено ${this.formatDateTime(item.enrolled_at)}`;
+    return 'meta-item__value--default';
   }
 
-  private progressLabel(item: Enrollment): string | null {
+  private progressText(item: Enrollment): string {
     if (item.status === 'completed') {
       return '100%';
     }
 
     const progress = Number(item.completion_percent);
-    if (Number.isNaN(progress) || progress <= 0) {
-      return null;
+    if (!Number.isNaN(progress) && progress > 0) {
+      return `${Math.round(progress)}%`;
     }
 
-    return `${Math.round(progress)}%`;
+    if (item.status === 'in_progress') {
+      return 'В процессе';
+    }
+    if (item.status === 'canceled') {
+      return 'Остановлено';
+    }
+    return 'Не начато';
+  }
+
+  private activityText(item: Enrollment): string {
+    return this.formatDateTime(
+      item.last_activity_at ?? item.started_at ?? item.completed_at ?? item.enrolled_at,
+    );
   }
 
   private formatDateTime(value?: string | null): string {
@@ -264,6 +304,19 @@ export class MyLearningListPageComponent implements OnInit {
       return '—';
     }
     return this.shortDateTimeFormatter.format(date).replace('.', '');
+  }
+
+  private formatCourseCount(count: number): string {
+    const mod10 = count % 10;
+    const mod100 = count % 100;
+
+    if (mod10 === 1 && mod100 !== 11) {
+      return `${count} курс`;
+    }
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
+      return `${count} курса`;
+    }
+    return `${count} курсов`;
   }
 
   private parseDate(value?: string | null): Date | null {
@@ -301,8 +354,11 @@ export class MyLearningListPageComponent implements OnInit {
       return false;
     }
 
-    const diff = deadline.getTime() - Date.now();
-    const days = Math.ceil(diff / 86_400_000);
+    const days = Math.ceil((deadline.getTime() - Date.now()) / 86_400_000);
     return days >= 0 && days <= 7;
+  }
+
+  private needsAttention(item: Enrollment): boolean {
+    return this.isOverdue(item) || this.isDueSoon(item);
   }
 }

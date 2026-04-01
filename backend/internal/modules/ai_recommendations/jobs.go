@@ -98,6 +98,13 @@ func (s *Service) StartRecommendationJob(ctx context.Context, principal platform
 		return AIRecommendationJob{}, err
 	}
 
+	s.logInfo(
+		"ai recommendation job started",
+		"job_id", job.ID.String(),
+		"user_id", principal.UserID.String(),
+		"status", job.Status,
+		"attempt", job.Attempt,
+	)
 	s.recordRecommendationJobAudit(ctx, "ai.recommendations.started", job, options, map[string]any{
 		"status":  job.Status,
 		"attempt": job.Attempt,
@@ -205,14 +212,34 @@ func (s *Service) ListRecommendationJobs(ctx context.Context, principal platform
 func (s *Service) ProcessRecommendationJob(ctx context.Context, job platformworker.Job) error {
 	var payload recommendationJobPayload
 	if err := json.Unmarshal(job.Payload, &payload); err != nil {
+		s.logError(
+			"ai recommendation job payload parse failed",
+			"queue", job.Queue,
+			"job_type", job.JobType,
+			"error", err.Error(),
+			"payload_snippet", truncateForLog(string(job.Payload), 400),
+		)
 		return err
 	}
 	if payload.JobID == uuid.Nil {
+		s.logError("ai recommendation job payload missing job id", "queue", job.Queue, "job_type", job.JobType)
 		return fmt.Errorf("ai recommendation job payload is missing job_id")
 	}
 
 	now := time.Now().UTC()
+	s.logInfo(
+		"ai recommendation job processing started",
+		"job_id", payload.JobID.String(),
+		"user_id", payload.UserID.String(),
+		"attempt", job.Attempt,
+		"max_attempts", job.MaxAttempts,
+	)
 	if err := s.markRecommendationJobProcessing(ctx, payload.JobID, now); err != nil {
+		s.logError(
+			"ai recommendation job mark processing failed",
+			"job_id", payload.JobID.String(),
+			"error", err.Error(),
+		)
 		return err
 	}
 
@@ -231,6 +258,13 @@ func (s *Service) ProcessRecommendationJob(ctx context.Context, job platformwork
 	if err != nil {
 		finishedAt := time.Now().UTC()
 		if job.Attempt+1 >= job.MaxAttempts {
+			s.logError(
+				"ai recommendation job failed",
+				"job_id", payload.JobID.String(),
+				"user_id", payload.UserID.String(),
+				"attempt", job.Attempt+1,
+				"error", err.Error(),
+			)
 			_ = s.markRecommendationJobFailed(ctx, payload.JobID, finishedAt, err.Error())
 			s.recordRecommendationJobAudit(ctx, "ai.recommendations.failed", AIRecommendationJob{
 				ID:      payload.JobID,
@@ -241,15 +275,38 @@ func (s *Service) ProcessRecommendationJob(ctx context.Context, job platformwork
 				"error": err.Error(),
 			})
 		} else {
+			s.logWarn(
+				"ai recommendation job scheduled for retry",
+				"job_id", payload.JobID.String(),
+				"user_id", payload.UserID.String(),
+				"attempt", job.Attempt+1,
+				"error", err.Error(),
+			)
 			_ = s.markRecommendationJobRetry(ctx, payload.JobID, time.Now().UTC(), err.Error())
 		}
 		return err
 	}
 
 	if err := s.markRecommendationJobDone(ctx, payload.JobID, result, time.Now().UTC()); err != nil {
+		s.logError(
+			"ai recommendation job mark done failed",
+			"job_id", payload.JobID.String(),
+			"error", err.Error(),
+		)
 		return err
 	}
 
+	s.logInfo(
+		"ai recommendation job completed",
+		"job_id", payload.JobID.String(),
+		"user_id", payload.UserID.String(),
+		"attempt", job.Attempt+1,
+		"request_duration_ms", result.Debug.AIRequestDurationMs,
+		"course_recommendations", len(result.Recommendations),
+		"intake_recommendations", len(result.IntakeRecommendations),
+		"response_status", result.Debug.AIResponseStatus,
+		"incomplete_reason", result.Debug.AIIncompleteReason,
+	)
 	s.recordRecommendationJobAudit(ctx, "ai.recommendations.completed_async", AIRecommendationJob{
 		ID:      payload.JobID,
 		UserID:  payload.UserID,
