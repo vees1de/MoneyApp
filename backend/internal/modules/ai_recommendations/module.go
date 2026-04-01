@@ -10,8 +10,10 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
+	"unicode"
 
 	"moneyapp/backend/internal/config"
 	"moneyapp/backend/internal/core/audit"
@@ -226,6 +228,29 @@ func (s *Service) Recommend(ctx context.Context, principal platformauth.Principa
 		return response, nil
 	}
 
+	if strings.TrimSpace(s.aiConfig.APIKey) == "" {
+		result := recommendHeuristically(activeTasks, courses, intakes, "Yandex AI API key is not configured")
+		result.debug.CoursesSource = "/api/v1/courses?limit=50&offset=0"
+		result.debug.IntakesSource = "/api/v1/intakes?status=open"
+		if coursesErr != nil {
+			result.debug.CoursesError = coursesErr.Error()
+		}
+		if intakesErr != nil {
+			result.debug.IntakesError = intakesErr.Error()
+		}
+
+		response := RecommendResponse{
+			Tasks:                 len(activeTasks),
+			CoursesInPool:         len(courses),
+			IntakesInPool:         len(intakes),
+			Recommendations:       result.courseRecommendations,
+			IntakeRecommendations: result.intakeRecommendations,
+			Debug:                 &result.debug,
+		}
+		s.tryRecordAudit(ctx, principal.UserID, "ai.recommendations.completed_fallback", response, options, coursesErr, intakesErr, nil)
+		return response, nil
+	}
+
 	result, err := s.callYandexAI(ctx, activeTasks, courses, intakes)
 	result.debug.CoursesSource = "/api/v1/courses?limit=50&offset=0"
 	result.debug.IntakesSource = "/api/v1/intakes?status=open"
@@ -246,8 +271,28 @@ func (s *Service) Recommend(ctx context.Context, principal platformauth.Principa
 	}
 
 	if err != nil {
-		s.tryRecordAudit(ctx, principal.UserID, "ai.recommendations.failed", response, options, coursesErr, intakesErr, err)
-		return RecommendResponse{}, fmt.Errorf("yandex ai: %w", err)
+		fallback := recommendHeuristically(activeTasks, courses, intakes, err.Error())
+		fallback.debug.CoursesSource = "/api/v1/courses?limit=50&offset=0"
+		fallback.debug.IntakesSource = "/api/v1/intakes?status=open"
+		fallback.debug.PromptSentToAI = result.debug.PromptSentToAI
+		fallback.debug.AIRawResponse = result.debug.AIRawResponse
+		if coursesErr != nil {
+			fallback.debug.CoursesError = coursesErr.Error()
+		}
+		if intakesErr != nil {
+			fallback.debug.IntakesError = intakesErr.Error()
+		}
+
+		response = RecommendResponse{
+			Tasks:                 len(activeTasks),
+			CoursesInPool:         len(courses),
+			IntakesInPool:         len(intakes),
+			Recommendations:       fallback.courseRecommendations,
+			IntakeRecommendations: fallback.intakeRecommendations,
+			Debug:                 &fallback.debug,
+		}
+		s.tryRecordAudit(ctx, principal.UserID, "ai.recommendations.completed_fallback", response, options, coursesErr, intakesErr, err)
+		return response, nil
 	}
 
 	s.tryRecordAudit(ctx, principal.UserID, "ai.recommendations.completed", response, options, coursesErr, intakesErr, nil)
@@ -269,6 +314,12 @@ func (s *Service) listCoursePool(ctx context.Context, principal platformauth.Pri
 	return s.catalogService.ListCourses(ctx, principal, filters)
 }
 
+type scoredMatch struct {
+	ID      string
+	Score   int
+	Matches []string
+}
+
 func buildTasksSummary(tasks []yougilemodule.TaskItem) string {
 	var taskLines []string
 	for index, task := range tasks {
@@ -285,6 +336,185 @@ func buildTasksSummary(tasks []yougilemodule.TaskItem) string {
 		taskLines = append(taskLines, line)
 	}
 	return strings.Join(taskLines, "\n")
+}
+
+func recommendHeuristically(tasks []yougilemodule.TaskItem, courses []catalogmodule.Course, intakes []courseintakesmodule.Intake, reason string) aiResult {
+	taskText := buildTasksSummary(tasks)
+	taskTokens := tokenizeForMatch(taskText)
+
+	courseMatches := make([]scoredMatch, 0, len(courses))
+	for _, course := range courses {
+		score, matches := scoreTextAgainstTaskTokens(taskTokens, course.Title, nullableString(course.ShortDescription), nullableString(course.Description))
+		if score == 0 && len(courses) > 5 {
+			continue
+		}
+		courseMatches = append(courseMatches, scoredMatch{
+			ID:      course.ID.String(),
+			Score:   score,
+			Matches: matches,
+		})
+	}
+
+	intakeMatches := make([]scoredMatch, 0, len(intakes))
+	for _, intake := range intakes {
+		score, matches := scoreTextAgainstTaskTokens(taskTokens, intake.Title, nullableString(intake.Description))
+		if score == 0 && len(intakes) > 5 {
+			continue
+		}
+		intakeMatches = append(intakeMatches, scoredMatch{
+			ID:      intake.ID.String(),
+			Score:   score,
+			Matches: matches,
+		})
+	}
+
+	sort.SliceStable(courseMatches, func(i, j int) bool {
+		if courseMatches[i].Score == courseMatches[j].Score {
+			return courseMatches[i].ID < courseMatches[j].ID
+		}
+		return courseMatches[i].Score > courseMatches[j].Score
+	})
+	sort.SliceStable(intakeMatches, func(i, j int) bool {
+		if intakeMatches[i].Score == intakeMatches[j].Score {
+			return intakeMatches[i].ID < intakeMatches[j].ID
+		}
+		return intakeMatches[i].Score > intakeMatches[j].Score
+	})
+
+	courseIndex := make(map[string]catalogmodule.Course, len(courses))
+	for _, course := range courses {
+		courseIndex[course.ID.String()] = course
+	}
+	intakeIndex := make(map[string]courseintakesmodule.Intake, len(intakes))
+	for _, intake := range intakes {
+		intakeIndex[intake.ID.String()] = intake
+	}
+
+	courseRecommendations := make([]AIRecommendation, 0, minInt(5, len(courseMatches)))
+	for _, match := range courseMatches[:minInt(5, len(courseMatches))] {
+		course := courseIndex[match.ID]
+		recommendation := AIRecommendation{
+			CourseID: course.ID.String(),
+			Title:    course.Title,
+			Reason:   buildCourseFallbackReason(match),
+		}
+		if course.ShortDescription != nil {
+			recommendation.ShortDescription = *course.ShortDescription
+		}
+		courseRecommendations = append(courseRecommendations, recommendation)
+	}
+
+	intakeRecommendations := make([]AIIntakeRecommendation, 0, minInt(5, len(intakeMatches)))
+	for _, match := range intakeMatches[:minInt(5, len(intakeMatches))] {
+		intake := intakeIndex[match.ID]
+		recommendation := AIIntakeRecommendation{
+			IntakeID: intake.ID.String(),
+			Title:    intake.Title,
+			Reason:   buildIntakeFallbackReason(match, intake),
+		}
+		if intake.CourseID != nil {
+			recommendation.CourseID = intake.CourseID.String()
+		}
+		if intake.Description != nil {
+			recommendation.Description = *intake.Description
+		}
+		if intake.StartDate != nil {
+			recommendation.StartDate = *intake.StartDate
+		}
+		if intake.ApplicationDeadline != nil {
+			recommendation.ApplicationDeadline = intake.ApplicationDeadline.Format(time.RFC3339)
+		}
+		intakeRecommendations = append(intakeRecommendations, recommendation)
+	}
+
+	return aiResult{
+		courseRecommendations: courseRecommendations,
+		intakeRecommendations: intakeRecommendations,
+		debug: DebugLog{
+			PromptSentToAI: "AI request skipped; heuristic fallback used.",
+			AIRawResponse:  "fallback_reason: " + reason,
+			AIModelURI:     "fallback://heuristic",
+			TasksSummary:   taskText,
+			CoursesSummary: buildCoursesSummary(courses),
+			IntakesSummary: buildIntakesSummary(intakes),
+		},
+	}
+}
+
+func tokenizeForMatch(values ...string) map[string]struct{} {
+	tokens := make(map[string]struct{})
+	for _, value := range values {
+		normalized := strings.Map(func(r rune) rune {
+			if unicode.IsLetter(r) || unicode.IsDigit(r) {
+				return unicode.ToLower(r)
+			}
+			return ' '
+		}, value)
+
+		for _, part := range strings.Fields(normalized) {
+			if len([]rune(part)) < 3 {
+				continue
+			}
+			if _, skip := ignoredMatchTokens[part]; skip {
+				continue
+			}
+			tokens[part] = struct{}{}
+		}
+	}
+	return tokens
+}
+
+var ignoredMatchTokens = map[string]struct{}{
+	"для": {}, "что": {}, "как": {}, "или": {}, "при": {}, "без": {}, "под": {}, "над": {},
+	"это": {}, "the": {}, "and": {}, "with": {}, "from": {}, "into": {}, "task": {},
+}
+
+func scoreTextAgainstTaskTokens(taskTokens map[string]struct{}, values ...string) (int, []string) {
+	itemTokens := tokenizeForMatch(values...)
+	matches := make([]string, 0, len(itemTokens))
+	for token := range itemTokens {
+		if _, ok := taskTokens[token]; ok {
+			matches = append(matches, token)
+		}
+	}
+	sort.Strings(matches)
+	score := len(matches)
+	if score > 0 {
+		score += minInt(2, len(matches))
+	}
+	return score, matches[:minInt(5, len(matches))]
+}
+
+func buildCourseFallbackReason(match scoredMatch) string {
+	if len(match.Matches) == 0 {
+		return "Подобрано эвристически из опубликованного пула курсов по общему профилю текущих задач."
+	}
+	return fmt.Sprintf("Подобрано эвристически по совпадениям с задачами: %s.", strings.Join(match.Matches, ", "))
+}
+
+func buildIntakeFallbackReason(match scoredMatch, intake courseintakesmodule.Intake) string {
+	base := "Подобрано эвристически из открытого пула наборов."
+	if len(match.Matches) > 0 {
+		base = fmt.Sprintf("Подобрано эвристически по совпадениям с задачами: %s.", strings.Join(match.Matches, ", "))
+	}
+	if intake.ApplicationDeadline != nil {
+		base += " Набор сейчас открыт для подачи заявки."
+	}
+	return base
+}
+
+func nullableString(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
+}
+
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func buildCoursesSummary(courses []catalogmodule.Course) string {

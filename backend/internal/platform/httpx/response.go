@@ -50,7 +50,8 @@ func WriteNoContent(w http.ResponseWriter) {
 
 func WriteError(w http.ResponseWriter, err error) {
 	appErr := Internal("internal_error")
-	if typed, ok := err.(*AppError); ok {
+	var typed *AppError
+	if errors.As(err, &typed) {
 		appErr = typed
 	} else if err != nil {
 		slog.Error("unhandled app error", "error", err.Error())
