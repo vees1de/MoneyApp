@@ -31,6 +31,7 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
   gap: 16px;
+  align-items: center;
 }
 
 .suggestions-grid {
@@ -132,6 +133,7 @@
   0% {
     background-position: 200% 0;
   }
+
   100% {
     background-position: -200% 0;
   }

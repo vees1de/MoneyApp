@@ -5,7 +5,11 @@
     </div>
 
     <div class="catalog-detail-page__header-actions">
-      <a mat-stroked-button routerLink="/catalog">
+      <a
+        mat-stroked-button
+        routerLink="/catalog"
+        style="background-color: #fff; border: 1px solid var(--mat-sys-primary)"
+      >
         <mat-icon>arrow_back</mat-icon>
         Все курсы
       </a>
@@ -20,7 +24,9 @@
     <mat-card class="catalog-detail-card">
       <mat-card-header>
         <mat-card-title>{{ item.title }}</mat-card-title>
-        <mat-card-subtitle>{{ formatCourseSubtitle(item) }}</mat-card-subtitle>
+        <mat-card-subtitle style="color: var(--app-muted)">{{
+          formatCourseSubtitle(item)
+        }}</mat-card-subtitle>
       </mat-card-header>
 
       <mat-card-content class="catalog-detail-card__content">
@@ -30,30 +36,6 @@
         @if (item.description) {
           <p>{{ item.description }}</p>
         }
-
-        <div class="catalog-detail-card__actions">
-          @if (item.external_url) {
-            <a
-              mat-flat-button
-              color="primary"
-              [href]="item.external_url"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <mat-icon>open_in_new</mat-icon>
-              Открыть оригинальный курс
-            </a>
-          }
-
-          <a
-            mat-stroked-button
-            routerLink="/suggestions/new"
-            [queryParams]="suggestionQueryParams(item)"
-          >
-            <mat-icon>favorite</mat-icon>
-            Хочу этот курс
-          </a>
-        </div>
 
         <p>
           <span class="kv__key">Уровень:</span>
@@ -87,6 +69,30 @@
           <span class="kv__key">Обновлено:</span>
           <span class="kv__value">{{ item.updated_at | date: 'dd.MM.yyyy HH:mm' }}</span>
         </p>
+
+        <div class="catalog-detail-card__actions">
+          @if (item.external_url) {
+            <a
+              mat-flat-button
+              color="primary"
+              [href]="item.external_url"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <mat-icon>open_in_new</mat-icon>
+              Открыть оригинальный курс
+            </a>
+          }
+
+          <a
+            mat-stroked-button
+            routerLink="/suggestions/new"
+            [queryParams]="suggestionQueryParams(item)"
+          >
+            <mat-icon>favorite</mat-icon>
+            Хочу этот курс
+          </a>
+        </div>
       </mat-card-content>
     </mat-card>
   }

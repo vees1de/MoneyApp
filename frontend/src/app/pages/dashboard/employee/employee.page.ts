@@ -7,6 +7,7 @@ import { QuickActionsWidgetComponent } from '@app/widgets/quick-actions-widget/q
 import { RecommendationsWidgetComponent } from '@app/widgets/recommendations-widget/recommendations-widget.component';
 import { TeamOverviewWidgetComponent } from '@app/widgets/team-overview-widget/team-overview-widget.component';
 import { UpcomingEventsWidgetComponent } from '@app/widgets/upcoming-events-widget/upcoming-events-widget.component';
+import { YougilePlaygroundWidgetComponent } from '@app/widgets/yougile-playground-widget/yougile-playground-widget.component';
 
 @Component({
   selector: 'app-page-dashboard-employee',
@@ -19,6 +20,7 @@ import { UpcomingEventsWidgetComponent } from '@app/widgets/upcoming-events-widg
     CurrentLearningWidgetComponent,
     RecommendationsWidgetComponent,
     QuickActionsWidgetComponent,
+    YougilePlaygroundWidgetComponent,
   ],
   templateUrl: './employee.page.html',
   styleUrl: './employee.page.scss',

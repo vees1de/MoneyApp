@@ -8,51 +8,48 @@
   </header>
 
   <!-- Step 1: Source Selection -->
-  <mat-card class="export-step">
-    <mat-card-content>
-      <div class="step-label">
-        <span class="step-number">1</span>
-        <span class="step-title">Выберите источник данных</span>
+  <div class="step-label">
+    <span class="step-number">1</span>
+    <span class="step-title">Выберите источник данных</span>
+  </div>
+  <section class="export-step export-step--source">
+    @if (facade.sourcesLoading()) {
+      <div class="export-loading">
+        <mat-spinner diameter="28"></mat-spinner>
+        <span>Загрузка источников...</span>
       </div>
-
-      @if (facade.sourcesLoading()) {
-        <div class="export-loading">
-          <mat-spinner diameter="28"></mat-spinner>
-          <span>Загрузка источников...</span>
-        </div>
-      } @else if (facade.sourcesError()) {
-        <div class="export-error">
-          <mat-icon>error_outline</mat-icon>
-          <span>{{ facade.sourcesError() }}</span>
-          <button mat-stroked-button (click)="facade.load()">Повторить</button>
-        </div>
-      } @else {
-        <div class="source-grid">
-          @for (source of facade.sources(); track source.key) {
-            <button
-              class="source-card"
-              [class.source-card--active]="activeSource()?.key === source.key"
-              (click)="selectSource(source)"
-            >
-              <span class="source-card__label">{{ source.label }}</span>
-              <span class="source-card__meta">{{ source.columns.length }} колонок</span>
-            </button>
-          }
-        </div>
-      }
-    </mat-card-content>
-  </mat-card>
+    } @else if (facade.sourcesError()) {
+      <div class="export-error">
+        <mat-icon>error_outline</mat-icon>
+        <span>{{ facade.sourcesError() }}</span>
+        <button mat-stroked-button (click)="facade.load()">Повторить</button>
+      </div>
+    } @else {
+      <mat-chip-listbox class="source-chips" [multiple]="false">
+        @for (source of facade.sources(); track source.key) {
+          <mat-chip-option
+            [selected]="activeSource()?.key === source.key"
+            (click)="selectSource(source)"
+          >
+            <span class="source-chip__label">{{ source.label }} </span>
+            <span class="source-chip__meta"> ({{ source.columns.length }})</span>
+          </mat-chip-option>
+        }
+      </mat-chip-listbox>
+    }
+  </section>
 
   @if (activeSource()) {
     <!-- Step 2: Column Picker -->
+    <div class="step-label">
+      <span class="step-number">2</span>
+      <div>
+        <span class="step-title">Настройте колонки </span>
+        <span class="step-subtitle">{{ selectedCount() }} из {{ totalCount() }} выбрано</span>
+      </div>
+    </div>
     <mat-card class="export-step">
       <mat-card-content>
-        <div class="step-label">
-          <span class="step-number">2</span>
-          <span class="step-title">Настройте колонки</span>
-          <span class="step-subtitle">{{ selectedCount() }} из {{ totalCount() }} выбрано</span>
-        </div>
-
         <div class="column-actions">
           <button mat-stroked-button (click)="selectAllColumns()">
             <mat-icon>check_box</mat-icon>
@@ -68,21 +65,13 @@
           </button>
         </div>
 
-        <div
-          class="column-list"
-          cdkDropList
-          (cdkDropListDropped)="onColumnDrop($event)"
-        >
+        <div class="column-list" cdkDropList (cdkDropListDropped)="onColumnDrop($event)">
           @for (item of columnSelections(); track item.column.key; let i = $index) {
             <div class="column-item" cdkDrag>
               <div class="column-item__drag" cdkDragHandle>
                 <mat-icon>drag_indicator</mat-icon>
               </div>
-              <mat-checkbox
-                [checked]="item.selected"
-                (change)="toggleColumn(i)"
-                color="primary"
-              >
+              <mat-checkbox [checked]="item.selected" (change)="toggleColumn(i)" color="primary">
                 <div class="column-item__info">
                   <span class="column-item__label">{{ item.column.label }}</span>
                   <span class="column-item__type">
@@ -115,14 +104,15 @@
     </mat-card>
 
     <!-- Step 3: Filters -->
+    <div class="step-label">
+      <span class="step-number">3</span>
+      <div>
+        <span class="step-title">Фильтры и сортировка </span>
+        <span class="step-subtitle">опционально</span>
+      </div>
+    </div>
     <mat-card class="export-step">
       <mat-card-content>
-        <div class="step-label">
-          <span class="step-number">3</span>
-          <span class="step-title">Фильтры и сортировка</span>
-          <span class="step-subtitle">опционально</span>
-        </div>
-
         <form class="filter-grid" [formGroup]="filterForm">
           <mat-form-field appearance="outline">
             <mat-label>Поиск</mat-label>
@@ -190,45 +180,40 @@
     </mat-card>
 
     <!-- Step 4: Export -->
-    <mat-card class="export-step export-step--action">
-      <mat-card-content>
-        <div class="export-action-bar">
-          <div class="export-action-bar__info">
-            <div class="step-label">
-              <span class="step-number">4</span>
-              <span class="step-title">Выгрузка</span>
-            </div>
-            <p class="export-action-bar__summary">
-              <strong>{{ activeSource()?.label }}</strong> &middot;
-              {{ selectedCount() }} колонок
-            </p>
-          </div>
+    <div class="step-label">
+      <span class="step-number">4</span>
+      <span class="step-title">Выгрузка</span>
+    </div>
+    <section class="export-step export-step--action">
+      <div class="export-action-bar">
+        <p class="export-action-bar__summary">
+          <strong>{{ activeSource()?.label }}</strong> &middot; {{ selectedCount() }} колонок
+        </p>
 
-          <div class="export-action-bar__buttons">
-            @if (facade.exporting()) {
-              <mat-spinner diameter="28"></mat-spinner>
-            }
+        <div class="export-action-bar__buttons">
+          @if (facade.exporting()) {
+            <mat-spinner diameter="28"></mat-spinner>
+          }
 
-            @if (facade.exportError()) {
-              <span class="export-action-bar__error">
-                <mat-icon>error_outline</mat-icon>
-                {{ facade.exportError() }}
-              </span>
-            }
+          @if (facade.exportError()) {
+            <span class="export-action-bar__error">
+              <mat-icon>error_outline</mat-icon>
+              {{ facade.exportError() }}
+            </span>
+          }
 
-            <button
-              mat-flat-button
-              color="primary"
-              class="export-button"
-              [disabled]="!canExport()"
-              (click)="exportExcel()"
-            >
-              <mat-icon>download</mat-icon>
-              Скачать Excel
-            </button>
-          </div>
+          <button
+            mat-flat-button
+            color="primary"
+            class="export-button"
+            [disabled]="!canExport()"
+            (click)="exportExcel()"
+          >
+            <mat-icon>download</mat-icon>
+            Скачать Excel
+          </button>
         </div>
-      </mat-card-content>
-    </mat-card>
+      </div>
+    </section>
   }
 </section>
