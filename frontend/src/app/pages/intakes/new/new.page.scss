@@ -22,6 +22,35 @@
 
 .intake-form {
   display: grid;
+  gap: 16px;
+}
+
+.intake-form__section,
+.intake-form__summary {
+  border: 1px solid rgba(8, 15, 29, 0.08);
+  border-radius: 18px;
+  background: rgba(8, 15, 29, 0.02);
+  padding: 16px;
+}
+
+.intake-form__section {
+  display: grid;
+  gap: 12px;
+}
+
+.intake-form__section-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.intake-form__section-description {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.intake-form__grid {
+  display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
 }
@@ -32,14 +61,13 @@
 
 .intake-form__section-label {
   display: inline-block;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   font-size: 0.92rem;
   font-weight: 600;
 }
 
 .intake-form__catalog,
-.intake-form__schedule-toggle,
-.intake-form__derived {
+.intake-form__schedule-toggle {
   display: grid;
   gap: 10px;
 }
@@ -51,15 +79,24 @@
   flex-wrap: wrap;
 }
 
-.intake-form__catalog-card,
 .intake-form__derived {
-  border: 1px solid rgba(8, 15, 29, 0.08);
-  border-radius: 18px;
-  background: rgba(8, 15, 29, 0.02);
+  border-radius: 14px;
+  background: rgba(8, 15, 29, 0.04);
   padding: 16px;
 }
 
-.intake-form__catalog-title,
+.intake-form__catalog-card {
+  border: 1px solid rgba(8, 15, 29, 0.08);
+  border-radius: 14px;
+  background: #fff;
+  padding: 16px;
+}
+
+.intake-form__catalog-title {
+  margin: 0;
+  font-weight: 600;
+}
+
 .intake-form__derived p {
   margin: 0;
   font-weight: 600;
@@ -74,13 +111,29 @@
 
 .intake-form__catalog-meta,
 .intake-form__catalog-description,
-.intake-form__hint,
-.intake-form__error {
+.intake-form__hint {
   margin: 0;
 }
 
+.intake-form__summary ul {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 6px;
+}
+
+.intake-form__summary li {
+  color: var(--text-secondary);
+}
+
+.intake-form__summary strong {
+  color: var(--text-primary);
+}
+
 .intake-form__error {
+  margin: 0;
   color: #a63d40;
+  font-weight: 600;
 }
 
 @media (max-width: 820px) {
@@ -88,7 +141,11 @@
     flex-direction: column;
   }
 
-  .intake-form {
+  .intake-form__grid {
     grid-template-columns: 1fr;
+  }
+
+  .intake-form__schedule-toggle mat-button-toggle-group {
+    width: 100%;
   }
 }

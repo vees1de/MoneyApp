@@ -107,10 +107,6 @@
     <div class="ai-page__error">
       <mat-icon>error_outline</mat-icon>
       <p>{{ errorMsg }}</p>
-      <button mat-stroked-button (click)="startRecommendations()">
-        <mat-icon>refresh</mat-icon>
-        Попробовать снова
-      </button>
     </div>
   }
 
@@ -122,6 +118,17 @@
   }
 
   @if (!loading() && !error() && data(); as result) {
+    @if (resultSourceLabel(result); as sourceLabel) {
+      <div
+        class="ai-page__result-source"
+        [class.ai-page__result-source--heuristic]="isHeuristicResult(result)"
+        [class.ai-page__result-source--ai]="!isHeuristicResult(result)"
+      >
+        <mat-icon>{{ isHeuristicResult(result) ? 'auto_fix_high' : 'smart_toy' }}</mat-icon>
+        <strong>{{ sourceLabel }}</strong>
+      </div>
+    }
+
     <div class="ai-page__stats">
       <mat-chip-set>
         <mat-chip>

@@ -31,6 +31,10 @@ import (
 
 const aiPoolLimit = 50
 const yandexAIKeyIssueMessage = "YANDEX_AI_API_KEY не найден в env или не подходит для Yandex AI API"
+const (
+	aiResponseSourceAI        = "ai"
+	aiResponseSourceHeuristic = "heuristic"
+)
 
 type AIRecommendation struct {
 	CourseID         string `json:"course_id"`
@@ -53,6 +57,7 @@ type DebugLog struct {
 	PromptSentToAI      string `json:"prompt_sent_to_ai"`
 	AIRawResponse       string `json:"ai_raw_response"`
 	AIModelURI          string `json:"ai_model_uri"`
+	ResponseSource      string `json:"response_source,omitempty"`
 	AIRequestDurationMs int64  `json:"ai_request_duration_ms,omitempty"`
 	AIResponseID        string `json:"ai_response_id,omitempty"`
 	AIResponseStatus    string `json:"ai_response_status,omitempty"`
@@ -290,6 +295,7 @@ func (s *Service) Recommend(ctx context.Context, principal platformauth.Principa
 			Recommendations:       []AIRecommendation{},
 			IntakeRecommendations: []AIIntakeRecommendation{},
 			Debug: &DebugLog{
+				ResponseSource: aiResponseSourceHeuristic,
 				TasksSummary:   "Нет активных задач в YouGile",
 				CoursesSummary: "Пропущено — нет задач",
 				IntakesSummary: "Пропущено — нет задач",
@@ -337,6 +343,7 @@ func (s *Service) Recommend(ctx context.Context, principal platformauth.Principa
 			"tasks_count", len(activeTasks),
 		)
 		debug := &DebugLog{
+			ResponseSource: aiResponseSourceHeuristic,
 			TasksSummary:   buildTasksSummary(activeTasks),
 			CoursesSummary: "Нет опубликованных курсов в пуле /api/v1/courses?limit=50&offset=0",
 			IntakesSummary: "Нет открытых наборов в пуле /api/v1/intakes?status=open",
@@ -611,6 +618,7 @@ func recommendHeuristically(tasks []yougilemodule.TaskItem, courses []catalogmod
 		courseRecommendations: courseRecommendations,
 		intakeRecommendations: intakeRecommendations,
 		debug: DebugLog{
+			ResponseSource: aiResponseSourceHeuristic,
 			PromptSentToAI: "AI request skipped; heuristic fallback used.",
 			AIRawResponse:  "fallback_reason: " + reason,
 			AIModelURI:     "fallback://heuristic",
@@ -1120,6 +1128,7 @@ func (s *Service) callYandexAI(ctx context.Context, tasks []yougilemodule.TaskIt
 		"intake_recommendations", len(intakeRecommendations),
 		"duration_ms", debug.AIRequestDurationMs,
 	)
+	debug.ResponseSource = aiResponseSourceAI
 
 	return aiResult{
 		courseRecommendations: courseRecommendations,
@@ -1158,6 +1167,7 @@ func (s *Service) tryRecordAudit(
 		"ai_reasoning_tokens":          response.Debug.AIReasoningTokens,
 		"ai_total_tokens":              response.Debug.AITotalTokens,
 		"ai_output_text_length":        response.Debug.AIOutputTextLength,
+		"response_source":              response.Debug.ResponseSource,
 	}
 	if coursesErr != nil {
 		meta["courses_error"] = coursesErr.Error()
@@ -1187,6 +1197,7 @@ func (s *Service) tryRecordAudit(
 			"ai_reasoning_tokens":    response.Debug.AIReasoningTokens,
 			"ai_total_tokens":        response.Debug.AITotalTokens,
 			"ai_output_text_length":  response.Debug.AIOutputTextLength,
+			"response_source":        response.Debug.ResponseSource,
 			"recommendations":        response.Recommendations,
 			"intake_recommendations": response.IntakeRecommendations,
 		},

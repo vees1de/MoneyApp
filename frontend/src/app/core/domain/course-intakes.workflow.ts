@@ -74,7 +74,7 @@ export function canApplyToIntake(
 }
 
 export function canWithdrawApplication(status: CourseApplicationStatus): boolean {
-  return status !== 'withdrawn' && status !== 'enrolled';
+  return status !== 'withdrawn' && status !== 'enrolled' && status !== 'rejected_by_hr';
 }
 
 export function canManagerReviewApplication(status: CourseApplicationStatus): boolean {

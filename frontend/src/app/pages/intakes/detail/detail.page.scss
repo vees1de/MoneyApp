@@ -515,6 +515,17 @@
   padding-top: var(--space-3);
 }
 
+.application-state__status-row {
+  border-radius: 10px;
+  width: fit-content;
+}
+
+.application-state__status-row--rejected-hr {
+  background: rgb(228 51 44 / 10%);
+  border: 1px solid rgb(228 51 44 / 24%);
+  padding: 6px 10px;
+}
+
 .application-state--learning {
   margin-top: var(--space-2);
 }
@@ -532,6 +543,11 @@
 .kv__value {
   color: var(--app-text);
   word-break: break-word;
+}
+
+.kv__value--rejected-hr {
+  color: #b32a24;
+  font-weight: 700;
 }
 
 .intake-detail-skeleton {

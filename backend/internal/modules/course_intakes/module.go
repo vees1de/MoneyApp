@@ -1052,7 +1052,7 @@ func (s *Service) WithdrawApplication(ctx context.Context, principal platformaut
 	if app.ApplicantID != principal.UserID {
 		return nil, httpx.Forbidden("not_owner", "you can only withdraw your own application")
 	}
-	if app.Status == "enrolled" || app.Status == "withdrawn" {
+	if app.Status == "enrolled" || app.Status == "withdrawn" || app.Status == "rejected_by_hr" {
 		return nil, httpx.BadRequest("invalid_status", "cannot withdraw application in current status")
 	}
 

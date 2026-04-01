@@ -25,6 +25,7 @@ export interface AIDebugLog {
   prompt_sent_to_ai: string;
   ai_raw_response: string;
   ai_model_uri: string;
+  response_source?: string | null;
   ai_request_duration_ms?: number | null;
   ai_response_id?: string | null;
   ai_response_status?: string | null;

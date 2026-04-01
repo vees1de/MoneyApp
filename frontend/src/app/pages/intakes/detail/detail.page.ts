@@ -342,6 +342,10 @@ export class IntakeDetailPageComponent implements OnInit {
     return 'employee-card__decision--pending';
   }
 
+  protected isRejectedByHr(application: CourseApplication): boolean {
+    return application.status === 'rejected_by_hr';
+  }
+
   protected applicationWorkflowHint(application: CourseApplication): string {
     const status = application.status;
 

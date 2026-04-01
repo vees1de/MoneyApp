@@ -214,6 +214,35 @@
     margin-bottom: 24px;
   }
 
+  &__result-source {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--mat-sys-outline-variant);
+    font-size: 13px;
+
+    mat-icon {
+      width: 18px;
+      height: 18px;
+      font-size: 18px;
+    }
+
+    &--ai {
+      background: var(--mat-sys-primary-container);
+      color: var(--mat-sys-on-primary-container);
+      border-color: transparent;
+    }
+
+    &--heuristic {
+      background: var(--mat-sys-secondary-container);
+      color: var(--mat-sys-on-secondary-container);
+      border-color: transparent;
+    }
+  }
+
   &__empty {
     display: flex;
     align-items: center;

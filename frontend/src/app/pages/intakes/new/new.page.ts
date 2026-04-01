@@ -13,6 +13,7 @@ import { MatInputModule } from '@angular/material/input';
 import { CourseIntakesApiService } from '@core/api/course-intakes-api.service';
 import {
   buildIntakeSchedulePayload,
+  defaultDeadlineFromStartDate,
   normalizeText,
   resolveEndDateFromWeeks,
   toPositiveNumber,
@@ -47,20 +48,27 @@ export class IntakesNewPageComponent {
   protected readonly submitting = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly selectedCourse = signal<Course | null>(null);
+  protected readonly standardParticipants = 10;
+  protected readonly defaultStartDate = this.buildDefaultStartDate();
+  protected readonly defaultStartDateLabel = this.formatDate(this.defaultStartDate);
+  private autoDeadline = defaultDeadlineFromStartDate(this.defaultStartDate) ?? '';
 
   protected readonly form = this.fb.group({
     source_mode: ['catalog', [Validators.required]],
     course_id: [''],
     title: ['', [Validators.required]],
     description: [''],
-    max_participants: [''],
+    max_participants: [
+      String(this.standardParticipants),
+      [Validators.required, Validators.min(1)],
+    ],
     price: [''],
     price_currency: ['RUB'],
-    start_date: ['', [Validators.required]],
+    start_date: [this.defaultStartDate, [Validators.required]],
     schedule_mode: ['weeks', [Validators.required]],
     duration_weeks: [''],
     end_date: [''],
-    application_deadline: [''],
+    application_deadline: [this.autoDeadline],
   });
 
   protected readonly isCatalogMode = computed(
@@ -75,6 +83,24 @@ export class IntakesNewPageComponent {
       toPositiveNumber(this.form.controls.duration_weeks.value) ?? null,
     ),
   );
+  protected readonly summary = computed(() => {
+    const participants =
+      toPositiveNumber(this.form.controls.max_participants.value) ?? this.standardParticipants;
+    const startDate = normalizeText(this.form.controls.start_date.value) ?? this.defaultStartDate;
+    const endDate = this.isWeeksMode()
+      ? this.calculatedEndDate() ?? 'будет рассчитана после ввода длительности'
+      : normalizeText(this.form.controls.end_date.value) ?? 'не указана';
+    const applicationDeadline =
+      normalizeText(this.form.controls.application_deadline.value) ??
+      'автоматически: за 3 дня до старта';
+
+    return {
+      participants,
+      startDate,
+      endDate,
+      applicationDeadline,
+    };
+  });
 
   constructor() {
     this.form.controls.source_mode.valueChanges.subscribe((mode) => {
@@ -83,6 +109,58 @@ export class IntakesNewPageComponent {
         this.form.patchValue({ course_id: '' }, { emitEvent: false });
       }
     });
+
+    this.form.controls.start_date.valueChanges.subscribe((startDate) => {
+      const calculatedDeadline = defaultDeadlineFromStartDate(startDate) ?? '';
+      const currentDeadline = this.form.controls.application_deadline.value ?? '';
+
+      if (!normalizeText(currentDeadline) || currentDeadline === this.autoDeadline) {
+        this.form.controls.application_deadline.setValue(calculatedDeadline, { emitEvent: false });
+      }
+
+      this.autoDeadline = calculatedDeadline;
+    });
+  }
+
+  protected formatDate(value: string | null | undefined): string {
+    const normalized = normalizeText(value);
+    if (!normalized) {
+      return '—';
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+      return normalized;
+    }
+
+    const date = new Date(`${normalized}T00:00:00`);
+    if (Number.isNaN(date.getTime())) {
+      return normalized;
+    }
+
+    return new Intl.DateTimeFormat('ru-RU', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    }).format(date);
+  }
+
+  protected formatDateTime(value: string | null | undefined): string {
+    const normalized = normalizeText(value);
+    if (!normalized) {
+      return '—';
+    }
+
+    const date = new Date(normalized);
+    if (Number.isNaN(date.getTime())) {
+      return normalized;
+    }
+
+    return new Intl.DateTimeFormat('ru-RU', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(date);
   }
 
   protected openCatalogDialog(): void {
@@ -176,5 +254,19 @@ export class IntakesNewPageComponent {
         this.submitting.set(false);
       },
     });
+  }
+
+  private buildDefaultStartDate(): string {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() + 7);
+    return IntakesNewPageComponent.toDateInputValue(date);
+  }
+
+  private static toDateInputValue(date: Date): string {
+    const year = date.getFullYear();
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getDate()}`.padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 }

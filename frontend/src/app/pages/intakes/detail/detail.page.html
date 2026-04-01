@@ -461,9 +461,14 @@
     <mat-card-content>
       @if (myApplication(); as application) {
         <section class="application-state">
-          <p>
+          <p
+            class="application-state__status-row"
+            [class.application-state__status-row--rejected-hr]="isRejectedByHr(application)"
+          >
             <span class="kv__key">Статус:</span
-            ><span class="kv__value">{{ applicationStatusLabel(application.status) }}</span>
+            ><span class="kv__value" [class.kv__value--rejected-hr]="isRejectedByHr(application)">
+              {{ applicationStatusLabel(application.status) }}
+            </span>
           </p>
           <p>
             <span class="kv__key">Оплата:</span
@@ -473,14 +478,18 @@
             <span class="kv__key">Мотивация:</span
             ><span class="kv__value">{{ application.motivation || '—' }}</span>
           </p>
-          <p>
-            <span class="kv__key">Руководитель:</span
-            ><span class="kv__value">{{ userLabel(application.manager_approver_id) }}</span>
-          </p>
-          <p>
-            <span class="kv__key">Комментарий руководителя:</span
-            ><span class="kv__value">{{ application.manager_comment || '—' }}</span>
-          </p>
+          @if (application.manager_approver_id) {
+            <p>
+              <span class="kv__key">Руководитель:</span
+              ><span class="kv__value">{{ userLabel(application.manager_approver_id) }}</span>
+            </p>
+          }
+          @if (application.manager_comment?.trim()) {
+            <p>
+              <span class="kv__key">Комментарий руководителя:</span
+              ><span class="kv__value">{{ application.manager_comment }}</span>
+            </p>
+          }
           <p>
             <span class="kv__key">Комментарий HR:</span
             ><span class="kv__value">{{ application.hr_comment || '—' }}</span>

@@ -62,6 +62,11 @@ export class AIPageComponent implements OnInit, OnDestroy {
       return;
     }
 
+    if (this.jobStatus() === 'failed' && this.jobId()) {
+      this.error.set('Этот запрос завершился ошибкой и не перезапускается. Удалите запуск из истории и создайте новый.');
+      return;
+    }
+
     this.cancelCurrentJobWatch();
     this.loading.set(true);
     this.error.set(null);
@@ -293,5 +298,41 @@ export class AIPageComponent implements OnInit, OnDestroy {
       default:
         return 'не запущено';
     }
+  }
+
+  protected resultSourceLabel(result: AIRecommendResponse | null): string | null {
+    if (!result?.debug) {
+      return null;
+    }
+
+    const responseSource = (result.debug.response_source ?? '').trim().toLowerCase();
+    if (responseSource === 'ai') {
+      return 'Ответ от ИИ';
+    }
+    if (responseSource === 'heuristic') {
+      return 'Эвристика';
+    }
+
+    const modelURI = (result.debug.ai_model_uri ?? '').trim().toLowerCase();
+    if (modelURI === 'fallback://heuristic') {
+      return 'Эвристика';
+    }
+
+    const heuristicByReason = [...result.recommendations, ...result.intake_recommendations].some((item) =>
+      (item.reason ?? '').toLowerCase().includes('эврист'),
+    );
+    if (heuristicByReason) {
+      return 'Эвристика';
+    }
+
+    if (result.debug.ai_response_id || result.debug.ai_response_status || result.debug.ai_model_uri) {
+      return 'Ответ от ИИ';
+    }
+
+    return null;
+  }
+
+  protected isHeuristicResult(result: AIRecommendResponse | null): boolean {
+    return this.resultSourceLabel(result) === 'Эвристика';
   }
 }

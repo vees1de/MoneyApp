@@ -375,55 +375,44 @@ func (s *Service) ProcessRecommendationJob(ctx context.Context, job platformwork
 	})
 	if err != nil {
 		finishedAt := time.Now().UTC()
-		if job.Attempt+1 >= job.MaxAttempts {
+		s.logError(
+			"ai recommendation job failed",
+			"job_id", payload.JobID.String(),
+			"user_id", payload.UserID.String(),
+			"attempt", job.Attempt+1,
+			"max_attempts", job.MaxAttempts,
+			"error", err.Error(),
+			"retry_disabled", true,
+		)
+		if failErr := s.markRecommendationJobFailed(ctx, payload.JobID, finishedAt, err.Error()); failErr != nil {
+			if errors.Is(failErr, sql.ErrNoRows) {
+				s.logInfo(
+					"ai recommendation job failure was discarded because job was deleted",
+					"job_id", payload.JobID.String(),
+					"user_id", payload.UserID.String(),
+				)
+				return nil
+			}
 			s.logError(
-				"ai recommendation job failed",
+				"ai recommendation job mark failed failed",
 				"job_id", payload.JobID.String(),
-				"user_id", payload.UserID.String(),
-				"attempt", job.Attempt+1,
-				"error", err.Error(),
+				"error", failErr.Error(),
 			)
-			if failErr := s.markRecommendationJobFailed(ctx, payload.JobID, finishedAt, err.Error()); failErr != nil {
-				if errors.Is(failErr, sql.ErrNoRows) {
-					s.logInfo(
-						"ai recommendation job failure was discarded because job was deleted",
-						"job_id", payload.JobID.String(),
-						"user_id", payload.UserID.String(),
-					)
-					return nil
-				}
-				s.logError(
-					"ai recommendation job mark failed failed",
-					"job_id", payload.JobID.String(),
-					"error", failErr.Error(),
-				)
-				return failErr
-			}
-			s.recordRecommendationJobAudit(ctx, "ai.recommendations.failed", AIRecommendationJob{
-				ID:      payload.JobID,
-				UserID:  payload.UserID,
-				Status:  "failed",
-				Attempt: job.Attempt + 1,
-			}, RecommendOptions{IP: payload.IP, UserAgent: payload.UserAgent}, map[string]any{
-				"error": err.Error(),
-			})
-		} else {
-			s.logWarn(
-				"ai recommendation job scheduled for retry",
-				"job_id", payload.JobID.String(),
-				"user_id", payload.UserID.String(),
-				"attempt", job.Attempt+1,
-				"error", err.Error(),
-			)
-			if retryErr := s.markRecommendationJobRetry(ctx, payload.JobID, time.Now().UTC(), err.Error()); retryErr != nil && !errors.Is(retryErr, sql.ErrNoRows) {
-				s.logError(
-					"ai recommendation job mark retry failed",
-					"job_id", payload.JobID.String(),
-					"error", retryErr.Error(),
-				)
-			}
+			return failErr
 		}
-		return err
+		s.recordRecommendationJobAudit(ctx, "ai.recommendations.failed", AIRecommendationJob{
+			ID:      payload.JobID,
+			UserID:  payload.UserID,
+			Status:  "failed",
+			Attempt: job.Attempt + 1,
+		}, RecommendOptions{IP: payload.IP, UserAgent: payload.UserAgent}, map[string]any{
+			"error":          err.Error(),
+			"retry_disabled": true,
+		})
+
+		// IMPORTANT: recommendation errors are terminal for this job.
+		// Returning nil prevents queue-level retries and restarts of the same request.
+		return nil
 	}
 
 	if err := s.markRecommendationJobDone(ctx, payload.JobID, result, time.Now().UTC()); err != nil {
