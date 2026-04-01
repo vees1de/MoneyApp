@@ -19,6 +19,7 @@ import (
 	courseintakesmodule "moneyapp/backend/internal/modules/course_intakes"
 	courserequestsmodule "moneyapp/backend/internal/modules/course_requests"
 	dashboardapimodule "moneyapp/backend/internal/modules/dashboard_api"
+	employeesstatsmodule "moneyapp/backend/internal/modules/employees_stats"
 	externaltrainingmodule "moneyapp/backend/internal/modules/external_training"
 	githubmodule "moneyapp/backend/internal/modules/github_integration"
 	identitymodule "moneyapp/backend/internal/modules/identity"
@@ -127,7 +128,9 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 	analyticsService := analyticsmodule.NewService(database, queue)
 	auditService := auditmodule.NewService(database)
 	yougileService := yougilemodule.NewService(database, yougileRepo, queue, appClock)
+	employeesStatsRepo := employeesstatsmodule.NewRepository(database)
 	githubService := githubmodule.NewService(database, githubRepo, queue, appClock)
+	employeesStatsService := employeesstatsmodule.NewService(employeesStatsRepo)
 	healthService := corehealth.NewService(map[string]corehealth.CheckFunc{
 		"postgres": database.PingContext,
 	})
@@ -167,6 +170,7 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 		AuditService:            auditService,
 		YougileService:          yougileService,
 		GitHubService:           githubService,
+		EmployeesStatsService:   employeesStatsService,
 		HealthHandler:           corehealth.NewHandler(healthService),
 		UsersHandler:            coreusers.NewHandler(usersService, validate),
 		IdentityHandler:         identitymodule.NewHandler(identityService, validate),
@@ -190,6 +194,7 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 		AuditHandler:            auditmodule.NewHandler(auditService),
 		YougileHandler:          yougilemodule.NewHandler(yougileService, validate),
 		GitHubHandler:           githubmodule.NewHandler(githubService, validate),
+		EmployeesStatsHandler:   employeesstatsmodule.NewHandler(employeesStatsService, validate),
 	}
 
 	return container, nil

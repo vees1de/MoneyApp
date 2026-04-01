@@ -315,6 +315,10 @@ func NewRouter(container *Container) http.Handler {
 				r.Post("/{id}/participant-feedback", container.UniversityHandler.ParticipantFeedback)
 			})
 
+			r.Route("/employees", func(r chi.Router) {
+				r.Get("/learning-stats", container.EmployeesStatsHandler.LearningStats)
+			})
+
 			r.Route("/analytics", func(r chi.Router) {
 				r.With(middleware.RBAC("analytics.read_hr")).Get("/dashboard/hr", container.AnalyticsHandler.DashboardHR)
 				r.Get("/dashboard/manager", container.AnalyticsHandler.DashboardManager)
