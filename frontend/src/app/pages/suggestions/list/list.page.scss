@@ -45,6 +45,25 @@
   gap: 8px;
 }
 
+.suggestion-card__title a {
+  color: #000;
+}
+
+.suggestion-card__meta {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  margin: 0;
+}
+
+.suggestion-card__meta-icon {
+  width: 20px;
+  height: 20px;
+  font-size: 20px;
+  color: #566AE6;
+}
+
 .suggestion-card {
   border-top: 4px solid transparent;
 }
@@ -109,6 +128,16 @@
 
 .kv__key {
   color: var(--text-secondary);
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.kv__value {
+  justify-self: end;
+  text-align: right;
+  word-break: break-word;
+  font-size: 16px;
+  font-weight: 500;
 }
 
 .suggestions-page__error,

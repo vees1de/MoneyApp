@@ -45,7 +45,7 @@
       @for (item of suggestions(); track item.id) {
         <mat-card class="suggestion-card" [ngClass]="statusCardClass(item.status)">
           <mat-card-header>
-            <mat-card-title>
+            <mat-card-title class="suggestion-card__title">
               <a [routerLink]="'/suggestions/' + item.id">{{ item.title }}</a>
             </mat-card-title>
             <mat-card-subtitle>
@@ -57,37 +57,44 @@
           </mat-card-header>
 
           <mat-card-content class="suggestion-card__content">
-            <p>
+            <p class="suggestion-card__meta">
+              <mat-icon class="suggestion-card__meta-icon" aria-hidden="true">business</mat-icon>
               <span class="kv__key">Провайдер:</span>
               <span class="kv__value">{{ item.provider_name || '—' }}</span>
             </p>
-            <p>
+            <p class="suggestion-card__meta">
+              <mat-icon class="suggestion-card__meta-icon" aria-hidden="true">currency_ruble</mat-icon>
               <span class="kv__key">Цена:</span>
               <span class="kv__value"
                 >{{ item.price || '—' }} {{ item.price_currency || 'RUB' }}</span
               >
             </p>
-            <p>
+            <p class="suggestion-card__meta">
+              <mat-icon class="suggestion-card__meta-icon" aria-hidden="true">schedule</mat-icon>
               <span class="kv__key">Длительность:</span>
               <span class="kv__value">{{ item.duration_hours || '—' }}</span>
             </p>
-            <p>
+            <p class="suggestion-card__meta">
+              <mat-icon class="suggestion-card__meta-icon" aria-hidden="true">person</mat-icon>
               <span class="kv__key">Автор:</span>
               <span class="kv__value">{{ userLabel(item.suggested_by) }}</span>
             </p>
-            <p>
+            <p class="suggestion-card__meta">
+              <mat-icon class="suggestion-card__meta-icon" aria-hidden="true">verified_user</mat-icon>
               <span class="kv__key">Руководитель-апрувер:</span>
               <span class="kv__value">{{ userLabel(item.approver_id) }}</span>
             </p>
             @if (item.intake_id) {
-              <p>
+              <p class="suggestion-card__meta">
+                <mat-icon class="suggestion-card__meta-icon" aria-hidden="true">assignment</mat-icon>
                 <span class="kv__key">Назначение:</span>
                 <a class="kv__value" [routerLink]="'/intakes/' + item.intake_id"
                   >Открыть назначение</a
                 >
               </p>
             }
-            <p>
+            <p class="suggestion-card__meta">
+              <mat-icon class="suggestion-card__meta-icon" aria-hidden="true">calendar_month</mat-icon>
               <span class="kv__key">Создано:</span>
               <span class="kv__value">{{ item.created_at | date: 'dd.MM.yyyy HH:mm' }}</span>
             </p>
