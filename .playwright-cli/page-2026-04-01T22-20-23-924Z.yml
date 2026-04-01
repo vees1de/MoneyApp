@@ -1,0 +1,22 @@
+- generic [ref=e5]:
+  - generic [ref=e7]:
+    - generic [ref=e8]: Вход
+    - generic [ref=e9]: Войдите в личный кабинет
+  - generic [ref=e10]:
+    - tablist "Режим авторизации" [ref=e11]:
+      - button "Вход" [ref=e12] [cursor=pointer]
+      - button "Регистрация" [ref=e13] [cursor=pointer]
+    - generic [ref=e14]:
+      - generic [ref=e17]:
+        - generic [ref=e18]:
+          - text: Логин (email)
+          - generic [ref=e19]: "*"
+        - textbox "Логин (email)" [ref=e21]: hr.demo@moneyapp.local
+      - generic [ref=e25]:
+        - generic [ref=e26]:
+          - text: Пароль
+          - generic [ref=e27]: "*"
+        - textbox "Пароль" [ref=e29]: DemoHR123!
+      - paragraph [ref=e35]: Не удалось войти. Проверьте логин и пароль.
+      - button "Войти" [ref=e31]:
+        - generic [ref=e32]: Войти

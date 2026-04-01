@@ -1,0 +1,8 @@
+- generic [ref=e7]:
+  - tablist "Режим авторизации" [ref=e8]:
+    - button "Вход" [ref=e9] [cursor=pointer]
+    - button "Регистрация" [ref=e10] [cursor=pointer]
+  - generic [ref=e11]:
+    - textbox [ref=e16]
+    - textbox [ref=e22]
+    - button [ref=e24]
