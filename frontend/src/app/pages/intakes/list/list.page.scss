@@ -107,6 +107,21 @@
   gap: 8px;
 }
 
+.intake-card__meta {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  margin: 0;
+}
+
+.intake-card__meta-icon {
+  width: 20px;
+  height: 20px;
+  font-size: 20px;
+  color: #566AE6;
+}
+
 .intake-card__description {
   margin: 0 0 4px;
   color: var(--text-secondary);
@@ -114,10 +129,14 @@
 
 .kv__key {
   color: var(--text-secondary);
+  font-weight: 500;
 }
 
 .kv__value {
   word-break: break-word;
+  justify-self: end;
+  text-align: right;
+  font-weight: 500;
 }
 
 .intakes-page__error,
@@ -180,10 +199,14 @@
 ::ng-deep .intake-card__title {
   font-size: 24px;
   font-weight: 600;
+  cursor: pointer;
 
   a {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 300px;
     display: block;
-    width: 70%;
     color: #000;
   }
 }
