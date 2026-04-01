@@ -132,3 +132,91 @@ h4 {
 p {
   margin: 0;
 }
+
+.calendar-page .calendar-stage__calendar full-calendar {
+  display: block;
+  min-width: 48rem;
+}
+
+.calendar-page .fc {
+  min-width: 48rem;
+  color: var(--calendar-copy);
+}
+
+.calendar-page .fc .fc-scrollgrid,
+.calendar-page .fc .fc-theme-standard td,
+.calendar-page .fc .fc-theme-standard th {
+  border-color: rgba(15, 23, 42, 0.08);
+}
+
+.calendar-page .fc .fc-toolbar.fc-header-toolbar {
+  margin-bottom: 1rem;
+  gap: 0.75rem;
+}
+
+.calendar-page .fc .fc-toolbar-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.calendar-page .fc .fc-button {
+  border-radius: 999px;
+  border-color: rgba(11, 107, 203, 0.18);
+  background: rgba(11, 107, 203, 0.08);
+  color: var(--calendar-copy);
+  box-shadow: none;
+}
+
+.calendar-page .fc .fc-button-primary:not(:disabled).fc-button-active,
+.calendar-page .fc .fc-button-primary:not(:disabled):active,
+.calendar-page .fc .fc-button-primary:hover {
+  border-color: transparent;
+  background: var(--calendar-accent);
+  color: #ffffff;
+}
+
+.calendar-page .fc .fc-daygrid-day.fc-day-today,
+.calendar-page .fc .fc-timegrid-col.fc-day-today {
+  background: rgba(11, 107, 203, 0.08);
+}
+
+.calendar-page .fc .fc-event {
+  border-radius: 0.9rem;
+  padding: 0.2rem 0.25rem;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.12);
+}
+
+.calendar-page .fc .fc-event[data-source='yougile'] {
+  background: var(--calendar-yougile);
+  border-color: var(--calendar-yougile);
+}
+
+.calendar-page .fc .fc-event[data-source='learning'] {
+  background: var(--calendar-learning);
+  border-color: var(--calendar-learning);
+}
+
+.calendar-page .fc .fc-event-main {
+  padding: 0.1rem 0.2rem;
+}
+
+.calendar-page .fc .fc-event-title {
+  font-weight: 600;
+}
+
+.calendar-page .fc .fc-timegrid-now-indicator-line {
+  border-color: rgba(180, 35, 24, 0.7);
+}
+
+.calendar-page .fc .fc-timegrid-now-indicator-arrow {
+  border-top-color: rgba(180, 35, 24, 0.7);
+  border-bottom-color: rgba(180, 35, 24, 0.7);
+}
+
+@media (max-width: 1200px) {
+
+  .calendar-page .fc,
+  .calendar-page .calendar-stage__calendar full-calendar {
+    min-width: 0;
+  }
+}
