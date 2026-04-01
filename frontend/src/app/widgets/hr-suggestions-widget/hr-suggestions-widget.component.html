@@ -1,0 +1,75 @@
+<app-widget-shell
+  title="Предложения курсов"
+  listRoute="/suggestions"
+  listActionLabel="Все предложения"
+  [loading]="loading()"
+  [error]="error()"
+  [empty]="visibleSuggestions().length === 0"
+>
+  <div widget-loading class="suggestions-skeleton">
+    <div class="suggestions-skeleton__filters"></div>
+    <div class="suggestions-skeleton__row"></div>
+    <div class="suggestions-skeleton__row"></div>
+    <div class="suggestions-skeleton__row"></div>
+  </div>
+
+  <div class="filters">
+    @for (status of statuses; track status.key) {
+      <button
+        type="button"
+        class="filters__item"
+        [class.filters__item--active]="selectedStatus() === status.key"
+        (click)="setStatus(status.key)"
+      >
+        {{ status.label }}
+        <span>{{ statusCount(status.key) }}</span>
+      </button>
+    }
+  </div>
+
+  @if (directoryUnavailable()) {
+    <p class="widget-hint">Каталог сотрудников недоступен. Автор выводится из заявки.</p>
+  }
+
+  <div class="rows">
+    @for (item of visibleSuggestions(); track item.id) {
+      <mat-card class="rows__item">
+        <div class="rows__author">
+          <div class="author-avatar">
+            @if (authorAvatarUrl(item.suggested_by); as avatarSrc) {
+              <img [src]="avatarSrc" [alt]="authorLabel(item.suggested_by)" loading="lazy" />
+            } @else {
+              <span>{{ authorAvatarInitials(item.suggested_by) }}</span>
+            }
+          </div>
+          <div class="author-meta">
+            <a class="row-link" [routerLink]="['/suggestions', item.id]">
+              {{ authorLabel(item.suggested_by) }}
+            </a>
+            <span class="row-muted">{{ item.provider_name || 'Провайдер не указан' }}</span>
+          </div>
+        </div>
+
+        <div class="rows__subject">
+          <a class="row-link row-link--title" [routerLink]="['/suggestions', item.id]">
+            {{ item.title }}
+          </a>
+          <span class="status-chip" [ngClass]="statusChipClass(item.status)">
+            {{ statusLabel(item.status) }}
+          </span>
+        </div>
+
+        <div class="rows__meta">
+          <span>{{ item.created_at | date: 'dd.MM.yyyy HH:mm' }}</span>
+          @if (item.intake_id) {
+            <a class="row-muted row-muted--link" [routerLink]="['/intakes', item.intake_id]">
+              Есть набор
+            </a>
+          }
+        </div>
+      </mat-card>
+    } @empty {
+      <p class="rows__empty">По выбранному фильтру предложений нет.</p>
+    }
+  </div>
+</app-widget-shell>

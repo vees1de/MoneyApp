@@ -192,7 +192,6 @@ export class IntegrationsApiService {
       columnId?: string;
       includeDeleted?: boolean;
       limit?: number;
-      mineOnly?: boolean;
       offset?: number;
       title?: string;
     },
@@ -202,9 +201,6 @@ export class IntegrationsApiService {
     if (query?.columnId) params.set('columnId', query.columnId);
     if (typeof query?.includeDeleted === 'boolean') {
       params.set('includeDeleted', String(query.includeDeleted));
-    }
-    if (typeof query?.mineOnly === 'boolean') {
-      params.set('mineOnly', String(query.mineOnly));
     }
     if (typeof query?.limit === 'number') params.set('limit', String(query.limit));
     if (typeof query?.offset === 'number') params.set('offset', String(query.offset));

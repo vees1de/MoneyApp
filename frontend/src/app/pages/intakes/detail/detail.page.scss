@@ -289,8 +289,38 @@
 }
 
 .intake-table__employee {
+  align-items: flex-start;
+  display: flex;
+  gap: var(--space-2);
+}
+
+.employee-meta {
   display: grid;
   gap: var(--space-1);
+}
+
+.employee-avatar {
+  align-items: center;
+  background: linear-gradient(135deg, #5b6fe8, #6f87ff);
+  border: 1px solid #dce4f5;
+  border-radius: 999px;
+  color: #fff;
+  display: inline-flex;
+  flex: 0 0 34px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  height: 34px;
+  justify-content: center;
+  margin-top: 2px;
+  overflow: hidden;
+  width: 34px;
+}
+
+.employee-avatar img {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
 }
 
 .employee-link {

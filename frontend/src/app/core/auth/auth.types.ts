@@ -20,6 +20,7 @@ export interface EmployeeProfile {
 export interface IdentityUserView {
   id: string;
   email: string;
+  avatar_url?: string | null;
   status: string;
   is_email_verified: boolean;
   last_login_at?: string | null;

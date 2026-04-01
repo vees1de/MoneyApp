@@ -21,6 +21,7 @@ import { EnrollmentsApiService } from '@core/api/enrollments-api.service';
 import { ReportsApiService } from '@core/api/reports-api.service';
 import { UsersApiService } from '@core/api/users-api.service';
 import type { CourseApplication, CourseIntake } from '@core/api/contracts';
+import { resolveApiUrl } from '@core/api/url.util';
 import { API_BASE_URL } from '@core/config/api.config';
 import { AuthStateService } from '@core/auth/auth-state.service';
 import type { IdentityUserView, RoleCode } from '@core/auth/auth.types';
@@ -414,6 +415,30 @@ export class IntakeDetailPageComponent implements OnInit {
 
   protected userEmail(userId: string | null | undefined): string | null {
     return this.lookupUser(userId)?.email ?? null;
+  }
+
+  protected userAvatarUrl(userId: string | null | undefined): string | null {
+    return resolveApiUrl(this.lookupUser(userId)?.avatar_url);
+  }
+
+  protected userAvatarInitials(userId: string | null | undefined): string {
+    const user = this.lookupUser(userId);
+    if (!user) {
+      return 'U';
+    }
+
+    const profile = user.employee_profile;
+    if (profile) {
+      const initials = `${profile.last_name?.[0] ?? ''}${profile.first_name?.[0] ?? ''}`
+        .trim()
+        .toUpperCase();
+      if (initials) {
+        return initials;
+      }
+    }
+
+    const emailInitial = user.email?.trim()?.[0]?.toUpperCase();
+    return emailInitial || 'U';
   }
 
   protected hasStartableEnrollments(): boolean {

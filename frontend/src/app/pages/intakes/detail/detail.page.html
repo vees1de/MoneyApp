@@ -200,9 +200,9 @@
                         <tr>
                           <th>Сотрудник</th>
                           <th>Статус</th>
+                          <th>Решение HR</th>
                           <th>Подано</th>
                           <th>Мотивация</th>
-                          <th>Решение HR</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -211,18 +211,31 @@
                             <tr>
                               <td>
                                 <div class="intake-table__employee">
-                                  <a
-                                    class="employee-link"
-                                    [routerLink]="['/employees', application.applicant_id]"
-                                  >
-                                    {{ userLabel(application.applicant_id) }}
-                                  </a>
-                                  <span class="cell-text cell-text--muted">
-                                    {{ userPosition(application.applicant_id) || 'Сотрудник' }}
-                                  </span>
-                                  <span class="cell-text cell-text--muted">
-                                    {{ userEmail(application.applicant_id) || '—' }}
-                                  </span>
+                                  <div class="employee-avatar">
+                                    @if (userAvatarUrl(application.applicant_id); as avatarSrc) {
+                                      <img
+                                        [src]="avatarSrc"
+                                        [alt]="userLabel(application.applicant_id)"
+                                        loading="lazy"
+                                      />
+                                    } @else {
+                                      <span>{{ userAvatarInitials(application.applicant_id) }}</span>
+                                    }
+                                  </div>
+                                  <div class="employee-meta">
+                                    <a
+                                      class="employee-link"
+                                      [routerLink]="['/employees', application.applicant_id]"
+                                    >
+                                      {{ userLabel(application.applicant_id) }}
+                                    </a>
+                                    <span class="cell-text cell-text--muted">
+                                      {{ userPosition(application.applicant_id) || 'Сотрудник' }}
+                                    </span>
+                                    <span class="cell-text cell-text--muted">
+                                      {{ userEmail(application.applicant_id) || '—' }}
+                                    </span>
+                                  </div>
                                 </div>
                               </td>
 
@@ -240,18 +253,6 @@
                                     </span>
                                   }
                                 </div>
-                              </td>
-
-                              <td>
-                                <span class="cell-text">
-                                  {{ application.created_at | date: 'dd.MM.yyyy HH:mm' }}
-                                </span>
-                              </td>
-
-                              <td>
-                                <span class="cell-text cell-text--multiline">
-                                  {{ application.motivation || '—' }}
-                                </span>
                               </td>
 
                               <td>
@@ -290,6 +291,18 @@
                                   <p class="row-note">{{ applicationWorkflowHint(application) }}</p>
                                 }
                               </td>
+
+                              <td>
+                                <span class="cell-text">
+                                  {{ application.created_at | date: 'dd.MM.yyyy HH:mm' }}
+                                </span>
+                              </td>
+
+                              <td>
+                                <span class="cell-text cell-text--multiline">
+                                  {{ application.motivation || '—' }}
+                                </span>
+                              </td>
                             </tr>
                           }
                         }
@@ -323,15 +336,28 @@
                         <tr>
                           <td>
                             <div class="intake-table__employee">
-                              <a
-                                class="employee-link"
-                                [routerLink]="['/employees', application.applicant_id]"
-                              >
-                                {{ userLabel(application.applicant_id) }}
-                              </a>
-                              <span class="cell-text cell-text--muted">
-                                {{ userPosition(application.applicant_id) || 'Сотрудник' }}
-                              </span>
+                              <div class="employee-avatar">
+                                @if (userAvatarUrl(application.applicant_id); as avatarSrc) {
+                                  <img
+                                    [src]="avatarSrc"
+                                    [alt]="userLabel(application.applicant_id)"
+                                    loading="lazy"
+                                  />
+                                } @else {
+                                  <span>{{ userAvatarInitials(application.applicant_id) }}</span>
+                                }
+                              </div>
+                              <div class="employee-meta">
+                                <a
+                                  class="employee-link"
+                                  [routerLink]="['/employees', application.applicant_id]"
+                                >
+                                  {{ userLabel(application.applicant_id) }}
+                                </a>
+                                <span class="cell-text cell-text--muted">
+                                  {{ userPosition(application.applicant_id) || 'Сотрудник' }}
+                                </span>
+                              </div>
                             </div>
                           </td>
 

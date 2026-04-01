@@ -311,11 +311,7 @@ func (s *Service) Recommend(ctx context.Context, principal platformauth.Principa
 		return RecommendResponse{}, err
 	}
 
-	tasks, err := s.yougileService.ListTasks(ctx, connectionID, yougilemodule.ListTasksQuery{
-		Limit:          aiPoolLimit,
-		MineOnly:       true,
-		EmployeeUserID: principal.UserID,
-	})
+	tasks, err := s.yougileService.ListTasks(ctx, connectionID, yougilemodule.ListTasksQuery{Limit: aiPoolLimit})
 	if err != nil {
 		return RecommendResponse{}, fmt.Errorf("fetch yougile tasks: %w", err)
 	}

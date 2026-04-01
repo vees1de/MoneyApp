@@ -473,7 +473,6 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
         this.integrationsApi.listYougileTasks(connectionId, {
           limit: 200,
           includeDeleted: false,
-          mineOnly: true,
         }),
       );
 

@@ -1,0 +1,123 @@
+<app-widget-shell
+  title="Сотрудники в набор"
+  listRoute="/intakes"
+  listActionLabel="Все наборы"
+  [loading]="loading()"
+  [error]="error()"
+  [empty]="pendingApplications().length === 0"
+>
+  <div widget-loading class="approvals-skeleton">
+    <div class="approvals-skeleton__line"></div>
+    <div class="approvals-skeleton__table"></div>
+  </div>
+
+  <p class="widget-hint">Заявки сотрудников, ожидающие решения HR по открытым наборам.</p>
+
+  @if (directoryUnavailable()) {
+    <p class="widget-hint widget-hint--warning">
+      Каталог сотрудников недоступен. Отображаются только данные из заявки.
+    </p>
+  }
+
+  <div class="table-shell">
+    <table class="intake-table">
+      <thead>
+        <tr>
+          <th>Набор</th>
+          <th>Сотрудник</th>
+          <th>Статус</th>
+          <th>Решение HR</th>
+          <th>Подано</th>
+          <th>Мотивация</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (application of pendingApplications(); track application.id) {
+          <tr>
+            <td>
+              <a class="link-primary" [routerLink]="['/intakes', application.intake_id]">
+                {{ intakeTitle(application.intake_id) }}
+              </a>
+            </td>
+
+            <td>
+              <div class="employee-cell">
+                <div class="employee-avatar">
+                  @if (userAvatarUrl(application.applicant_id); as avatarSrc) {
+                    <img
+                      [src]="avatarSrc"
+                      [alt]="userLabel(application.applicant_id)"
+                      loading="lazy"
+                    />
+                  } @else {
+                    <span>{{ userAvatarInitials(application.applicant_id) }}</span>
+                  }
+                </div>
+                <div class="employee-meta">
+                  <a class="link-primary" [routerLink]="['/employees', application.applicant_id]">
+                    {{ userLabel(application.applicant_id) }}
+                  </a>
+                  <span class="cell-text cell-text--muted">
+                    {{ userPosition(application.applicant_id) || 'Сотрудник' }}
+                  </span>
+                  <span class="cell-text cell-text--muted">
+                    {{ userEmail(application.applicant_id) || '—' }}
+                  </span>
+                </div>
+              </div>
+            </td>
+
+            <td>
+              <span class="status-chip">{{ statusLabel(application.status) }}</span>
+            </td>
+
+            <td>
+              <mat-form-field appearance="outline" class="row-comment">
+                <mat-label>Комментарий HR</mat-label>
+                <textarea
+                  matInput
+                  rows="2"
+                  [value]="comment(application.id)"
+                  (input)="setComment(application.id, $any($event.target).value)"
+                ></textarea>
+              </mat-form-field>
+
+              <div class="row-actions">
+                <button
+                  mat-stroked-button
+                  type="button"
+                  (click)="approve(application)"
+                  [disabled]="acting()"
+                >
+                  <mat-icon>check_circle</mat-icon>
+                  Принять
+                </button>
+                <button
+                  mat-stroked-button
+                  type="button"
+                  (click)="reject(application)"
+                  [disabled]="acting()"
+                >
+                  <mat-icon>cancel</mat-icon>
+                  Не принять
+                </button>
+              </div>
+            </td>
+
+            <td>
+              <span class="cell-text">
+                {{ application.created_at | date: 'dd.MM.yyyy HH:mm' }}
+              </span>
+            </td>
+
+            <td>
+              <span class="cell-text cell-text--multiline">
+                {{ application.motivation || '—' }}
+              </span>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</app-widget-shell>

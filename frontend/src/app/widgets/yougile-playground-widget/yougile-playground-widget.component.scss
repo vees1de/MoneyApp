@@ -30,21 +30,21 @@
 .agile__task-card,
 .agile__column-card,
 .agile__company-card,
-.agile__modal {
+section.agile__modal {
   background: var(--app-surface);
   border: 1px solid var(--app-border);
   border-radius: var(--radius-lg);
 }
 
 .agile__overview,
-.agile__modal,
+section.agile__modal,
 .agile__stat-card,
 .agile__section {
   padding: var(--space-4);
 }
 
 .agile__overview,
-.agile__modal,
+section.agile__modal,
 .agile__section {
   display: grid;
   gap: var(--space-4);
@@ -285,19 +285,18 @@
   inset: 0;
   justify-content: center;
   padding: 16px;
-  position: absolute;
-  z-index: 10;
+  position: fixed;
+  z-index: 1000;
 }
 
 .agile__modal-backdrop--fullscreen {
   align-items: stretch;
   justify-content: stretch;
   padding: 0;
-  position: fixed;
-  z-index: 1000;
+  z-index: 1100;
 }
 
-.agile__modal {
+section.agile__modal {
   box-shadow: 0 20px 54px rgb(11 19 27 / 18%);
   max-height: 100%;
   max-width: 100%;
@@ -305,7 +304,7 @@
   width: min(100%, 760px);
 }
 
-.agile__modal--connect {
+section.agile__modal--connect {
   border: 0;
   border-radius: 0;
   box-shadow: none;
@@ -315,7 +314,7 @@
   width: 100%;
 }
 
-.agile__modal--tasks {
+section.agile__modal--tasks {
   max-height: 100%;
   width: min(100%, 980px);
 }

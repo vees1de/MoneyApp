@@ -14,7 +14,14 @@
           <p class="agile__hint">Загружаю подключение...</p>
         } @else {
           <div class="agile__actions">
-            <button mat-flat-button type="button" (click)="openConnectModal()">Подключить</button>
+            <button
+              mat-flat-button
+              class="agile__modal agile__modal--tasks"
+              type="button"
+              (click)="openConnectModal()"
+            >
+              Подключить
+            </button>
           </div>
         }
       </section>
@@ -23,11 +30,18 @@
     @if (currentConnection(); as connection) {
       <div class="agile__toolbar">
         <div class="agile__chips">
-          <button mat-stroked-button type="button" (click)="openTasksModal()">Все задачи</button>
+          <button
+            mat-stroked-button
+            class="agile__modal agile__modal--tasks"
+            type="button"
+            (click)="openTasksModal()"
+          >
+            Все задачи
+          </button>
 
           @for (board of boards(); track trackBoard($index, board)) {
             <button
-              class="agile__chip"
+              class="agile__chip agile__modal agile__modal--tasks"
               type="button"
               [class.agile__chip--active]="selectedBoardId() === board.yougile_board_id"
               (click)="selectBoard(board.yougile_board_id)"
@@ -39,8 +53,20 @@
 
         <div class="agile__actions">
           <span class="agile__status-pill">{{ connectionStatusLabel(connection.status) }}</span>
-          <button mat-stroked-button type="button" (click)="reloadData()">Обновить</button>
-          <button mat-stroked-button type="button" (click)="openSettingsModal()">
+          <button
+            mat-stroked-button
+            class="agile__modal agile__modal--tasks"
+            type="button"
+            (click)="reloadData()"
+          >
+            Обновить
+          </button>
+          <button
+            mat-stroked-button
+            class="agile__modal agile__modal--tasks"
+            type="button"
+            (click)="openSettingsModal()"
+          >
             Настройки
           </button>
         </div>
@@ -57,7 +83,7 @@
           <div class="agile__columns-grid">
             @for (column of columnCards(); track trackColumn($index, column)) {
               <button
-                class="agile__column-card"
+                class="agile__column-card agile__modal agile__modal--tasks"
                 type="button"
                 (click)="openTasksModal(column.columnId)"
               >
@@ -88,7 +114,13 @@
               Текущие задачи
             }
           </h3>
-          <button class="agile__icon-button" type="button" (click)="closeTasksModal()">×</button>
+          <button
+            class="agile__icon-button agile__modal agile__modal--tasks"
+            type="button"
+            (click)="closeTasksModal()"
+          >
+            ×
+          </button>
         </div>
 
         @if (tasksLoading()) {
@@ -139,7 +171,13 @@
                   : 'Подключить YouGile'
             }}
           </h3>
-          <button class="agile__icon-button" type="button" (click)="closeConnectModal()">×</button>
+          <button
+            class="agile__icon-button agile__modal agile__modal--tasks"
+            type="button"
+            (click)="closeConnectModal()"
+          >
+            ×
+          </button>
         </div>
 
         @if (modalError()) {
@@ -150,17 +188,24 @@
           <div class="agile__settings-grid">
             <button
               mat-stroked-button
+              class="agile__modal agile__modal--tasks"
               type="button"
               (click)="syncCurrentConnection()"
               [disabled]="syncingConnection()"
             >
               {{ syncingConnection() ? 'Sync...' : 'Full sync' }}
             </button>
-            <button mat-stroked-button type="button" (click)="switchToReconnect()">
+            <button
+              mat-stroked-button
+              class="agile__modal agile__modal--tasks"
+              type="button"
+              (click)="switchToReconnect()"
+            >
               Сменить компанию
             </button>
             <button
               mat-stroked-button
+              class="agile__modal agile__modal--tasks"
               type="button"
               (click)="deleteCurrentConnection()"
               [disabled]="deletingConnection()"
@@ -201,7 +246,12 @@
             </mat-form-field>
 
             <div class="agile__actions agile__field-wide">
-              <button mat-flat-button type="submit" [disabled]="discoveringCompanies()">
+              <button
+                mat-flat-button
+                class="agile__modal agile__modal--tasks"
+                type="submit"
+                [disabled]="discoveringCompanies()"
+              >
                 {{ discoveringCompanies() ? 'Ищу...' : 'Найти компании' }}
               </button>
             </div>
@@ -211,7 +261,7 @@
             <div class="agile__company-list">
               @for (company of availableCompanies(); track trackCompany($index, company)) {
                 <button
-                  class="agile__company-card"
+                  class="agile__company-card agile__modal agile__modal--tasks"
                   type="button"
                   [class.agile__company-card--active]="selectedCompanyId() === company.id"
                   (click)="chooseCompany(company.id)"
@@ -237,6 +287,7 @@
           <div class="agile__modal-actions">
             <button
               mat-stroked-button
+              class="agile__modal agile__modal--tasks"
               type="button"
               (click)="currentConnection() ? backToSettings() : closeConnectModal()"
             >
@@ -244,6 +295,7 @@
             </button>
             <button
               mat-flat-button
+              class="agile__modal agile__modal--tasks"
               type="button"
               (click)="connectSelectedCompany()"
               [disabled]="!selectedCompanyId() || connectingConnection()"

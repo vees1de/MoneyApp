@@ -180,6 +180,18 @@
                     могут отображаться без расшифровки.
                   </p>
                 }
+
+                <button
+                  mat-flat-button
+                  color="primary"
+                  type="button"
+                  class="submit-button"
+                  (click)="openIntake()"
+                  [disabled]="acting()"
+                >
+                  <mat-icon>playlist_add_check_circle</mat-icon>
+                  Открыть назначение
+                </button>
               </div>
             }
             <span class="section-label">Комментарий HR</span>
