@@ -30,9 +30,14 @@ import (
 )
 
 const aiPoolLimit = 50
-const aiPromptCourseLimit = 20
-const aiPromptIntakeLimit = 10
-const aiMaxOutputTokens = 1024
+const aiPromptCourseLimit = 8
+const aiPromptIntakeLimit = 5
+const aiRetryPromptCourseLimit = 5
+const aiRetryPromptIntakeLimit = 3
+const aiMaxOutputTokens = 700
+const aiRetryMaxOutputTokens = 400
+const aiRequestTimeout = 30 * time.Second
+const aiMaxReasonLength = 140
 const yandexAIKeyIssueMessage = "YANDEX_AI_API_KEY не найден в env или не подходит для Yandex AI API"
 const (
 	aiResponseSourceAI        = "ai"
@@ -79,6 +84,14 @@ type DebugLog struct {
 	IntakesSource       string `json:"intakes_source,omitempty"`
 	CoursesError        string `json:"courses_error,omitempty"`
 	IntakesError        string `json:"intakes_error,omitempty"`
+	// Enhanced quality metrics
+	PromptCoursesCount int  `json:"prompt_courses_count,omitempty"`
+	PromptIntakesCount int  `json:"prompt_intakes_count,omitempty"`
+	FilteredTasksCount int  `json:"filtered_tasks_count,omitempty"`
+	UsedCompactPrompt  bool `json:"used_compact_prompt,omitempty"`
+	UsedRetry          bool `json:"used_retry,omitempty"`
+	AIValidJSON        bool `json:"ai_valid_json,omitempty"`
+	DiscardedAIItems   int  `json:"discarded_ai_items,omitempty"`
 }
 
 type RecommendResponse struct {
@@ -112,6 +125,7 @@ type yandexTextResponseFormat struct {
 	Type        string         `json:"type"`
 	Name        string         `json:"name,omitempty"`
 	Description string         `json:"description,omitempty"`
+	Strict      bool           `json:"strict,omitempty"`
 	Schema      map[string]any `json:"schema,omitempty"`
 }
 
@@ -220,6 +234,12 @@ type aiResult struct {
 	debug                 DebugLog
 }
 
+type aiAttemptOptions struct {
+	maxOutputTokens int
+	compactInput    bool
+	attemptLabel    string
+}
+
 type Service struct {
 	db                   *sql.DB
 	queue                *platformworker.Queue
@@ -229,6 +249,7 @@ type Service struct {
 	auditService         *audit.Service
 	aiConfig             config.YandexAIConfig
 	logger               *slog.Logger
+	httpClient           *http.Client
 }
 
 func NewService(
@@ -250,6 +271,14 @@ func NewService(
 		auditService:         auditService,
 		aiConfig:             aiConfig,
 		logger:               logger,
+		httpClient: &http.Client{
+			Timeout: aiRequestTimeout,
+			Transport: &http.Transport{
+				MaxIdleConns:        10,
+				MaxIdleConnsPerHost: 5,
+				IdleConnTimeout:     90 * time.Second,
+			},
+		},
 	}
 }
 
@@ -418,7 +447,10 @@ func (s *Service) Recommend(ctx context.Context, principal platformauth.Principa
 		"courses_pool_count", len(courses),
 		"intakes_pool_count", len(intakes),
 	)
-	result, err := s.callYandexAI(ctx, activeTasks, coursesForAI, intakesForAI)
+	result, err := s.callYandexAI(ctx, activeTasks, coursesForAI, intakesForAI, aiAttemptOptions{
+		maxOutputTokens: aiMaxOutputTokens,
+		attemptLabel:    "primary",
+	})
 	result.debug.CoursesSource = "/api/v1/courses?limit=50&offset=0"
 	result.debug.IntakesSource = "/api/v1/intakes?status=open"
 	if coursesErr != nil {
@@ -435,6 +467,79 @@ func (s *Service) Recommend(ctx context.Context, principal platformauth.Principa
 		Recommendations:       result.courseRecommendations,
 		IntakeRecommendations: result.intakeRecommendations,
 		Debug:                 &result.debug,
+	}
+
+	if err != nil && shouldRetryAI(result.debug, err) {
+		retryCourses := coursesForAI[:minInt(aiRetryPromptCourseLimit, len(coursesForAI))]
+		retryIntakes := intakesForAI[:minInt(aiRetryPromptIntakeLimit, len(intakesForAI))]
+		s.logWarn(
+			"ai recommendations retrying yandex request with compact prompt",
+			"user_id", principal.UserID.String(),
+			"initial_error", err.Error(),
+			"initial_status", result.debug.AIResponseStatus,
+			"initial_incomplete_reason", result.debug.AIIncompleteReason,
+			"retry_courses_count", len(retryCourses),
+			"retry_intakes_count", len(retryIntakes),
+			"retry_max_output_tokens", aiRetryMaxOutputTokens,
+		)
+
+		retryResult, retryErr := s.callYandexAI(ctx, activeTasks, retryCourses, retryIntakes, aiAttemptOptions{
+			maxOutputTokens: aiRetryMaxOutputTokens,
+			compactInput:    true,
+			attemptLabel:    "compact_retry",
+		})
+		retryResult.debug.CoursesSource = "/api/v1/courses?limit=50&offset=0"
+		retryResult.debug.IntakesSource = "/api/v1/intakes?status=open"
+		if coursesErr != nil {
+			retryResult.debug.CoursesError = coursesErr.Error()
+		}
+		if intakesErr != nil {
+			retryResult.debug.IntakesError = intakesErr.Error()
+		}
+
+		if retryErr == nil {
+			response = RecommendResponse{
+				Tasks:                 len(activeTasks),
+				CoursesInPool:         len(courses),
+				IntakesInPool:         len(intakes),
+				Recommendations:       retryResult.courseRecommendations,
+				IntakeRecommendations: retryResult.intakeRecommendations,
+				Debug:                 &retryResult.debug,
+			}
+			s.logInfo(
+				"ai recommendations completed after compact retry",
+				"user_id", principal.UserID.String(),
+				"tasks_count", len(activeTasks),
+				"courses_count", len(courses),
+				"intakes_count", len(intakes),
+				"course_recommendations", len(response.Recommendations),
+				"intake_recommendations", len(response.IntakeRecommendations),
+				"request_duration_ms", retryResult.debug.AIRequestDurationMs,
+				"response_status", retryResult.debug.AIResponseStatus,
+				"incomplete_reason", retryResult.debug.AIIncompleteReason,
+			)
+			s.tryRecordAudit(ctx, principal.UserID, "ai.recommendations.completed_retry", response, options, coursesErr, intakesErr, nil)
+			return response, nil
+		}
+
+		s.logWarn(
+			"ai recommendations compact retry failed",
+			"user_id", principal.UserID.String(),
+			"error", retryErr.Error(),
+			"response_status", retryResult.debug.AIResponseStatus,
+			"incomplete_reason", retryResult.debug.AIIncompleteReason,
+			"request_duration_ms", retryResult.debug.AIRequestDurationMs,
+		)
+		result = retryResult
+		err = retryErr
+		response = RecommendResponse{
+			Tasks:                 len(activeTasks),
+			CoursesInPool:         len(courses),
+			IntakesInPool:         len(intakes),
+			Recommendations:       result.courseRecommendations,
+			IntakeRecommendations: result.intakeRecommendations,
+			Debug:                 &result.debug,
+		}
 	}
 
 	if err != nil {
@@ -518,20 +623,22 @@ func selectAIPromptPools(
 	courses []catalogmodule.Course,
 	intakes []courseintakesmodule.Intake,
 ) ([]catalogmodule.Course, []courseintakesmodule.Intake) {
-	taskTokens := tokenizeForMatch(buildTasksSummary(tasks))
+	processed := preprocessTasks(tasks)
+	taskSummary := buildTasksSummary(processed)
+	taskTokens := tokenizeWeighted(taskSummary)
 
 	type rankedCourse struct {
 		item  catalogmodule.Course
-		score int
+		score float64
 	}
 	type rankedIntake struct {
 		item  courseintakesmodule.Intake
-		score int
+		score float64
 	}
 
 	rankedCourses := make([]rankedCourse, 0, len(courses))
 	for _, course := range courses {
-		score, _ := scoreTextAgainstTaskTokens(
+		score, _ := scoreWeightedMatch(
 			taskTokens,
 			course.Title,
 			nullableString(course.ShortDescription),
@@ -547,8 +654,18 @@ func selectAIPromptPools(
 	})
 
 	rankedIntakes := make([]rankedIntake, 0, len(intakes))
+	now := time.Now()
 	for _, intake := range intakes {
-		score, _ := scoreTextAgainstTaskTokens(taskTokens, intake.Title, nullableString(intake.Description))
+		score, _ := scoreWeightedMatch(taskTokens, intake.Title, nullableString(intake.Description))
+		// Urgency boost: intakes with deadline within 14 days get a bonus
+		if intake.ApplicationDeadline != nil {
+			daysUntil := intake.ApplicationDeadline.Sub(now).Hours() / 24
+			if daysUntil > 0 && daysUntil <= 14 {
+				score += 3.0
+			} else if daysUntil > 14 && daysUntil <= 30 {
+				score += 1.0
+			}
+		}
 		rankedIntakes = append(rankedIntakes, rankedIntake{item: intake, score: score})
 	}
 	sort.SliceStable(rankedIntakes, func(i, j int) bool {
@@ -580,50 +697,127 @@ type scoredMatch struct {
 	Matches []string
 }
 
+// noiseTaskPatterns are title substrings that indicate non-work tasks to deprioritize.
+var noiseTaskPatterns = []string{
+	"тренажерный", "тренажёрный", "спортзал", "фитнес",
+	"обед", "завтрак", "ужин", "перерыв",
+	"день рождения", "поздравить", "подарок",
+	"уборка", "переезд", "ремонт",
+}
+
+// isNoiseTask checks if a task title looks like personal/noise activity.
+func isNoiseTask(title string) bool {
+	lower := strings.ToLower(title)
+	for _, pattern := range noiseTaskPatterns {
+		if strings.Contains(lower, pattern) {
+			return true
+		}
+	}
+	// Very short titles with no technical signal
+	if len([]rune(strings.TrimSpace(title))) < 4 {
+		return true
+	}
+	return false
+}
+
+// priorityColumns are column names that indicate active work (higher priority).
+var priorityColumns = map[string]bool{
+	"в работе":      true,
+	"в процессе":    true,
+	"in progress":   true,
+	"тестирование":  true,
+	"testing":       true,
+	"review":        true,
+	"на проверке":   true,
+}
+
+// preprocessTasks filters and prioritizes tasks: active work first, noise removed.
+func preprocessTasks(tasks []yougilemodule.TaskItem) []yougilemodule.TaskItem {
+	priority := make([]yougilemodule.TaskItem, 0, len(tasks))
+	normal := make([]yougilemodule.TaskItem, 0, len(tasks))
+
+	for _, task := range tasks {
+		if isNoiseTask(task.Title) {
+			continue
+		}
+		colLower := strings.ToLower(strings.TrimSpace(task.ColumnTitle))
+		if priorityColumns[colLower] {
+			priority = append(priority, task)
+		} else {
+			normal = append(normal, task)
+		}
+	}
+
+	result := make([]yougilemodule.TaskItem, 0, len(priority)+len(normal))
+	result = append(result, priority...)
+	result = append(result, normal...)
+	return result
+}
+
 func buildTasksSummary(tasks []yougilemodule.TaskItem) string {
-	var taskLines []string
-	for index, task := range tasks {
-		line := fmt.Sprintf("%d. %s", index+1, task.Title)
+	processed := preprocessTasks(tasks)
+	limit := minInt(15, len(processed))
+	taskLines := make([]string, 0, limit)
+	for index := 0; index < limit; index++ {
+		task := processed[index]
+		line := fmt.Sprintf("%d. %s", index+1, trimForPrompt(task.Title, 120))
 		if task.Description != "" {
-			line += " — " + task.Description
-		}
-		if task.BoardTitle != "" {
-			line += " [доска: " + task.BoardTitle + "]"
-		}
-		if task.ColumnTitle != "" {
-			line += " [колонка: " + task.ColumnTitle + "]"
+			line += " — " + trimForPrompt(task.Description, 100)
 		}
 		taskLines = append(taskLines, line)
 	}
 	return strings.Join(taskLines, "\n")
 }
 
+func buildTasksSummaryCompact(tasks []yougilemodule.TaskItem) string {
+	processed := preprocessTasks(tasks)
+	limit := minInt(10, len(processed))
+	taskLines := make([]string, 0, limit)
+	for index := 0; index < limit; index++ {
+		task := processed[index]
+		line := fmt.Sprintf("%d. %s", index+1, trimForPrompt(task.Title, 100))
+		taskLines = append(taskLines, line)
+	}
+	return strings.Join(taskLines, "\n")
+}
+
 func recommendHeuristically(tasks []yougilemodule.TaskItem, courses []catalogmodule.Course, intakes []courseintakesmodule.Intake, reason string) aiResult {
-	taskText := buildTasksSummary(tasks)
-	taskTokens := tokenizeForMatch(taskText)
+	processed := preprocessTasks(tasks)
+	taskText := buildTasksSummary(processed)
+	taskTokens := tokenizeWeighted(taskText)
 
 	courseMatches := make([]scoredMatch, 0, len(courses))
 	for _, course := range courses {
-		score, matches := scoreTextAgainstTaskTokens(taskTokens, course.Title, nullableString(course.ShortDescription), nullableString(course.Description))
-		if score == 0 && len(courses) > 5 {
+		score, matches := scoreWeightedMatch(taskTokens, course.Title, nullableString(course.ShortDescription), nullableString(course.Description))
+		if score < 2.0 && len(courses) > 5 {
 			continue
 		}
 		courseMatches = append(courseMatches, scoredMatch{
 			ID:      course.ID.String(),
-			Score:   score,
+			Score:   int(score),
 			Matches: matches,
 		})
 	}
 
 	intakeMatches := make([]scoredMatch, 0, len(intakes))
+	now := time.Now()
 	for _, intake := range intakes {
-		score, matches := scoreTextAgainstTaskTokens(taskTokens, intake.Title, nullableString(intake.Description))
-		if score == 0 && len(intakes) > 5 {
+		score, matches := scoreWeightedMatch(taskTokens, intake.Title, nullableString(intake.Description))
+		// Urgency boost for fallback too
+		if intake.ApplicationDeadline != nil {
+			daysUntil := intake.ApplicationDeadline.Sub(now).Hours() / 24
+			if daysUntil > 0 && daysUntil <= 14 {
+				score += 3.0
+			} else if daysUntil > 14 && daysUntil <= 30 {
+				score += 1.0
+			}
+		}
+		if score < 2.0 && len(intakes) > 5 {
 			continue
 		}
 		intakeMatches = append(intakeMatches, scoredMatch{
 			ID:      intake.ID.String(),
-			Score:   score,
+			Score:   int(score),
 			Matches: matches,
 		})
 	}
@@ -702,8 +896,96 @@ func recommendHeuristically(tasks []yougilemodule.TaskItem, courses []catalogmod
 	}
 }
 
-func tokenizeForMatch(values ...string) map[string]struct{} {
-	tokens := make(map[string]struct{})
+// synonymMap maps tokens to their canonical form for matching.
+var synonymMap = map[string]string{
+	"golang":               "go",
+	"бекенд":               "backend",
+	"бэкенд":               "backend",
+	"бекенда":              "backend",
+	"бэкенда":              "backend",
+	"фронтенд":             "frontend",
+	"фронтэнд":             "frontend",
+	"devops":               "devops",
+	"cache":                "кеширование",
+	"кеш":                  "кеширование",
+	"кэш":                  "кеширование",
+	"кэширование":          "кеширование",
+	"презентация":          "выступление",
+	"публичные":            "выступление",
+	"domain-driven":        "ddd",
+	"sql":                  "sql",
+	"postgresql":           "sql",
+	"postgres":             "sql",
+	"docker":               "контейнеризация",
+	"kubernetes":           "контейнеризация",
+	"k8s":                  "контейнеризация",
+	"облачных":             "cloud",
+	"cloud":                "cloud",
+	"aws":                  "cloud",
+	"azure":                "cloud",
+	"наставник":            "mentoring",
+	"наставничество":       "mentoring",
+	"менторинг":            "mentoring",
+	"mentor":               "mentoring",
+	"интеграция":           "integration",
+	"интеграцию":           "integration",
+	"api":                  "api",
+	"rest":                 "api",
+	"микросервисы":         "microservices",
+	"микросервисов":        "microservices",
+	"microservices":        "microservices",
+	"тестирование":         "testing",
+	"тестировании":         "testing",
+	"тесты":                "testing",
+	"test":                 "testing",
+	"tests":                "testing",
+	"архитектура":          "architecture",
+	"архитектуру":          "architecture",
+	"архитектор":           "architecture",
+	"architecture":         "architecture",
+}
+
+// domainTokenWeights assigns higher scores to domain-specific tokens.
+var domainTokenWeights = map[string]float64{
+	// Programming languages & frameworks
+	"go": 5, "python": 5, "java": 5, "javascript": 5, "typescript": 5,
+	"react": 5, "angular": 5, "vue": 5, "django": 5, "spring": 5,
+	// Infrastructure & tools
+	"redis": 5, "kafka": 4, "rabbitmq": 4, "sql": 4,
+	"docker": 4, "контейнеризация": 4, "devops": 5, "cloud": 4,
+	"кеширование": 4,
+	// Architecture & design
+	"ddd": 5, "architecture": 4, "microservices": 4,
+	"backend": 4, "frontend": 4, "api": 4, "integration": 3,
+	// Skills
+	"testing": 3, "mentoring": 2, "security": 4, "безопасность": 4,
+	"ml": 4, "machine": 3, "learning": 3, "data": 3,
+	// Medium-weight
+	"выступление": 2, "команда": 1, "управление": 2, "аналитика": 3,
+	"проект": 1, "scrum": 3, "agile": 3, "kanban": 3,
+}
+
+// noiseTokens are common words that produce false-positive matches.
+var noiseTokens = map[string]struct{}{
+	"для": {}, "что": {}, "как": {}, "или": {}, "при": {}, "без": {}, "под": {}, "над": {},
+	"это": {}, "the": {}, "and": {}, "with": {}, "from": {}, "into": {}, "task": {},
+	"работе": {}, "работа": {}, "работу": {}, "работы": {},
+	"основы": {}, "основ": {}, "основам": {},
+	"курс": {}, "курса": {}, "курсы": {},
+	"сделать": {}, "написать": {}, "создать": {}, "реализовать": {},
+	"нужно": {}, "надо": {}, "можно": {}, "будет": {},
+	"специалист": {}, "новая": {}, "новый": {}, "новое": {},
+	"система": {}, "системы": {}, "систему": {},
+	"доска": {}, "колонка": {},
+}
+
+type weightedToken struct {
+	Token  string
+	Weight float64
+}
+
+func tokenizeWeighted(values ...string) []weightedToken {
+	seen := make(map[string]float64)
 	for _, value := range values {
 		normalized := strings.Map(func(r rune) rune {
 			if unicode.IsLetter(r) || unicode.IsDigit(r) {
@@ -713,37 +995,84 @@ func tokenizeForMatch(values ...string) map[string]struct{} {
 		}, value)
 
 		for _, part := range strings.Fields(normalized) {
-			if len([]rune(part)) < 3 {
+			if len([]rune(part)) < 2 {
 				continue
 			}
-			if _, skip := ignoredMatchTokens[part]; skip {
+			if _, skip := noiseTokens[part]; skip {
 				continue
 			}
-			tokens[part] = struct{}{}
+			// Apply synonym normalization
+			canonical := part
+			if syn, ok := synonymMap[part]; ok {
+				canonical = syn
+			}
+			// Determine weight
+			weight := 1.0
+			if w, ok := domainTokenWeights[canonical]; ok {
+				weight = w
+			}
+			if existing, ok := seen[canonical]; !ok || weight > existing {
+				seen[canonical] = weight
+			}
 		}
+	}
+
+	tokens := make([]weightedToken, 0, len(seen))
+	for token, weight := range seen {
+		tokens = append(tokens, weightedToken{Token: token, Weight: weight})
 	}
 	return tokens
 }
 
-var ignoredMatchTokens = map[string]struct{}{
-	"для": {}, "что": {}, "как": {}, "или": {}, "при": {}, "без": {}, "под": {}, "над": {},
-	"это": {}, "the": {}, "and": {}, "with": {}, "from": {}, "into": {}, "task": {},
+func tokenizeForMatch(values ...string) map[string]struct{} {
+	weighted := tokenizeWeighted(values...)
+	tokens := make(map[string]struct{}, len(weighted))
+	for _, wt := range weighted {
+		tokens[wt.Token] = struct{}{}
+	}
+	return tokens
 }
 
 func scoreTextAgainstTaskTokens(taskTokens map[string]struct{}, values ...string) (int, []string) {
-	itemTokens := tokenizeForMatch(values...)
-	matches := make([]string, 0, len(itemTokens))
-	for token := range itemTokens {
-		if _, ok := taskTokens[token]; ok {
-			matches = append(matches, token)
+	itemTokens := tokenizeWeighted(values...)
+	matches := make([]string, 0)
+	totalScore := 0.0
+	for _, wt := range itemTokens {
+		if _, ok := taskTokens[wt.Token]; ok {
+			matches = append(matches, wt.Token)
+			totalScore += wt.Weight
 		}
 	}
 	sort.Strings(matches)
-	score := len(matches)
-	if score > 0 {
-		score += minInt(2, len(matches))
-	}
+	score := int(totalScore)
 	return score, matches[:minInt(5, len(matches))]
+}
+
+// scoreWeightedMatch scores item tokens against weighted task tokens for better ranking.
+func scoreWeightedMatch(taskTokens []weightedToken, values ...string) (float64, []string) {
+	taskIndex := make(map[string]float64, len(taskTokens))
+	for _, wt := range taskTokens {
+		if existing, ok := taskIndex[wt.Token]; !ok || wt.Weight > existing {
+			taskIndex[wt.Token] = wt.Weight
+		}
+	}
+
+	itemTokens := tokenizeWeighted(values...)
+	matches := make([]string, 0)
+	totalScore := 0.0
+	for _, wt := range itemTokens {
+		if taskWeight, ok := taskIndex[wt.Token]; ok {
+			matches = append(matches, wt.Token)
+			// Use the higher weight of the two sides for a strong signal
+			matchWeight := wt.Weight
+			if taskWeight > matchWeight {
+				matchWeight = taskWeight
+			}
+			totalScore += matchWeight
+		}
+	}
+	sort.Strings(matches)
+	return totalScore, matches[:minInt(5, len(matches))]
 }
 
 func buildCourseFallbackReason(match scoredMatch) string {
@@ -778,6 +1107,49 @@ func minInt(a, b int) int {
 	return b
 }
 
+func trimForPrompt(value string, max int) string {
+	value = strings.TrimSpace(value)
+	if max <= 0 || len(value) <= max {
+		return value
+	}
+	if max <= 3 {
+		return value[:max]
+	}
+	return strings.TrimSpace(value[:max-3]) + "..."
+}
+
+// sanitizeReason trims and cleans up AI-generated reasons.
+func sanitizeReason(reason string) string {
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		return "Подобрано на основе анализа рабочих задач."
+	}
+	// Truncate to max length at word boundary
+	runes := []rune(reason)
+	if len(runes) > aiMaxReasonLength {
+		truncated := string(runes[:aiMaxReasonLength])
+		// Try to cut at last space for cleaner truncation
+		if lastSpace := strings.LastIndex(truncated, " "); lastSpace > aiMaxReasonLength/2 {
+			truncated = truncated[:lastSpace]
+		}
+		reason = strings.TrimRight(truncated, " .,;:—–-") + "."
+	}
+	// Filter out generic/empty reasons
+	genericReasons := []string{
+		"подходит под задачи сотрудника",
+		"подходит для сотрудника",
+		"рекомендуется к прохождению",
+		"полезный курс",
+	}
+	lowerReason := strings.ToLower(reason)
+	for _, generic := range genericReasons {
+		if strings.TrimRight(lowerReason, ".!") == generic {
+			return "Подобрано на основе анализа рабочих задач."
+		}
+	}
+	return reason
+}
+
 func buildCoursesSummary(courses []catalogmodule.Course) string {
 	type courseRef struct {
 		ID               string `json:"id"`
@@ -798,36 +1170,44 @@ func buildCoursesSummary(courses []catalogmodule.Course) string {
 	return string(payload)
 }
 
+func buildCoursesSummaryCompact(courses []catalogmodule.Course) string {
+	type courseRef struct {
+		ID    string `json:"id"`
+		Title string `json:"title"`
+	}
+
+	items := make([]courseRef, 0, len(courses))
+	for _, course := range courses {
+		items = append(items, courseRef{
+			ID:    course.ID.String(),
+			Title: trimForPrompt(course.Title, 120),
+		})
+	}
+
+	payload, _ := json.Marshal(items)
+	return string(payload)
+}
+
 func buildIntakesSummary(intakes []courseintakesmodule.Intake) string {
 	type intakeRef struct {
 		ID                  string `json:"id"`
 		CourseID            string `json:"course_id,omitempty"`
 		Title               string `json:"title"`
-		Description         string `json:"description,omitempty"`
-		StartDate           string `json:"start_date,omitempty"`
-		EndDate             string `json:"end_date,omitempty"`
 		ApplicationDeadline string `json:"application_deadline,omitempty"`
-		Status              string `json:"status"`
+		StartDate           string `json:"start_date,omitempty"`
 	}
 
 	items := make([]intakeRef, 0, len(intakes))
 	for _, intake := range intakes {
 		item := intakeRef{
-			ID:     intake.ID.String(),
-			Title:  intake.Title,
-			Status: intake.Status,
+			ID:    intake.ID.String(),
+			Title: intake.Title,
 		}
 		if intake.CourseID != nil {
 			item.CourseID = intake.CourseID.String()
 		}
-		if intake.Description != nil {
-			item.Description = *intake.Description
-		}
 		if intake.StartDate != nil {
 			item.StartDate = *intake.StartDate
-		}
-		if intake.EndDate != nil {
-			item.EndDate = *intake.EndDate
 		}
 		if intake.ApplicationDeadline != nil {
 			item.ApplicationDeadline = intake.ApplicationDeadline.Format(time.RFC3339)
@@ -835,7 +1215,34 @@ func buildIntakesSummary(intakes []courseintakesmodule.Intake) string {
 		items = append(items, item)
 	}
 
-	payload, _ := json.MarshalIndent(items, "", "  ")
+	payload, _ := json.Marshal(items)
+	return string(payload)
+}
+
+func buildIntakesSummaryCompact(intakes []courseintakesmodule.Intake) string {
+	type intakeRef struct {
+		ID                  string `json:"id"`
+		CourseID            string `json:"course_id,omitempty"`
+		Title               string `json:"title"`
+		ApplicationDeadline string `json:"application_deadline,omitempty"`
+	}
+
+	items := make([]intakeRef, 0, len(intakes))
+	for _, intake := range intakes {
+		item := intakeRef{
+			ID:    intake.ID.String(),
+			Title: trimForPrompt(intake.Title, 120),
+		}
+		if intake.CourseID != nil {
+			item.CourseID = intake.CourseID.String()
+		}
+		if intake.ApplicationDeadline != nil {
+			item.ApplicationDeadline = intake.ApplicationDeadline.Format(time.RFC3339)
+		}
+		items = append(items, item)
+	}
+
+	payload, _ := json.Marshal(items)
 	return string(payload)
 }
 
@@ -845,6 +1252,7 @@ func yandexRecommendationResponseText() yandexRequestText {
 			Type:        "json_schema",
 			Name:        "ai_recommendations",
 			Description: "Structured recommendations for courses and intakes.",
+			Strict:      true,
 			Schema:      yandexRecommendationSchema(),
 		},
 	}
@@ -894,6 +1302,22 @@ func truncateForLog(value string, max int) string {
 	return value[:max] + "..."
 }
 
+func shouldRetryAI(debug DebugLog, err error) bool {
+	if err == nil {
+		return false
+	}
+	if debug.AIResponseStatus == "incomplete" {
+		return true
+	}
+	if debug.AIOutputTextLength == 0 && debug.AIResponseID != "" {
+		return true
+	}
+	errText := strings.ToLower(err.Error())
+	return strings.Contains(errText, "empty response") ||
+		strings.Contains(errText, "max_output_tokens") ||
+		strings.Contains(errText, "parse ai recommendations json")
+}
+
 func (s *Service) getActiveYougileConnection(ctx context.Context, userID uuid.UUID) (uuid.UUID, error) {
 	var connectionID uuid.UUID
 	err := s.db.QueryRowContext(ctx, `
@@ -911,32 +1335,49 @@ func (s *Service) getActiveYougileConnection(ctx context.Context, userID uuid.UU
 	return connectionID, nil
 }
 
-func (s *Service) callYandexAI(ctx context.Context, tasks []yougilemodule.TaskItem, courses []catalogmodule.Course, intakes []courseintakesmodule.Intake) (aiResult, error) {
+func (s *Service) callYandexAI(
+	ctx context.Context,
+	tasks []yougilemodule.TaskItem,
+	courses []catalogmodule.Course,
+	intakes []courseintakesmodule.Intake,
+	options aiAttemptOptions,
+) (aiResult, error) {
 	if s.aiConfig.APIKey == "" {
 		return aiResult{}, httpx.BadRequest("yandex_ai_key_missing_or_invalid", yandexAIKeyIssueMessage)
 	}
+	if options.maxOutputTokens <= 0 {
+		options.maxOutputTokens = aiMaxOutputTokens
+	}
+	if strings.TrimSpace(options.attemptLabel) == "" {
+		options.attemptLabel = "primary"
+	}
 
 	requestStartedAt := time.Now()
-	tasksSummary := buildTasksSummary(tasks)
-	coursesSummary := buildCoursesSummary(courses)
-	intakesSummary := buildIntakesSummary(intakes)
 
-	instructions := `Ты — AI-ассистент корпоративной системы обучения. На основе текущих рабочих задач сотрудника нужно рекомендовать:
-1. Подходящие опубликованные курсы из пула course_recommendations.
-2. Подходящие открытые наборы обучения из пула intake_recommendations.
+	// Always use compact summaries — less tokens, better signal/noise ratio
+	tasksSummary := buildTasksSummaryCompact(tasks)
+	coursesSummary := buildCoursesSummaryCompact(courses)
+	intakesSummary := buildIntakesSummaryCompact(intakes)
+
+	instructions := `Ты подбираешь обучение под рабочие задачи сотрудника.
+
+Верни JSON:
+{"course_recommendations":[{"course_id":"uuid","reason":"..."}],"intake_recommendations":[{"intake_id":"uuid","reason":"..."}]}
 
 Правила:
-1. Анализируй только переданные задачи, курсы и наборы.
-2. Возвращай от 0 до 5 курсов и от 0 до 5 наборов.
-3. Если подходящих вариантов нет, возвращай пустой массив для соответствующего раздела.
-4. Для каждого элемента укажи только id и причину.
-5. Отвечай ТОЛЬКО валидным JSON-объектом без markdown-обёрток.
+1. Используй только переданные задачи и кандидатов.
+2. Верни не более 3 курсов и не более 3 наборов.
+3. Если релевантных вариантов нет, верни пустой массив.
+4. reason: максимум 140 символов.
+5. В reason укажи конкретную связь с задачами — технологию, навык или тип работы.
+6. Не рекомендуй варианты по слабым или случайным совпадениям слов.
+7. Ответ только валидный JSON, без markdown и пояснений.`
 
-Формат ответа:
-{
-  "course_recommendations": [{"course_id": "uuid", "reason": "почему курс полезен"}],
-  "intake_recommendations": [{"intake_id": "uuid", "reason": "почему набор полезен прямо сейчас"}]
-}`
+	if options.compactInput {
+		instructions = `Подбери обучение под задачи сотрудника. JSON-ответ:
+{"course_recommendations":[{"course_id":"uuid","reason":"..."}],"intake_recommendations":[{"intake_id":"uuid","reason":"..."}]}
+Макс 3 курса, 3 набора. reason до 120 символов. Только конкретные совпадения. Пустой массив если нет релевантных. Только JSON.`
+	}
 
 	input := fmt.Sprintf(
 		"Задачи сотрудника:\n%s\n\nОпубликованные курсы (JSON):\n%s\n\nОткрытые наборы (JSON):\n%s",
@@ -952,17 +1393,21 @@ func (s *Service) callYandexAI(ctx context.Context, tasks []yougilemodule.TaskIt
 		Temperature:     0.2,
 		Instructions:    instructions,
 		Input:           input,
-		MaxOutputTokens: aiMaxOutputTokens,
+		MaxOutputTokens: options.maxOutputTokens,
 		Text:            &responseTextFormat,
 	}
 
-	fullPrompt := fmt.Sprintf("=== INSTRUCTIONS ===\n%s\n\n=== INPUT ===\n%s", instructions, input)
+	fullPrompt := fmt.Sprintf("=== ATTEMPT ===\n%s\n\n=== INSTRUCTIONS ===\n%s\n\n=== INPUT ===\n%s", options.attemptLabel, instructions, input)
 	debug := DebugLog{
-		PromptSentToAI: fullPrompt,
-		AIModelURI:     modelURI,
-		TasksSummary:   tasksSummary,
-		CoursesSummary: coursesSummary,
-		IntakesSummary: intakesSummary,
+		PromptSentToAI:     fullPrompt,
+		AIModelURI:         modelURI,
+		TasksSummary:       tasksSummary,
+		CoursesSummary:     coursesSummary,
+		IntakesSummary:     intakesSummary,
+		PromptCoursesCount: len(courses),
+		PromptIntakesCount: len(intakes),
+		FilteredTasksCount: len(preprocessTasks(tasks)),
+		UsedCompactPrompt:  true,
 	}
 
 	jsonData, err := json.Marshal(reqData)
@@ -973,6 +1418,8 @@ func (s *Service) callYandexAI(ctx context.Context, tasks []yougilemodule.TaskIt
 	s.logInfo(
 		"yandex ai request prepared",
 		"model_uri", modelURI,
+		"attempt", options.attemptLabel,
+		"compact_input", options.compactInput,
 		"tasks_count", len(tasks),
 		"courses_count", len(courses),
 		"intakes_count", len(intakes),
@@ -989,12 +1436,13 @@ func (s *Service) callYandexAI(ctx context.Context, tasks []yougilemodule.TaskIt
 	req.Header.Set("Authorization", "Api-Key "+s.aiConfig.APIKey)
 	req.Header.Set("OpenAI-Project", s.aiConfig.FolderID)
 
-	client := &http.Client{Timeout: 20 * time.Second}
-	resp, err := client.Do(req)
+	resp, err := s.httpClient.Do(req)
 	if err != nil {
 		s.logError(
 			"yandex ai request failed",
 			"model_uri", modelURI,
+			"attempt", options.attemptLabel,
+			"compact_input", options.compactInput,
 			"error", err.Error(),
 			"elapsed_ms", time.Since(requestStartedAt).Milliseconds(),
 		)
@@ -1051,6 +1499,8 @@ func (s *Service) callYandexAI(ctx context.Context, tasks []yougilemodule.TaskIt
 	s.logInfo(
 		"yandex ai response received",
 		"model_uri", modelURI,
+		"attempt", options.attemptLabel,
+		"compact_input", options.compactInput,
 		"status_code", resp.StatusCode,
 		"response_status", aiResp.Status,
 		"response_id", aiResp.ID,
@@ -1092,6 +1542,8 @@ func (s *Service) callYandexAI(ctx context.Context, tasks []yougilemodule.TaskIt
 		s.logWarn(
 			"yandex ai response had empty output text",
 			"model_uri", modelURI,
+			"attempt", options.attemptLabel,
+			"compact_input", options.compactInput,
 			"response_id", aiResp.ID,
 			"response_status", aiResp.Status,
 			"incomplete_reason", debug.AIIncompleteReason,
@@ -1137,6 +1589,8 @@ func (s *Service) callYandexAI(ctx context.Context, tasks []yougilemodule.TaskIt
 		return aiResult{debug: debug}, fmt.Errorf("parse ai recommendations json: %w (raw: %s)", err, text)
 	}
 
+	debug.AIValidJSON = true
+
 	courseMap := make(map[string]catalogmodule.Course, len(courses))
 	for _, course := range courses {
 		courseMap[course.ID.String()] = course
@@ -1147,17 +1601,19 @@ func (s *Service) callYandexAI(ctx context.Context, tasks []yougilemodule.TaskIt
 		intakeMap[intake.ID.String()] = intake
 	}
 
+	discarded := 0
 	courseRecommendations := make([]AIRecommendation, 0, len(parsed.CourseRecommendations))
 	for _, item := range parsed.CourseRecommendations {
 		course, ok := courseMap[item.CourseID]
 		if !ok {
+			discarded++
 			continue
 		}
 
 		recommendation := AIRecommendation{
 			CourseID: course.ID.String(),
 			Title:    course.Title,
-			Reason:   item.Reason,
+			Reason:   sanitizeReason(item.Reason),
 		}
 		if course.ShortDescription != nil {
 			recommendation.ShortDescription = *course.ShortDescription
@@ -1169,13 +1625,14 @@ func (s *Service) callYandexAI(ctx context.Context, tasks []yougilemodule.TaskIt
 	for _, item := range parsed.IntakeRecommendations {
 		intake, ok := intakeMap[item.IntakeID]
 		if !ok {
+			discarded++
 			continue
 		}
 
 		recommendation := AIIntakeRecommendation{
 			IntakeID: intake.ID.String(),
 			Title:    intake.Title,
-			Reason:   item.Reason,
+			Reason:   sanitizeReason(item.Reason),
 		}
 		if intake.CourseID != nil {
 			recommendation.CourseID = intake.CourseID.String()
@@ -1192,6 +1649,8 @@ func (s *Service) callYandexAI(ctx context.Context, tasks []yougilemodule.TaskIt
 		intakeRecommendations = append(intakeRecommendations, recommendation)
 	}
 
+	debug.DiscardedAIItems = discarded
+
 	s.logInfo(
 		"yandex ai response parsed",
 		"model_uri", modelURI,
@@ -1199,6 +1658,7 @@ func (s *Service) callYandexAI(ctx context.Context, tasks []yougilemodule.TaskIt
 		"response_status", aiResp.Status,
 		"course_recommendations", len(courseRecommendations),
 		"intake_recommendations", len(intakeRecommendations),
+		"discarded_items", discarded,
 		"duration_ms", debug.AIRequestDurationMs,
 	)
 	debug.ResponseSource = aiResponseSourceAI
