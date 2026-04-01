@@ -91,6 +91,12 @@
   gap: var(--space-4);
 }
 
+.cards__empty {
+  color: var(--app-muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
 @keyframes current-learning-shimmer {
   0% {
     background-position: 100% 0;

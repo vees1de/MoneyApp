@@ -3,7 +3,7 @@
   listRoute="/my-learning"
   [loading]="loading()"
   [error]="error()"
-  [empty]="filteredItems().length === 0"
+  [empty]="items().length === 0"
 >
   <div widget-loading class="cards cards--skeleton">
     <div class="cards__skeleton"></div>
@@ -24,19 +24,23 @@
     }
   </div>
 
-  <div class="cards">
-    @for (item of filteredItems(); track item.id) {
-      <article class="cards__item" [class.cards__item--overdue]="item.overdue">
-        <a [routerLink]="'/learning/' + item.id" class="cards__title">
-          {{ item.title }}
-        </a>
-        <strong class="cards__percent">{{ item.progress }}%</strong>
-        <mat-progress-bar mode="determinate" [value]="item.progress"></mat-progress-bar>
-        <div class="cards__meta">
-          <span>{{ item.deadlineText }}</span>
-          <span>{{ item.status }}</span>
-        </div>
-      </article>
-    }
-  </div>
+  @if (filteredItems().length === 0) {
+    <p class="cards__empty">В этой вкладке пока нет элементов.</p>
+  } @else {
+    <div class="cards">
+      @for (item of filteredItems(); track item.id) {
+        <article class="cards__item" [class.cards__item--overdue]="item.overdue">
+          <a [routerLink]="'/learning/' + item.id" class="cards__title">
+            {{ item.title }}
+          </a>
+          <strong class="cards__percent">{{ item.progress }}%</strong>
+          <mat-progress-bar mode="determinate" [value]="item.progress"></mat-progress-bar>
+          <div class="cards__meta">
+            <span>{{ item.deadlineText }}</span>
+            <span>{{ item.status }}</span>
+          </div>
+        </article>
+      }
+    </div>
+  }
 </app-widget-shell>
