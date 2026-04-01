@@ -11,10 +11,19 @@ export interface AIRecommendation {
   reason: string;
 }
 
+export interface AIDebugLog {
+  prompt_sent_to_ai: string;
+  ai_raw_response: string;
+  ai_model_uri: string;
+  tasks_summary: string;
+  courses_summary: string;
+}
+
 export interface AIRecommendResponse {
   tasks_analyzed: number;
   courses_in_pool: number;
   recommendations: AIRecommendation[];
+  debug?: AIDebugLog | null;
 }
 
 @Injectable({ providedIn: 'root' })

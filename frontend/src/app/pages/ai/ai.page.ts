@@ -6,6 +6,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatExpansionModule } from '@angular/material/expansion';
 
 import { AIApiService, type AIRecommendResponse } from '@core/api/ai-api.service';
 
@@ -20,6 +21,7 @@ import { AIApiService, type AIRecommendResponse } from '@core/api/ai-api.service
     MatIconModule,
     MatButtonModule,
     MatChipsModule,
+    MatExpansionModule,
   ],
   templateUrl: './ai.page.html',
   styleUrl: './ai.page.scss',

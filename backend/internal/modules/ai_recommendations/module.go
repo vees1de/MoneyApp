@@ -27,10 +27,19 @@ type AIRecommendation struct {
 	Reason           string `json:"reason"`
 }
 
+type DebugLog struct {
+	PromptSentToAI string `json:"prompt_sent_to_ai"`
+	AIRawResponse  string `json:"ai_raw_response"`
+	AIModelURI     string `json:"ai_model_uri"`
+	TasksSummary   string `json:"tasks_summary"`
+	CoursesSummary string `json:"courses_summary"`
+}
+
 type RecommendResponse struct {
 	Tasks           int                `json:"tasks_analyzed"`
 	CoursesInPool   int                `json:"courses_in_pool"`
 	Recommendations []AIRecommendation `json:"recommendations"`
+	Debug           *DebugLog          `json:"debug,omitempty"`
 }
 
 // Yandex AI API types
@@ -57,6 +66,11 @@ func (r yandexResponse) getText() string {
 		}
 	}
 	return ""
+}
+
+type aiResult struct {
+	recommendations []AIRecommendation
+	debug           DebugLog
 }
 
 type Service struct {
@@ -100,25 +114,31 @@ func (s *Service) Recommend(ctx context.Context, principal platformauth.Principa
 			Tasks:           0,
 			CoursesInPool:   0,
 			Recommendations: []AIRecommendation{},
+			Debug: &DebugLog{
+				TasksSummary:   "Нет активных задач в YouGile",
+				CoursesSummary: "Пропущено — нет задач",
+			},
 		}, nil
 	}
 
-	courses, err := s.catalogService.ListCourses(ctx, principal, catalogmodule.CourseListFilters{
-		Statuses: []string{"published"},
-	})
+	courses, err := s.catalogService.ListCourses(ctx, principal, catalogmodule.CourseListFilters{})
 	if err != nil {
 		return RecommendResponse{}, fmt.Errorf("fetch courses: %w", err)
 	}
 
 	if len(courses) == 0 {
 		return RecommendResponse{
-			Tasks:           len(activeTasks),
-			CoursesInPool:   0,
+			Tasks:         len(activeTasks),
+			CoursesInPool: 0,
 			Recommendations: []AIRecommendation{},
+			Debug: &DebugLog{
+				TasksSummary:   fmt.Sprintf("%d активных задач найдено", len(activeTasks)),
+				CoursesSummary: "Нет курсов в каталоге",
+			},
 		}, nil
 	}
 
-	recommendations, err := s.callYandexAI(ctx, activeTasks, courses)
+	result, err := s.callYandexAI(ctx, activeTasks, courses)
 	if err != nil {
 		return RecommendResponse{}, fmt.Errorf("yandex ai: %w", err)
 	}
@@ -126,7 +146,8 @@ func (s *Service) Recommend(ctx context.Context, principal platformauth.Principa
 	return RecommendResponse{
 		Tasks:           len(activeTasks),
 		CoursesInPool:   len(courses),
-		Recommendations: recommendations,
+		Recommendations: result.recommendations,
+		Debug:           &result.debug,
 	}, nil
 }
 
@@ -147,11 +168,12 @@ func (s *Service) getActiveYougileConnection(ctx context.Context, userID uuid.UU
 	return connectionID, nil
 }
 
-func (s *Service) callYandexAI(ctx context.Context, tasks []yougilemodule.TaskItem, courses []catalogmodule.Course) ([]AIRecommendation, error) {
+func (s *Service) callYandexAI(ctx context.Context, tasks []yougilemodule.TaskItem, courses []catalogmodule.Course) (aiResult, error) {
 	if s.aiConfig.APIKey == "" {
-		return nil, httpx.BadRequest("ai_not_configured", "Yandex AI API key is not configured")
+		return aiResult{}, httpx.BadRequest("ai_not_configured", "Yandex AI API key is not configured")
 	}
 
+	// Build task lines
 	var taskLines []string
 	for i, t := range tasks {
 		line := fmt.Sprintf("%d. %s", i+1, t.Title)
@@ -166,7 +188,9 @@ func (s *Service) callYandexAI(ctx context.Context, tasks []yougilemodule.TaskIt
 		}
 		taskLines = append(taskLines, line)
 	}
+	tasksSummary := strings.Join(taskLines, "\n")
 
+	// Build courses JSON
 	type courseRef struct {
 		ID               string `json:"id"`
 		Title            string `json:"title"`
@@ -180,7 +204,7 @@ func (s *Service) callYandexAI(ctx context.Context, tasks []yougilemodule.TaskIt
 		}
 		courseRefs = append(courseRefs, ref)
 	}
-	coursesJSON, _ := json.Marshal(courseRefs)
+	coursesJSON, _ := json.MarshalIndent(courseRefs, "", "  ")
 
 	instructions := `Ты — AI-ассистент корпоративной системы обучения. Твоя задача — на основе текущих рабочих задач сотрудника рекомендовать ему наиболее подходящие курсы из каталога.
 
@@ -193,7 +217,7 @@ func (s *Service) callYandexAI(ctx context.Context, tasks []yougilemodule.TaskIt
 Формат ответа (JSON массив):
 [{"course_id": "uuid", "title": "название курса", "reason": "почему этот курс полезен"}]`
 
-	input := fmt.Sprintf("Задачи сотрудника:\n%s\n\nДоступные курсы (JSON):\n%s", strings.Join(taskLines, "\n"), string(coursesJSON))
+	input := fmt.Sprintf("Задачи сотрудника:\n%s\n\nДоступные курсы (JSON):\n%s", tasksSummary, string(coursesJSON))
 
 	modelURI := fmt.Sprintf("gpt://%s/%s", s.aiConfig.FolderID, s.aiConfig.Model)
 	reqData := yandexRequest{
@@ -204,14 +228,16 @@ func (s *Service) callYandexAI(ctx context.Context, tasks []yougilemodule.TaskIt
 		MaxOutputTokens: 2000,
 	}
 
+	fullPrompt := fmt.Sprintf("=== INSTRUCTIONS ===\n%s\n\n=== INPUT ===\n%s", instructions, input)
+
 	jsonData, err := json.Marshal(reqData)
 	if err != nil {
-		return nil, err
+		return aiResult{}, err
 	}
 
 	req, err := http.NewRequestWithContext(ctx, "POST", "https://ai.api.cloud.yandex.net/v1/responses", bytes.NewBuffer(jsonData))
 	if err != nil {
-		return nil, err
+		return aiResult{}, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Api-Key "+s.aiConfig.APIKey)
@@ -220,27 +246,37 @@ func (s *Service) callYandexAI(ctx context.Context, tasks []yougilemodule.TaskIt
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("yandex ai request failed: %w", err)
+		return aiResult{}, fmt.Errorf("yandex ai request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("read yandex ai response: %w", err)
+		return aiResult{}, fmt.Errorf("read yandex ai response: %w", err)
+	}
+
+	rawResponse := string(body)
+
+	debug := DebugLog{
+		PromptSentToAI: fullPrompt,
+		AIRawResponse:  rawResponse,
+		AIModelURI:     modelURI,
+		TasksSummary:   tasksSummary,
+		CoursesSummary: string(coursesJSON),
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("yandex ai returned status %d: %s", resp.StatusCode, string(body))
+		return aiResult{debug: debug}, fmt.Errorf("yandex ai returned status %d: %s", resp.StatusCode, rawResponse)
 	}
 
 	var aiResp yandexResponse
 	if err := json.Unmarshal(body, &aiResp); err != nil {
-		return nil, fmt.Errorf("parse yandex ai response: %w", err)
+		return aiResult{debug: debug}, fmt.Errorf("parse yandex ai response: %w", err)
 	}
 
 	text := aiResp.getText()
 	if text == "" {
-		return []AIRecommendation{}, nil
+		return aiResult{recommendations: []AIRecommendation{}, debug: debug}, nil
 	}
 
 	text = strings.TrimSpace(text)
@@ -256,7 +292,7 @@ func (s *Service) callYandexAI(ctx context.Context, tasks []yougilemodule.TaskIt
 		Reason   string `json:"reason"`
 	}
 	if err := json.Unmarshal([]byte(text), &parsed); err != nil {
-		return nil, fmt.Errorf("parse ai recommendations json: %w (raw: %s)", err, text)
+		return aiResult{debug: debug}, fmt.Errorf("parse ai recommendations json: %w (raw: %s)", err, text)
 	}
 
 	courseMap := make(map[string]catalogmodule.Course, len(courses))
@@ -268,6 +304,12 @@ func (s *Service) callYandexAI(ctx context.Context, tasks []yougilemodule.TaskIt
 	for _, p := range parsed {
 		course, exists := courseMap[p.CourseID]
 		if !exists {
+			// Курс из AI не найден в каталоге — всё равно добавим с данными от AI
+			recommendations = append(recommendations, AIRecommendation{
+				CourseID: p.CourseID,
+				Title:    p.Title,
+				Reason:   p.Reason,
+			})
 			continue
 		}
 		rec := AIRecommendation{
@@ -281,7 +323,7 @@ func (s *Service) callYandexAI(ctx context.Context, tasks []yougilemodule.TaskIt
 		recommendations = append(recommendations, rec)
 	}
 
-	return recommendations, nil
+	return aiResult{recommendations: recommendations, debug: debug}, nil
 }
 
 // Handler

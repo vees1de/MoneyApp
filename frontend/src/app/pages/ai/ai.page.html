@@ -77,5 +77,44 @@
         </mat-card>
       }
     </div>
+
+    <!-- Debug Logs -->
+    @if (result.debug) {
+      <mat-accordion class="ai-page__debug">
+        <mat-expansion-panel>
+          <mat-expansion-panel-header>
+            <mat-panel-title>
+              <mat-icon>bug_report</mat-icon>
+              Debug: Логи AI-запроса
+            </mat-panel-title>
+          </mat-expansion-panel-header>
+
+          <div class="ai-page__debug-section">
+            <h4>Модель</h4>
+            <pre>{{ result.debug.ai_model_uri }}</pre>
+          </div>
+
+          <div class="ai-page__debug-section">
+            <h4>Задачи (отправлено в AI)</h4>
+            <pre>{{ result.debug.tasks_summary }}</pre>
+          </div>
+
+          <div class="ai-page__debug-section">
+            <h4>Курсы (отправлено в AI)</h4>
+            <pre>{{ result.debug.courses_summary }}</pre>
+          </div>
+
+          <div class="ai-page__debug-section">
+            <h4>Полный промпт</h4>
+            <pre>{{ result.debug.prompt_sent_to_ai }}</pre>
+          </div>
+
+          <div class="ai-page__debug-section">
+            <h4>Сырой ответ от AI</h4>
+            <pre>{{ result.debug.ai_raw_response }}</pre>
+          </div>
+        </mat-expansion-panel>
+      </mat-accordion>
+    }
   }
 </div>
