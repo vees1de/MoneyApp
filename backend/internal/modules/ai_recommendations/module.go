@@ -34,9 +34,9 @@ const aiPromptCourseLimit = 8
 const aiPromptIntakeLimit = 5
 const aiRetryPromptCourseLimit = 5
 const aiRetryPromptIntakeLimit = 3
-const aiMaxOutputTokens = 700
-const aiRetryMaxOutputTokens = 400
-const aiRequestTimeout = 30 * time.Second
+const aiMaxOutputTokens = 8000
+const aiRetryMaxOutputTokens = 4000
+const aiRequestTimeout = 60 * time.Second
 const aiMaxReasonLength = 140
 const yandexAIKeyIssueMessage = "YANDEX_AI_API_KEY не найден в env или не подходит для Yandex AI API"
 const (
@@ -1401,7 +1401,7 @@ func (s *Service) callYandexAI(
 		Input:           input,
 		MaxOutputTokens: options.maxOutputTokens,
 		Text:            &responseTextFormat,
-		Reasoning:       &yandexReasoningParam{Effort: "none"},
+		Reasoning:       &yandexReasoningParam{Effort: "medium"},
 	}
 
 	fullPrompt := fmt.Sprintf("=== ATTEMPT ===\n%s\n\n=== INSTRUCTIONS ===\n%s\n\n=== INPUT ===\n%s", options.attemptLabel, instructions, input)
