@@ -268,7 +268,6 @@ export const routes: Routes = [
 
       {
         path: 'calendar',
-        canActivate: [permissionGuard([PERMISSIONS.enrollmentsRead])],
         pathMatch: 'full',
         redirectTo: 'calendar/overview',
       },

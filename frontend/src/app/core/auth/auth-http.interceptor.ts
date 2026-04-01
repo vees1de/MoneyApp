@@ -1,5 +1,5 @@
 import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
-import { inject } from '@angular/core';
+import { Injector, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import {
   Observable,
@@ -21,7 +21,7 @@ export const authHttpInterceptor: HttpInterceptorFn = (req, next) => {
   const authApi = inject(AuthApiService);
   const session = inject(AuthSessionService);
   const authState = inject(AuthStateService);
-  const router = inject(Router);
+  const injector = inject(Injector);
 
   const token = session.getAccessToken();
   const withAuth = token
@@ -41,7 +41,7 @@ export const authHttpInterceptor: HttpInterceptorFn = (req, next) => {
       if (req.url.includes('/auth/login') || req.url.includes('/auth/refresh')) {
         session.clear();
         authState.setCurrentUser(null);
-        router.navigateByUrl('/login');
+        injector.get(Router).navigateByUrl('/login');
         return throwError(() => error);
       }
 
@@ -49,7 +49,7 @@ export const authHttpInterceptor: HttpInterceptorFn = (req, next) => {
       if (!refreshToken) {
         session.clear();
         authState.setCurrentUser(null);
-        router.navigateByUrl('/login');
+        injector.get(Router).navigateByUrl('/login');
         return throwError(() => error);
       }
 
@@ -64,7 +64,7 @@ export const authHttpInterceptor: HttpInterceptorFn = (req, next) => {
           catchError(() => {
             session.clear();
             authState.setCurrentUser(null);
-            router.navigateByUrl('/login');
+            injector.get(Router).navigateByUrl('/login');
             return of(null);
           }),
           finalize(() => {
