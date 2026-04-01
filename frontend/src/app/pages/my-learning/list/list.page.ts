@@ -98,25 +98,6 @@ export class MyLearningListPageComponent implements OnInit {
     this.filteredEnrollments().map((item) => this.toCardView(item)),
   );
 
-  protected readonly primaryEnrollment = computed(() => {
-    const items = this.orderedEnrollments();
-    return (
-      items.find((item) => this.needsAttention(item)) ??
-      items.find((item) => this.isActive(item)) ??
-      items[0] ??
-      null
-    );
-  });
-
-  protected readonly primaryActionLabel = computed(() => {
-    const item = this.primaryEnrollment();
-    if (!item) {
-      return '';
-    }
-
-    return this.needsAttention(item) ? 'Открыть приоритетный курс' : 'Открыть ближайший курс';
-  });
-
   protected readonly resultLabel = computed(() =>
     this.formatCourseCount(this.filteredCards().length),
   );

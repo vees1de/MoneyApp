@@ -1,69 +1,51 @@
 <section class="calendar-page">
-  <header class="calendar-card calendar-page__header">
-    <div class="calendar-page__intro">
-      <span class="calendar-page__eyebrow">Календарь обучения</span>
-      <h1>Назначения, дедлайны и риски в одном окне</h1>
-      <p>
-        Быстро проверяйте таймблоки Yougile, ближайшие наборы и конфликтные пересечения без
-        переключения между разделами.
-      </p>
-    </div>
+  @if (!healthyYougileConnection()) {
+    <header class="calendar-card calendar-page__header">
+      <div class="calendar-page__intro">
+        <span class="calendar-page__eyebrow">Календарь обучения</span>
+        <h1>Назначения, дедлайны и риски в одном окне</h1>
+        <p>
+          Быстро проверяйте таймблоки Yougile, ближайшие наборы и конфликтные пересечения без
+          переключения между разделами.
+        </p>
+      </div>
 
-    <div class="calendar-page__actions">
-      @if (yougileConnection()) {
-        <a mat-stroked-button routerLink="/playground">
-          <mat-icon>settings_ethernet</mat-icon>
-          Интеграция
-        </a>
+      <div class="calendar-page__actions">
+        @if (yougileConnection()) {
+          <a mat-stroked-button routerLink="/playground">
+            <mat-icon>settings_ethernet</mat-icon>
+            Интеграция
+          </a>
 
-        <button
-          mat-flat-button
-          color="primary"
-          type="button"
-          (click)="refreshOverview()"
-          [disabled]="anyBusy()"
-        >
-          <mat-icon>refresh</mat-icon>
-          {{ anyBusy() ? 'Обновляем...' : 'Обновить календарь' }}
-        </button>
-      } @else {
-        <button
-          mat-stroked-button
-          type="button"
-          (click)="refreshOverview()"
-          [disabled]="anyBusy()"
-        >
-          <mat-icon>refresh</mat-icon>
-          Проверить снова
-        </button>
+          <button
+            mat-flat-button
+            color="primary"
+            type="button"
+            (click)="refreshOverview()"
+            [disabled]="anyBusy()"
+          >
+            <mat-icon>refresh</mat-icon>
+            {{ anyBusy() ? 'Обновляем...' : 'Обновить календарь' }}
+          </button>
+        } @else {
+          <button
+            mat-stroked-button
+            type="button"
+            (click)="refreshOverview()"
+            [disabled]="anyBusy()"
+          >
+            <mat-icon>refresh</mat-icon>
+            Проверить снова
+          </button>
 
-        <a mat-flat-button color="primary" routerLink="/playground">
-          <mat-icon>link</mat-icon>
-          Подключить Yougile
-        </a>
-      }
-    </div>
-  </header>
-
-  <section class="calendar-summary">
-    <article class="calendar-card calendar-summary__item">
-      <span class="calendar-summary__label">Таймблоки</span>
-      <strong>{{ timeblockCount() }}</strong>
-      <p>Окна задач из Yougile на текущем календаре</p>
-    </article>
-
-    <article class="calendar-card calendar-summary__item">
-      <span class="calendar-summary__label">Текущие наборы</span>
-      <strong>{{ currentSetsCount() }}</strong>
-      <p>Активные и предстоящие обучения с дедлайнами</p>
-    </article>
-
-    <article class="calendar-card calendar-summary__item">
-      <span class="calendar-summary__label">Риски</span>
-      <strong>{{ riskCount() }}</strong>
-      <p>Пересечения, которые требуют внимания менеджера</p>
-    </article>
-  </section>
+          <a mat-flat-button color="primary" routerLink="/playground">
+            <mat-icon>link</mat-icon>
+            Подключить Yougile
+          </a>
+        }
+      </div>
+    </header>
+  }
 
   @if (anyBusy()) {
     <mat-progress-bar mode="indeterminate"></mat-progress-bar>

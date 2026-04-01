@@ -156,6 +156,40 @@ func (s *Service) GetRecommendationJob(ctx context.Context, principal platformau
 	return item, nil
 }
 
+func (s *Service) getRecommendationJobInfo(ctx context.Context, userID, id uuid.UUID) (AIRecommendationJob, bool, error) {
+	var item AIRecommendationJob
+	var lastError sql.NullString
+
+	err := s.db.QueryRowContext(ctx, `
+		select id, user_id, status, attempt, last_error, started_at, finished_at, created_at, updated_at
+		from ai_recommendation_jobs
+		where id = $1 and user_id = $2
+	`, id, userID).Scan(
+		&item.ID,
+		&item.UserID,
+		&item.Status,
+		&item.Attempt,
+		&lastError,
+		&item.StartedAt,
+		&item.FinishedAt,
+		&item.CreatedAt,
+		&item.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return AIRecommendationJob{}, false, nil
+		}
+		return AIRecommendationJob{}, false, err
+	}
+
+	if lastError.Valid {
+		value := lastError.String
+		item.LastError = &value
+	}
+
+	return item, true, nil
+}
+
 func (s *Service) ListRecommendationJobs(ctx context.Context, principal platformauth.Principal, limit int) ([]AIRecommendationJob, error) {
 	if limit <= 0 {
 		limit = aiRecommendationJobHistoryDefaultLimit
@@ -209,6 +243,48 @@ func (s *Service) ListRecommendationJobs(ctx context.Context, principal platform
 	return items, nil
 }
 
+func (s *Service) DeleteRecommendationJob(ctx context.Context, principal platformauth.Principal, id uuid.UUID, options RecommendOptions) error {
+	job, found, err := s.getRecommendationJobInfo(ctx, principal.UserID, id)
+	if err != nil {
+		return err
+	}
+	if !found {
+		return nil
+	}
+
+	result, err := s.db.ExecContext(ctx, `
+		delete from ai_recommendation_jobs
+		where id = $1 and user_id = $2
+	`, id, principal.UserID)
+	if err != nil {
+		return err
+	}
+
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return nil
+	}
+
+	s.logInfo(
+		"ai recommendation job deleted",
+		"job_id", id.String(),
+		"user_id", principal.UserID.String(),
+		"status", job.Status,
+		"attempt", job.Attempt,
+	)
+
+	deletedJob := job
+	deletedJob.Status = "deleted"
+	s.recordRecommendationJobAudit(ctx, "ai.recommendations.deleted", deletedJob, options, map[string]any{
+		"deleted_at": time.Now().UTC(),
+	})
+
+	return nil
+}
+
 func (s *Service) ProcessRecommendationJob(ctx context.Context, job platformworker.Job) error {
 	var payload recommendationJobPayload
 	if err := json.Unmarshal(job.Payload, &payload); err != nil {
@@ -226,6 +302,23 @@ func (s *Service) ProcessRecommendationJob(ctx context.Context, job platformwork
 		return fmt.Errorf("ai recommendation job payload is missing job_id")
 	}
 
+	if _, found, err := s.getRecommendationJobInfo(ctx, payload.UserID, payload.JobID); err != nil {
+		s.logError(
+			"ai recommendation job lookup failed",
+			"job_id", payload.JobID.String(),
+			"user_id", payload.UserID.String(),
+			"error", err.Error(),
+		)
+		return err
+	} else if !found {
+		s.logInfo(
+			"ai recommendation job skipped because it was deleted",
+			"job_id", payload.JobID.String(),
+			"user_id", payload.UserID.String(),
+		)
+		return nil
+	}
+
 	now := time.Now().UTC()
 	s.logInfo(
 		"ai recommendation job processing started",
@@ -235,12 +328,37 @@ func (s *Service) ProcessRecommendationJob(ctx context.Context, job platformwork
 		"max_attempts", job.MaxAttempts,
 	)
 	if err := s.markRecommendationJobProcessing(ctx, payload.JobID, now); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			s.logInfo(
+				"ai recommendation job processing skipped because it was deleted",
+				"job_id", payload.JobID.String(),
+				"user_id", payload.UserID.String(),
+			)
+			return nil
+		}
 		s.logError(
 			"ai recommendation job mark processing failed",
 			"job_id", payload.JobID.String(),
 			"error", err.Error(),
 		)
 		return err
+	}
+
+	if _, found, err := s.getRecommendationJobInfo(ctx, payload.UserID, payload.JobID); err != nil {
+		s.logError(
+			"ai recommendation job re-check failed",
+			"job_id", payload.JobID.String(),
+			"user_id", payload.UserID.String(),
+			"error", err.Error(),
+		)
+		return err
+	} else if !found {
+		s.logInfo(
+			"ai recommendation job stopped after delete",
+			"job_id", payload.JobID.String(),
+			"user_id", payload.UserID.String(),
+		)
+		return nil
 	}
 
 	principal := platformauth.Principal{
@@ -265,7 +383,22 @@ func (s *Service) ProcessRecommendationJob(ctx context.Context, job platformwork
 				"attempt", job.Attempt+1,
 				"error", err.Error(),
 			)
-			_ = s.markRecommendationJobFailed(ctx, payload.JobID, finishedAt, err.Error())
+			if failErr := s.markRecommendationJobFailed(ctx, payload.JobID, finishedAt, err.Error()); failErr != nil {
+				if errors.Is(failErr, sql.ErrNoRows) {
+					s.logInfo(
+						"ai recommendation job failure was discarded because job was deleted",
+						"job_id", payload.JobID.String(),
+						"user_id", payload.UserID.String(),
+					)
+					return nil
+				}
+				s.logError(
+					"ai recommendation job mark failed failed",
+					"job_id", payload.JobID.String(),
+					"error", failErr.Error(),
+				)
+				return failErr
+			}
 			s.recordRecommendationJobAudit(ctx, "ai.recommendations.failed", AIRecommendationJob{
 				ID:      payload.JobID,
 				UserID:  payload.UserID,
@@ -282,12 +415,26 @@ func (s *Service) ProcessRecommendationJob(ctx context.Context, job platformwork
 				"attempt", job.Attempt+1,
 				"error", err.Error(),
 			)
-			_ = s.markRecommendationJobRetry(ctx, payload.JobID, time.Now().UTC(), err.Error())
+			if retryErr := s.markRecommendationJobRetry(ctx, payload.JobID, time.Now().UTC(), err.Error()); retryErr != nil && !errors.Is(retryErr, sql.ErrNoRows) {
+				s.logError(
+					"ai recommendation job mark retry failed",
+					"job_id", payload.JobID.String(),
+					"error", retryErr.Error(),
+				)
+			}
 		}
 		return err
 	}
 
 	if err := s.markRecommendationJobDone(ctx, payload.JobID, result, time.Now().UTC()); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			s.logInfo(
+				"ai recommendation job result was discarded because job was deleted",
+				"job_id", payload.JobID.String(),
+				"user_id", payload.UserID.String(),
+			)
+			return nil
+		}
 		s.logError(
 			"ai recommendation job mark done failed",
 			"job_id", payload.JobID.String(),
@@ -342,7 +489,7 @@ func (s *Service) recommendationDB(exec ...db.DBTX) db.DBTX {
 }
 
 func (s *Service) markRecommendationJobProcessing(ctx context.Context, id uuid.UUID, startedAt time.Time) error {
-	_, err := s.db.ExecContext(ctx, `
+	result, err := s.db.ExecContext(ctx, `
 		update ai_recommendation_jobs
 		set status = 'processing',
 		    started_at = coalesce(started_at, $2),
@@ -351,18 +498,40 @@ func (s *Service) markRecommendationJobProcessing(ctx context.Context, id uuid.U
 		    updated_at = $2
 		where id = $1
 	`, id, startedAt)
-	return err
+	if err != nil {
+		return err
+	}
+
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
 func (s *Service) markRecommendationJobRetry(ctx context.Context, id uuid.UUID, updatedAt time.Time, message string) error {
-	_, err := s.db.ExecContext(ctx, `
+	result, err := s.db.ExecContext(ctx, `
 		update ai_recommendation_jobs
 		set status = 'retry',
 		    last_error = $3,
 		    updated_at = $2
 		where id = $1
 	`, id, updatedAt, message)
-	return err
+	if err != nil {
+		return err
+	}
+
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
 func (s *Service) markRecommendationJobDone(ctx context.Context, id uuid.UUID, result RecommendResponse, finishedAt time.Time) error {
@@ -370,7 +539,7 @@ func (s *Service) markRecommendationJobDone(ctx context.Context, id uuid.UUID, r
 	if err != nil {
 		return err
 	}
-	_, err = s.db.ExecContext(ctx, `
+	execResult, err := s.db.ExecContext(ctx, `
 		update ai_recommendation_jobs
 		set status = 'done',
 		    result = $3::jsonb,
@@ -379,11 +548,22 @@ func (s *Service) markRecommendationJobDone(ctx context.Context, id uuid.UUID, r
 		    updated_at = $2
 		where id = $1
 	`, id, finishedAt, payload)
-	return err
+	if err != nil {
+		return err
+	}
+
+	affected, err := execResult.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
 func (s *Service) markRecommendationJobFailed(ctx context.Context, id uuid.UUID, finishedAt time.Time, message string) error {
-	_, err := s.db.ExecContext(ctx, `
+	result, err := s.db.ExecContext(ctx, `
 		update ai_recommendation_jobs
 		set status = 'failed',
 		    last_error = $3,
@@ -391,7 +571,18 @@ func (s *Service) markRecommendationJobFailed(ctx context.Context, id uuid.UUID,
 		    updated_at = $2
 		where id = $1
 	`, id, finishedAt, message)
-	return err
+	if err != nil {
+		return err
+	}
+
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
 func (s *Service) recordRecommendationJobAudit(ctx context.Context, action string, job AIRecommendationJob, options RecommendOptions, meta map[string]any) {
@@ -468,6 +659,30 @@ func (h *Handler) GetJob(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httpx.WriteJSON(w, http.StatusOK, job)
+}
+
+func (h *Handler) DeleteJob(w http.ResponseWriter, r *http.Request) {
+	principal, ok := platformauth.PrincipalFromContext(r.Context())
+	if !ok {
+		httpx.WriteError(w, httpx.Unauthorized("unauthorized", "authentication required"))
+		return
+	}
+
+	jobID, err := uuid.Parse(chi.URLParam(r, "jobId"))
+	if err != nil {
+		httpx.WriteError(w, httpx.BadRequest("invalid_job_id", "invalid job id"))
+		return
+	}
+
+	if err := h.service.DeleteRecommendationJob(r.Context(), principal, jobID, RecommendOptions{
+		IP:        requestIP(r),
+		UserAgent: optionalString(strings.TrimSpace(r.UserAgent())),
+	}); err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+
+	httpx.WriteNoContent(w)
 }
 
 func (h *Handler) ListJobs(w http.ResponseWriter, r *http.Request) {

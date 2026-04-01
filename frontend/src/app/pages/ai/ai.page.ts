@@ -47,6 +47,7 @@ export class AIPageComponent implements OnInit, OnDestroy {
   protected readonly history = signal<AIRecommendationJob[]>([]);
   protected readonly historyLoading = signal(false);
   protected readonly historyError = signal<string | null>(null);
+  protected readonly deletingJobId = signal<string | null>(null);
 
   ngOnInit(): void {
     this.loadHistory();
@@ -92,6 +93,52 @@ export class AIPageComponent implements OnInit, OnDestroy {
     }
 
     this.observeJob(jobId);
+  }
+
+  protected deleteJob(job: AIRecommendationJob, event?: MouseEvent): void {
+    event?.stopPropagation();
+
+    if (this.deletingJobId() === job.id) {
+      return;
+    }
+
+    const confirmed = typeof window === 'undefined' ? true : window.confirm('Удалить этот запуск AI-рекомендаций?');
+    if (!confirmed) {
+      return;
+    }
+
+    const wasCurrent = this.jobId() === job.id;
+    if (wasCurrent) {
+      this.cancelCurrentJobWatch();
+      this.loading.set(false);
+      this.jobStatus.set(null);
+    }
+
+    this.deletingJobId.set(job.id);
+
+    this.api
+      .deleteRecommendationJob(job.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.deletingJobId.set(null);
+          this.history.set(this.history().filter((item) => item.id !== job.id));
+          this.error.set(null);
+          if (wasCurrent) {
+            this.data.set(null);
+            this.jobId.set(null);
+            this.jobStatus.set(null);
+          }
+          this.loadHistory();
+        },
+        error: (err) => {
+          this.deletingJobId.set(null);
+          this.error.set(this.resolveErrorMessage(err));
+          if (wasCurrent) {
+            this.loadHistory();
+          }
+        },
+      });
   }
 
   protected loadHistory(): void {
@@ -200,6 +247,10 @@ export class AIPageComponent implements OnInit, OnDestroy {
   private resolveErrorMessage(err: unknown): string {
     const httpError = err as HttpErrorResponse | undefined;
     const status = httpError?.status ?? 0;
+
+    if (status === 404) {
+      return 'Запуск был удалён.';
+    }
 
     if (status === 502 || status === 503 || status === 504 || status === 0) {
       return 'AI-сервис временно недоступен. Запрос повторялся несколько раз, но gateway не вернул ответ.';

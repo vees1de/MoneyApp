@@ -6,7 +6,7 @@
         Все назначения
       </a>
       @if (canManage()) {
-        <button mat-flat-button color="primary" type="button" (click)="openManageDialog()">
+        <button mat-stroked-button type="button" (click)="openManageDialog()">
           <mat-icon>tune</mat-icon>
           Редактировать назначение
         </button>
@@ -23,6 +23,7 @@
       }
     </div>
   </header>
+
   @if (canManage() && applications().length > 0) {
     <p class="intake-detail-page__manage-hint">
       Удаление недоступно, пока по набору есть заявки.
@@ -34,319 +35,408 @@
   } @else if (error()) {
     <p class="intake-detail-page__error">{{ error() }}</p>
   } @else if (intake(); as item) {
-    <!-- ========== INTAKE SUMMARY CARD (top) ========== -->
-    <mat-card class="intake-summary-card">
-      <mat-card-header>
-        <mat-card-title>{{ item.title }}</mat-card-title>
-        <mat-card-subtitle>{{ intakeStatusLabel(item.status) }}</mat-card-subtitle>
-      </mat-card-header>
+    <mat-card class="intake-header-card">
+      <mat-card-content class="intake-header-card__content">
+        <div class="intake-header-card__top">
+          <div class="intake-header-card__identity">
+            <p class="intake-header-card__eyebrow">Назначение обучения</p>
+            <h1>{{ item.title }}</h1>
+          </div>
 
-      <mat-card-content class="intake-summary-card__content">
+          <span class="status-pill" [ngClass]="'status-pill--' + item.status">
+            {{ intakeStatusLabel(item.status) }}
+          </span>
+        </div>
+
         @if (item.description) {
-          <p class="intake-summary-card__description">{{ item.description }}</p>
+          <p class="intake-header-card__description">{{ item.description }}</p>
         }
-        <div class="intake-summary-card__meta">
-          <p>
-            <span class="kv__key">Старт:</span
-            ><span class="kv__value">{{
-              item.start_date ? (item.start_date | date: 'dd.MM.yyyy') : '—'
-            }}</span>
-          </p>
-          <p>
-            <span class="kv__key">Окончание:</span
-            ><span class="kv__value">{{
-              item.end_date ? (item.end_date | date: 'dd.MM.yyyy') : '—'
-            }}</span>
-          </p>
-          <p>
-            <span class="kv__key">Дедлайн подачи:</span
-            ><span class="kv__value">{{
-              item.application_deadline ? (item.application_deadline | date: 'dd.MM.yyyy HH:mm') : '—'
-            }}</span>
-          </p>
-          <p>
-            <span class="kv__key">Лимит участников:</span
-            ><span class="kv__value">{{ item.max_participants ?? 'не ограничено' }}</span>
-          </p>
-          <p>
-            <span class="kv__key">Цена:</span
-            ><span class="kv__value">{{ item.price || '—' }} {{ item.price_currency || 'RUB' }}</span>
-          </p>
+
+        <div class="intake-header-card__meta">
+          <div class="meta-item">
+            <span class="meta-item__label">Старт</span>
+            <span class="meta-item__value">
+              {{ item.start_date ? (item.start_date | date: 'dd.MM.yyyy') : '—' }}
+            </span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-item__label">Окончание</span>
+            <span class="meta-item__value">
+              {{ item.end_date ? (item.end_date | date: 'dd.MM.yyyy') : '—' }}
+            </span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-item__label">Дедлайн подачи</span>
+            <span class="meta-item__value">
+              {{ item.application_deadline ? (item.application_deadline | date: 'dd.MM.yyyy HH:mm') : '—' }}
+            </span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-item__label">Лимит участников</span>
+            <span class="meta-item__value">{{ item.max_participants ?? 'не ограничено' }}</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-item__label">Стоимость</span>
+            <span class="meta-item__value">{{ item.price || '—' }} {{ item.price_currency || 'RUB' }}</span>
+          </div>
         </div>
       </mat-card-content>
     </mat-card>
 
     @if (canManage()) {
-      <!-- ========== WORKFLOW ACTIONS BAR ========== -->
-      <mat-card class="workflow-bar">
-        <mat-card-content class="workflow-bar__content">
-          <div class="workflow-bar__stats">
-            <div class="workflow-bar__stat">
-              <span class="workflow-bar__stat-value">{{ applications().length }}</span>
-              <span class="workflow-bar__stat-label">Заявок</span>
-            </div>
-            <div class="workflow-bar__stat">
-              <span class="workflow-bar__stat-value">{{ hrFilterCount('accepted') }}</span>
-              <span class="workflow-bar__stat-label">Принято</span>
-            </div>
-            <div class="workflow-bar__stat">
-              <span class="workflow-bar__stat-value">{{ hrFilterCount('pending') }}</span>
-              <span class="workflow-bar__stat-label">Без решения</span>
-            </div>
-          </div>
-
-          <div class="workflow-bar__actions">
-            @if (item.status === 'open') {
-              <button
-                mat-stroked-button
-                type="button"
-                (click)="closeIntake()"
-                [disabled]="acting()"
-              >
-                <mat-icon>lock</mat-icon>
-                Закрыть набор
-              </button>
-            }
-
-            <button
-              mat-stroked-button
-              type="button"
-              (click)="updateAllPayments('paid')"
-              [disabled]="acting() || !hasEnrolledApplications()"
-            >
-              <mat-icon>payments</mat-icon>
-              Оплатить
-            </button>
-
-            <button
-              mat-flat-button
-              color="primary"
-              type="button"
-              (click)="startEnrolledApplications()"
-              [disabled]="acting() || !hasStartableEnrollments()"
-            >
-              <mat-icon>play_circle</mat-icon>
-              Стартовать курс
-            </button>
-          </div>
-        </mat-card-content>
-      </mat-card>
-
-      <!-- ========== EMPLOYEES SECTION ========== -->
-      <section class="pools-section">
-        <h2 class="pools-section__title">Сотрудники в наборе</h2>
-
-        <!-- POOL 1: Applicants (hidden after course started) -->
-        @if (!isCourseStarted()) {
-          <section class="pool">
-            <div class="pool__header">
-              <div class="pool__header-info">
-                <h3 class="pool__title">Заявки на курс</h3>
-                <p class="pool__subtitle">Сотрудники, ожидающие решения HR</p>
+      <div class="intake-detail-layout">
+        <main class="intake-detail-layout__main">
+          <mat-card class="workflow-card">
+            <mat-card-content class="workflow-card__content">
+              <div class="workflow-card__stats">
+                <div class="workflow-stat">
+                  <span class="workflow-stat__value">{{ applications().length }}</span>
+                  <span class="workflow-stat__label">Заявок</span>
+                </div>
+                <div class="workflow-stat">
+                  <span class="workflow-stat__value">{{ hrFilterCount('accepted') }}</span>
+                  <span class="workflow-stat__label">Принято</span>
+                </div>
+                <div class="workflow-stat">
+                  <span class="workflow-stat__value">{{ hrFilterCount('pending') }}</span>
+                  <span class="workflow-stat__label">Без решения</span>
+                </div>
               </div>
-              <mat-button-toggle-group
-                class="pool__filters"
-                [value]="hrFilter()"
-                (change)="setHrFilter($any($event.value))"
-                aria-label="Фильтр сотрудников по решению"
-              >
-                @for (filter of hrFilterOptions; track filter.value) {
-                  <mat-button-toggle [value]="filter.value">
-                    {{ filter.label }} ({{ hrFilterCount(filter.value) }})
-                  </mat-button-toggle>
+
+              <div class="workflow-card__actions">
+                @if (item.status === 'open') {
+                  <button
+                    mat-stroked-button
+                    type="button"
+                    (click)="closeIntake()"
+                    [disabled]="acting()"
+                  >
+                    <mat-icon>lock</mat-icon>
+                    Закрыть набор
+                  </button>
                 }
-              </mat-button-toggle-group>
+
+                <button
+                  mat-stroked-button
+                  type="button"
+                  (click)="updateAllPayments('paid')"
+                  [disabled]="acting() || !hasEnrolledApplications()"
+                >
+                  <mat-icon>payments</mat-icon>
+                  Оплатить
+                </button>
+
+                <button
+                  mat-flat-button
+                  color="primary"
+                  type="button"
+                  (click)="startEnrolledApplications()"
+                  [disabled]="acting() || !hasStartableEnrollments()"
+                >
+                  <mat-icon>play_circle</mat-icon>
+                  Стартовать курс
+                </button>
+              </div>
+            </mat-card-content>
+          </mat-card>
+
+          <section class="intake-section">
+            <div class="intake-section__header">
+              <div>
+                <h2>Сотрудники в наборе</h2>
+                <p>Контроль заявок и обучение сотрудников по текущему назначению.</p>
+              </div>
+
+              @if (!isCourseStarted()) {
+                <mat-button-toggle-group
+                  class="intake-section__filters"
+                  [value]="hrFilter()"
+                  (change)="setHrFilter($any($event.value))"
+                  aria-label="Фильтр сотрудников по решению"
+                >
+                  @for (filter of hrFilterOptions; track filter.value) {
+                    <mat-button-toggle [value]="filter.value">
+                      {{ filter.label }} ({{ hrFilterCount(filter.value) }})
+                    </mat-button-toggle>
+                  }
+                </mat-button-toggle-group>
+              }
             </div>
 
             @if (directoryUnavailable()) {
-              <p class="pool__hint">
-                Каталог сотрудников недоступен. Карточки показаны по данным заявок.
+              <p class="intake-section__hint">
+                Каталог сотрудников недоступен. Данные отображаются из заявок.
               </p>
             }
 
-            @if (poolApplicants().length === 0 && applications().length === 0) {
-              <div class="pool__empty">
-                <mat-icon>group_off</mat-icon>
-                <p>Пока нет заявок сотрудников</p>
-              </div>
-            } @else if (filteredApplications().length === 0) {
-              <p class="pool__hint">В выбранной категории сотрудников пока нет.</p>
-            } @else {
-              <div class="pool__grid">
-                @for (application of filteredApplications(); track application.id) {
-                  @if (application.status !== 'enrolled') {
-                    <mat-card class="employee-card">
-                      <mat-card-content class="employee-card__content">
-                        <div class="employee-card__top">
-                          <div class="employee-card__identity">
-                            <a
-                              class="employee-card__profile-link"
-                              [routerLink]="['/employees', application.applicant_id]"
-                            >
-                              {{ userLabel(application.applicant_id) }}
-                            </a>
-                            <p>
-                              {{ userPosition(application.applicant_id) || 'Сотрудник' }}
-                            </p>
-                          </div>
+            @if (!isCourseStarted()) {
+              <section class="intake-table-block">
+                <div class="intake-table-block__head">
+                  <h3>Заявки</h3>
+                  <p>Сотрудники, ожидающие решения HR</p>
+                </div>
 
-                          <div class="employee-card__badges">
-                            @if (applicationDecisionLabel(application); as decision) {
-                              <span
-                                class="employee-card__decision"
-                                [ngClass]="applicationDecisionClass(application)"
-                              >
-                                {{ decision }}
-                              </span>
-                            }
-                            <span class="employee-card__status">
-                              {{ applicationStatusLabel(application.status) }}
-                            </span>
-                          </div>
-                        </div>
+                @if (poolApplicants().length === 0 && applications().length === 0) {
+                  <div class="intake-section__empty">
+                    <mat-icon>group_off</mat-icon>
+                    <p>Пока нет заявок сотрудников</p>
+                  </div>
+                } @else if (filteredApplications().length === 0) {
+                  <p class="intake-section__hint">В выбранной категории сотрудников пока нет.</p>
+                } @else {
+                  <div class="table-shell">
+                    <table class="intake-table">
+                      <thead>
+                        <tr>
+                          <th>Сотрудник</th>
+                          <th>Статус</th>
+                          <th>Подано</th>
+                          <th>Мотивация</th>
+                          <th>Решение HR</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        @for (application of filteredApplications(); track application.id) {
+                          @if (application.status !== 'enrolled') {
+                            <tr>
+                              <td>
+                                <div class="intake-table__employee">
+                                  <a
+                                    class="employee-link"
+                                    [routerLink]="['/employees', application.applicant_id]"
+                                  >
+                                    {{ userLabel(application.applicant_id) }}
+                                  </a>
+                                  <span class="cell-text cell-text--muted">
+                                    {{ userPosition(application.applicant_id) || 'Сотрудник' }}
+                                  </span>
+                                  <span class="cell-text cell-text--muted">
+                                    {{ userEmail(application.applicant_id) || '—' }}
+                                  </span>
+                                </div>
+                              </td>
 
-                        <p>
-                          <span class="kv__key">Email:</span
-                          ><span class="kv__value">{{ userEmail(application.applicant_id) || '—' }}</span>
-                        </p>
-                        <p>
-                          <span class="kv__key">Подано:</span
-                          ><span class="kv__value">{{
-                            application.created_at | date: 'dd.MM.yyyy HH:mm'
-                          }}</span>
-                        </p>
-                        <p>
-                          <span class="kv__key">Мотивация:</span
-                          ><span class="kv__value">{{ application.motivation || '—' }}</span>
-                        </p>
+                              <td>
+                                <div class="status-stack">
+                                  <span class="status-chip">
+                                    {{ applicationStatusLabel(application.status) }}
+                                  </span>
+                                  @if (applicationDecisionLabel(application); as decision) {
+                                    <span
+                                      class="employee-card__decision"
+                                      [ngClass]="applicationDecisionClass(application)"
+                                    >
+                                      {{ decision }}
+                                    </span>
+                                  }
+                                </div>
+                              </td>
 
-                        @if (canHrApprove(application)) {
-                          <mat-form-field appearance="outline" class="employee-card__comment">
-                            <mat-label>Комментарий HR</mat-label>
-                            <textarea
-                              matInput
-                              rows="2"
-                              [value]="applicationComment(application.id)"
-                              (input)="setApplicationComment(application.id, $any($event.target).value)"
-                            ></textarea>
-                          </mat-form-field>
+                              <td>
+                                <span class="cell-text">
+                                  {{ application.created_at | date: 'dd.MM.yyyy HH:mm' }}
+                                </span>
+                              </td>
 
-                          <div class="employee-card__actions">
-                            <button
-                              mat-flat-button
-                              color="primary"
-                              type="button"
-                              (click)="approveByHr(application)"
-                              [disabled]="acting()"
-                            >
-                              <mat-icon>check_circle</mat-icon>
-                              Принять
-                            </button>
-                            <button
-                              mat-stroked-button
-                              type="button"
-                              (click)="rejectByHr(application)"
-                              [disabled]="acting()"
-                            >
-                              <mat-icon>cancel</mat-icon>
-                              Не принять
-                            </button>
-                          </div>
-                        } @else {
-                          <p class="employee-card__note">{{ applicationWorkflowHint(application) }}</p>
+                              <td>
+                                <span class="cell-text cell-text--multiline">
+                                  {{ application.motivation || '—' }}
+                                </span>
+                              </td>
+
+                              <td>
+                                @if (canHrApprove(application)) {
+                                  <mat-form-field appearance="outline" class="row-comment">
+                                    <mat-label>Комментарий HR</mat-label>
+                                    <textarea
+                                      matInput
+                                      rows="2"
+                                      [value]="applicationComment(application.id)"
+                                      (input)="setApplicationComment(application.id, $any($event.target).value)"
+                                    ></textarea>
+                                  </mat-form-field>
+
+                                  <div class="row-actions">
+                                    <button
+                                      mat-stroked-button
+                                      type="button"
+                                      (click)="approveByHr(application)"
+                                      [disabled]="acting()"
+                                    >
+                                      <mat-icon>check_circle</mat-icon>
+                                      Принять
+                                    </button>
+                                    <button
+                                      mat-stroked-button
+                                      type="button"
+                                      (click)="rejectByHr(application)"
+                                      [disabled]="acting()"
+                                    >
+                                      <mat-icon>cancel</mat-icon>
+                                      Не принять
+                                    </button>
+                                  </div>
+                                } @else {
+                                  <p class="row-note">{{ applicationWorkflowHint(application) }}</p>
+                                }
+                              </td>
+                            </tr>
+                          }
                         }
-                      </mat-card-content>
-                    </mat-card>
-                  }
+                      </tbody>
+                    </table>
+                  </div>
                 }
-              </div>
+              </section>
+            }
+
+            @if (poolLearning().length > 0) {
+              <section class="intake-table-block">
+                <div class="intake-table-block__head">
+                  <h3>Обучение</h3>
+                  <p>Сотрудники, назначенные на курс</p>
+                </div>
+
+                <div class="table-shell">
+                  <table class="intake-table intake-table--learning">
+                    <thead>
+                      <tr>
+                        <th>Сотрудник</th>
+                        <th>Оплата</th>
+                        <th>Статус обучения</th>
+                        <th>Сертификат</th>
+                        <th>Действие</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (application of poolLearning(); track application.id) {
+                        <tr>
+                          <td>
+                            <div class="intake-table__employee">
+                              <a
+                                class="employee-link"
+                                [routerLink]="['/employees', application.applicant_id]"
+                              >
+                                {{ userLabel(application.applicant_id) }}
+                              </a>
+                              <span class="cell-text cell-text--muted">
+                                {{ userPosition(application.applicant_id) || 'Сотрудник' }}
+                              </span>
+                            </div>
+                          </td>
+
+                          <td>
+                            <span class="status-chip">
+                              {{ paymentStatusLabel(application.payment_status) }}
+                            </span>
+                          </td>
+
+                          <td>
+                            <span class="pool-status" [ngClass]="learningStatusClass(application)">
+                              {{ learningStatusLabel(application) }}
+                            </span>
+                          </td>
+
+                          <td>
+                            <span class="status-chip">
+                              {{ certificateStatusLabel(application.certificate_status) }}
+                            </span>
+                          </td>
+
+                          <td>
+                            @if (application.certificate_id && application.certificate_status === 'uploaded') {
+                              <button
+                                mat-stroked-button
+                                type="button"
+                                (click)="openCertificateReview(application)"
+                                [disabled]="acting()"
+                              >
+                                <mat-icon>visibility</mat-icon>
+                                Проверить сертификат
+                              </button>
+                            } @else if (application.certificate_status === 'verified') {
+                              <p class="certificate-note certificate-note--success">
+                                <mat-icon>check_circle</mat-icon>
+                                Сертификат подтверждён
+                              </p>
+                            } @else if (application.certificate_status === 'rejected') {
+                              <p class="certificate-note certificate-note--error">
+                                <mat-icon>error</mat-icon>
+                                Отклонён, ждёт повторной загрузки
+                              </p>
+                            } @else {
+                              <span class="cell-text cell-text--muted">—</span>
+                            }
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              </section>
             }
           </section>
-        }
+        </main>
 
-        <!-- POOL 2: Learning (enrolled employees) -->
-        @if (poolLearning().length > 0) {
-          <section class="pool">
-            <div class="pool__header">
-              <div class="pool__header-info">
-                <h3 class="pool__title">Обучение</h3>
-                <p class="pool__subtitle">Сотрудники, проходящие курс</p>
+        <aside class="intake-detail-layout__side">
+          <mat-card class="side-card">
+            <mat-card-header>
+              <mat-card-title>Календарь набора</mat-card-title>
+              <mat-card-subtitle>Ключевые даты и ограничения</mat-card-subtitle>
+            </mat-card-header>
+            <mat-card-content class="side-card__content">
+              <p>
+                <span class="kv__key">Старт:</span
+                ><span class="kv__value">{{ item.start_date ? (item.start_date | date: 'dd.MM.yyyy') : '—' }}</span>
+              </p>
+              <p>
+                <span class="kv__key">Окончание:</span
+                ><span class="kv__value">{{ item.end_date ? (item.end_date | date: 'dd.MM.yyyy') : '—' }}</span>
+              </p>
+              <p>
+                <span class="kv__key">Дедлайн подачи:</span
+                ><span class="kv__value">{{ item.application_deadline ? (item.application_deadline | date: 'dd.MM.yyyy HH:mm') : '—' }}</span>
+              </p>
+              <p>
+                <span class="kv__key">Лимит участников:</span
+                ><span class="kv__value">{{ item.max_participants ?? 'не ограничено' }}</span>
+              </p>
+            </mat-card-content>
+          </mat-card>
+
+          <mat-card class="side-card">
+            <mat-card-header>
+              <mat-card-title>Риски и контроль</mat-card-title>
+              <mat-card-subtitle>Сигналы для HR</mat-card-subtitle>
+            </mat-card-header>
+            <mat-card-content class="side-card__content side-card__content--risk">
+              <div
+                class="risk-row"
+                [ngClass]="hrFilterCount('pending') > 0 ? 'risk-row--warning' : 'risk-row--success'"
+              >
+                <span class="risk-row__label">Без решения HR</span>
+                <span class="risk-row__value">{{ hrFilterCount('pending') }}</span>
               </div>
-            </div>
 
-            <div class="pool__grid">
-              @for (application of poolLearning(); track application.id) {
-                <mat-card class="employee-card employee-card--learning">
-                  <mat-card-content class="employee-card__content">
-                    <div class="employee-card__top">
-                      <div class="employee-card__identity">
-                        <a
-                          class="employee-card__profile-link"
-                          [routerLink]="['/employees', application.applicant_id]"
-                        >
-                          {{ userLabel(application.applicant_id) }}
-                        </a>
-                        <p>
-                          {{ userPosition(application.applicant_id) || 'Сотрудник' }}
-                        </p>
-                      </div>
+              <div
+                class="risk-row"
+                [ngClass]="hrFilterCount('rejected') > 0 ? 'risk-row--error' : 'risk-row--neutral'"
+              >
+                <span class="risk-row__label">Отклонено</span>
+                <span class="risk-row__value">{{ hrFilterCount('rejected') }}</span>
+              </div>
 
-                      <span
-                        class="pool-status"
-                        [ngClass]="learningStatusClass(application)"
-                      >
-                        {{ learningStatusLabel(application) }}
-                      </span>
-                    </div>
-
-                    <p>
-                      <span class="kv__key">Оплата:</span
-                      ><span class="kv__value">{{
-                        paymentStatusLabel(application.payment_status)
-                      }}</span>
-                    </p>
-                    <p>
-                      <span class="kv__key">Статус обучения:</span
-                      ><span class="kv__value">{{
-                        enrollmentStatusLabel(application.enrollment_status)
-                      }}</span>
-                    </p>
-                    <p>
-                      <span class="kv__key">Сертификат:</span
-                      ><span class="kv__value">{{
-                        certificateStatusLabel(application.certificate_status)
-                      }}</span>
-                    </p>
-
-                    @if (application.certificate_id && application.certificate_status === 'uploaded') {
-                      <button
-                        mat-flat-button
-                        color="primary"
-                        type="button"
-                        (click)="openCertificateReview(application)"
-                        [disabled]="acting()"
-                      >
-                        <mat-icon>visibility</mat-icon>
-                        Проверить сертификат
-                      </button>
-                    } @else if (application.certificate_status === 'verified') {
-                      <p class="employee-card__note employee-card__note--success">
-                        <mat-icon>check_circle</mat-icon>
-                        Сертификат подтверждён
-                      </p>
-                    } @else if (application.certificate_status === 'rejected') {
-                      <p class="employee-card__note employee-card__note--error">
-                        <mat-icon>error</mat-icon>
-                        Сертификат отклонён — ожидает повторной загрузки
-                      </p>
-                    }
-                  </mat-card-content>
-                </mat-card>
-              }
-            </div>
-          </section>
-        }
-      </section>
+              <div
+                class="risk-row"
+                [ngClass]="poolLearning().length > 0 ? 'risk-row--info' : 'risk-row--neutral'"
+              >
+                <span class="risk-row__label">Сотрудников в обучении</span>
+                <span class="risk-row__value">{{ poolLearning().length }}</span>
+              </div>
+            </mat-card-content>
+          </mat-card>
+        </aside>
+      </div>
     } @else {
       <ng-container [ngTemplateOutlet]="selfServiceCard"></ng-container>
     }

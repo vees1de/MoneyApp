@@ -106,6 +106,14 @@ export class CalendarOverviewPageComponent implements OnInit {
   protected readonly anyBusy = computed(
     () => this.calendarLoading() || this.yougileLoading() || this.learningLoading(),
   );
+  protected readonly healthyYougileConnection = computed(() => {
+    const connection = this.yougileConnection();
+    return (
+      !!connection &&
+      (connection.status ?? '').toLowerCase() === 'active' &&
+      !connection.last_error
+    );
+  });
   protected readonly issueMessages = computed(() => {
     const messages = [this.yougileError(), this.learningError()].filter(
       (value): value is string => !!value,
