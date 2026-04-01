@@ -28,6 +28,7 @@ import (
 )
 
 const aiPoolLimit = 50
+const yandexAIKeyIssueMessage = "YANDEX_AI_API_KEY не найден в env или не подходит для Yandex AI API"
 
 type AIRecommendation struct {
 	CourseID         string `json:"course_id"`
@@ -229,7 +230,7 @@ func (s *Service) Recommend(ctx context.Context, principal platformauth.Principa
 	}
 
 	if strings.TrimSpace(s.aiConfig.APIKey) == "" {
-		result := recommendHeuristically(activeTasks, courses, intakes, "Yandex AI API key is not configured")
+		result := recommendHeuristically(activeTasks, courses, intakes, yandexAIKeyIssueMessage)
 		result.debug.CoursesSource = "/api/v1/courses?limit=50&offset=0"
 		result.debug.IntakesSource = "/api/v1/intakes?status=open"
 		if coursesErr != nil {
@@ -597,7 +598,7 @@ func (s *Service) getActiveYougileConnection(ctx context.Context, userID uuid.UU
 
 func (s *Service) callYandexAI(ctx context.Context, tasks []yougilemodule.TaskItem, courses []catalogmodule.Course, intakes []courseintakesmodule.Intake) (aiResult, error) {
 	if s.aiConfig.APIKey == "" {
-		return aiResult{}, httpx.BadRequest("ai_not_configured", "Yandex AI API key is not configured")
+		return aiResult{}, httpx.BadRequest("yandex_ai_key_missing_or_invalid", yandexAIKeyIssueMessage)
 	}
 
 	tasksSummary := buildTasksSummary(tasks)
@@ -674,6 +675,9 @@ func (s *Service) callYandexAI(ctx context.Context, tasks []yougilemodule.TaskIt
 	}
 
 	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+			return aiResult{debug: debug}, httpx.BadRequest("yandex_ai_key_missing_or_invalid", yandexAIKeyIssueMessage)
+		}
 		return aiResult{debug: debug}, fmt.Errorf("yandex ai returned status %d: %s", resp.StatusCode, rawResponse)
 	}
 
