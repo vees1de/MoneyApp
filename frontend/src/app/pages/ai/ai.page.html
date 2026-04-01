@@ -43,59 +43,6 @@
     </div>
   }
 
-  @if (history().length > 0) {
-    <mat-card class="ai-page__history">
-      <mat-card-header>
-        <mat-card-title>История запусков</mat-card-title>
-        <mat-card-subtitle>Сохранена в БД, можно открыть прошлые ответы или текущий job</mat-card-subtitle>
-      </mat-card-header>
-      <mat-card-content>
-        <div class="ai-page__history-list">
-          @for (job of history(); track job.id) {
-            <div
-              class="ai-page__history-item"
-              [class.ai-page__history-item--selected]="job.id === jobId()"
-              (click)="openJob(job.id)"
-              role="button"
-              tabindex="0"
-              (keydown.enter)="openJob(job.id)"
-              (keydown.space)="$event.preventDefault(); openJob(job.id)"
-            >
-              <div class="ai-page__history-item-top">
-                <div class="ai-page__history-item-heading">
-                  <strong>Запуск {{ job.created_at | date: 'dd.MM.yyyy HH:mm' }}</strong>
-                  <span>{{ describeJobStatus(job.status) }}</span>
-                </div>
-                <div class="ai-page__history-item-actions">
-                  <button
-                    type="button"
-                    mat-icon-button
-                    color="warn"
-                    [disabled]="deletingJobId() === job.id"
-                    (click)="deleteJob(job, $event)"
-                    [attr.aria-label]="'Удалить запуск ' + job.id"
-                  >
-                    <mat-icon>delete</mat-icon>
-                  </button>
-                </div>
-              </div>
-              <div class="ai-page__history-item-meta">
-                <span>Попыток: {{ job.attempt }}</span>
-                <span>ID: {{ job.id }}</span>
-                @if (job.finished_at) {
-                  <span>Завершён: {{ job.finished_at | date: 'dd.MM.yyyy HH:mm' }}</span>
-                }
-                @if (job.last_error) {
-                  <span class="ai-page__history-item-error">{{ job.last_error }}</span>
-                }
-              </div>
-            </div>
-          }
-        </div>
-      </mat-card-content>
-    </mat-card>
-  }
-
   @if (loading()) {
     <div class="ai-page__loading">
       <mat-spinner diameter="48"></mat-spinner>
@@ -225,6 +172,59 @@
           </mat-card>
         }
       </div>
+    }
+
+    @if (history().length > 0) {
+      <mat-card class="ai-page__history">
+        <mat-card-header>
+          <mat-card-title>История запусков</mat-card-title>
+          <mat-card-subtitle>Сохранена в БД, можно открыть прошлые ответы или текущий job</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="ai-page__history-list">
+            @for (job of history(); track job.id) {
+              <div
+                class="ai-page__history-item"
+                [class.ai-page__history-item--selected]="job.id === jobId()"
+                (click)="openJob(job.id)"
+                role="button"
+                tabindex="0"
+                (keydown.enter)="openJob(job.id)"
+                (keydown.space)="$event.preventDefault(); openJob(job.id)"
+              >
+                <div class="ai-page__history-item-top">
+                  <div class="ai-page__history-item-heading">
+                    <strong>Запуск {{ job.created_at | date: 'dd.MM.yyyy HH:mm' }}</strong>
+                    <span>{{ describeJobStatus(job.status) }}</span>
+                  </div>
+                  <div class="ai-page__history-item-actions">
+                    <button
+                      type="button"
+                      mat-icon-button
+                      color="warn"
+                      [disabled]="deletingJobId() === job.id"
+                      (click)="deleteJob(job, $event)"
+                      [attr.aria-label]="'Удалить запуск ' + job.id"
+                    >
+                      <mat-icon>delete</mat-icon>
+                    </button>
+                  </div>
+                </div>
+                <div class="ai-page__history-item-meta">
+                  <span>Попыток: {{ job.attempt }}</span>
+                  <span>ID: {{ job.id }}</span>
+                  @if (job.finished_at) {
+                    <span>Завершён: {{ job.finished_at | date: 'dd.MM.yyyy HH:mm' }}</span>
+                  }
+                  @if (job.last_error) {
+                    <span class="ai-page__history-item-error">{{ job.last_error }}</span>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        </mat-card-content>
+      </mat-card>
     }
 
     <!-- Debug Logs -->

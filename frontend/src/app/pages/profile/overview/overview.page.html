@@ -92,16 +92,21 @@
 
         <mat-card-content class="profile-card__content profile-card__content--meta">
           <div class="profile-kv">
-            <span>Должность</span>
-            <strong>{{ employeeProfile()?.position_title || 'Не указана' }}</strong>
+            <span>Интеграция Yougile</span>
+            @if (yougileConnectionLoading()) {
+              <strong>Проверяем подключение...</strong>
+            } @else if (yougileConnection(); as connection) {
+              <strong>{{ yougileConnectionStatusLabel(connection.status) }}</strong>
+            } @else {
+              <strong>Не подключена</strong>
+              <button mat-stroked-button type="button" (click)="openYougileSetup()">
+                Подключить Yougile
+              </button>
+            }
           </div>
           <div class="profile-kv">
             <span>Часовой пояс</span>
             <strong>{{ employeeProfile()?.timezone || 'Не указан' }}</strong>
-          </div>
-          <div class="profile-kv">
-            <span>Outlook</span>
-            <strong>{{ employeeProfile()?.outlook_email || 'Не подключен' }}</strong>
           </div>
           <div class="profile-kv">
             <span>Системные роли</span>

@@ -1,15 +1,18 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, computed, inject } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
+import { firstValueFrom } from 'rxjs';
 
+import { IntegrationsApiService } from '@core/api/integrations-api.service';
 import { AuthSessionService } from '@core/auth/auth-session.service';
 import { AuthStateService } from '@core/auth/auth-state.service';
 import { resolveApiUrl } from '@core/api/url.util';
 import { identityUserDisplayName } from '@core/domain/identity.util';
+import { pickPreferredYougileConnection, type YougileConnection } from '@entities/yougile';
 import { ProfileSettingsFacade } from '@features/profile-settings';
 
 import {
@@ -31,6 +34,7 @@ import {
 })
 export class ProfileOverviewPageComponent implements OnInit {
   private readonly facade = inject(ProfileSettingsFacade);
+  private readonly integrationsApi = inject(IntegrationsApiService);
   private readonly authSession = inject(AuthSessionService);
   private readonly authState = inject(AuthStateService);
   private readonly router = inject(Router);
@@ -46,6 +50,8 @@ export class ProfileOverviewPageComponent implements OnInit {
   protected readonly availableRoles = this.facade.availableRoles;
   protected readonly currentTeam = this.facade.currentTeam;
   protected readonly currentUser = this.authState.currentUser;
+  protected readonly yougileConnection = signal<YougileConnection | null>(null);
+  protected readonly yougileConnectionLoading = signal(false);
 
   protected readonly profileName = computed(() => {
     const profile = this.profile();
@@ -77,6 +83,7 @@ export class ProfileOverviewPageComponent implements OnInit {
 
   ngOnInit(): void {
     this.facade.load();
+    void this.loadYougileConnection();
   }
 
   protected roleLabel(roleCode: string): string {
@@ -149,7 +156,28 @@ export class ProfileOverviewPageComponent implements OnInit {
   }
 
   protected async refresh(): Promise<void> {
-    await this.facade.refresh();
+    await Promise.all([this.facade.refresh(), this.loadYougileConnection()]);
+  }
+
+  protected yougileConnectionStatusLabel(status: string | null | undefined): string {
+    switch ((status ?? '').toLowerCase()) {
+      case 'active':
+        return 'Активна';
+      case 'sync_error':
+        return 'Ошибка синхронизации';
+      case 'invalid':
+        return 'Ключ недействителен';
+      case 'revoked':
+        return 'Отключена';
+      case '':
+        return 'Не подключена';
+      default:
+        return status || '—';
+    }
+  }
+
+  protected async openYougileSetup(): Promise<void> {
+    await this.router.navigateByUrl('/playground');
   }
 
   protected clearError(): void {
@@ -192,6 +220,18 @@ export class ProfileOverviewPageComponent implements OnInit {
       display_name: displayName,
       role_codes: newRoles,
     });
+  }
+
+  private async loadYougileConnection(): Promise<void> {
+    this.yougileConnectionLoading.set(true);
+    try {
+      const response = await firstValueFrom(this.integrationsApi.listYougileConnections());
+      this.yougileConnection.set(pickPreferredYougileConnection(response.items ?? []));
+    } catch {
+      this.yougileConnection.set(null);
+    } finally {
+      this.yougileConnectionLoading.set(false);
+    }
   }
 }
 

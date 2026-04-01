@@ -138,6 +138,16 @@ export class IntakeDetailPageComponent implements OnInit {
     const application = this.myApplication();
     return !!application && canWithdrawApplication(application.status);
   });
+  protected readonly canOpenLearningCta = computed(() => {
+    const application = this.myApplication();
+    if (!application?.enrollment_id || application.status !== 'enrolled') {
+      return false;
+    }
+
+    const enrollmentStatus =
+      this.myEnrollment()?.status ?? application.enrollment_status ?? null;
+    return enrollmentStatus === 'in_progress';
+  });
   protected readonly isWeeksMode = computed(
     () => this.editForm.controls.schedule_mode.value === 'weeks',
   );

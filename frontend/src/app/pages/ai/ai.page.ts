@@ -1,6 +1,6 @@
 import { Component, DestroyRef, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
@@ -37,6 +37,7 @@ import {
 export class AIPageComponent implements OnInit, OnDestroy {
   private readonly api = inject(AIApiService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly route = inject(ActivatedRoute);
   private currentJobSubscription?: Subscription;
 
   protected readonly loading = signal(false);
@@ -50,6 +51,11 @@ export class AIPageComponent implements OnInit, OnDestroy {
   protected readonly deletingJobId = signal<string | null>(null);
 
   ngOnInit(): void {
+    if (this.shouldAutoStartFromQuery()) {
+      this.startRecommendations();
+      return;
+    }
+
     this.loadHistory();
   }
 
@@ -334,5 +340,16 @@ export class AIPageComponent implements OnInit, OnDestroy {
 
   protected isHeuristicResult(result: AIRecommendResponse | null): boolean {
     return this.resultSourceLabel(result) === 'Эвристика';
+  }
+
+  private shouldAutoStartFromQuery(): boolean {
+    const startParam = this.route.snapshot.queryParamMap.get('start');
+
+    if (startParam === null) {
+      return false;
+    }
+
+    const normalized = startParam.trim().toLowerCase();
+    return normalized === '' || normalized === 'true' || normalized === '1' || normalized === 'yes';
   }
 }

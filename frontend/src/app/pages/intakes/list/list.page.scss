@@ -40,6 +40,58 @@
   flex-wrap: wrap;
 }
 
+.intakes-ai-banner {
+  overflow: hidden;
+  border: 1px solid var(--mat-sys-outline-variant);
+  background:
+    radial-gradient(circle at 4% 0%, rgba(33, 150, 243, 0.2), transparent 50%),
+    radial-gradient(circle at 100% 100%, rgba(103, 58, 183, 0.16), transparent 45%),
+    var(--mat-sys-surface-container-low);
+}
+
+.intakes-ai-banner__content {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.intakes-ai-banner__lead {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.intakes-ai-banner__icon-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--mat-sys-primary-container);
+  color: var(--mat-sys-on-primary-container);
+  flex-shrink: 0;
+}
+
+.intakes-ai-banner__icon {
+  width: 24px;
+  height: 24px;
+  font-size: 24px;
+}
+
+.intakes-ai-banner__text h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.intakes-ai-banner__text p {
+  margin: 0;
+  color: var(--mat-sys-on-surface-variant);
+  max-width: 640px;
+}
+
 .intakes-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -103,6 +155,11 @@
 
   .intakes-filters {
     grid-template-columns: 1fr;
+  }
+
+  .intakes-ai-banner__content {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 
