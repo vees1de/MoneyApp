@@ -356,3 +356,38 @@ export interface CreateDevelopmentTeamRequest {
 export interface DevelopmentTeamResponse {
   team: DevelopmentTeam;
 }
+
+export interface EmployeePublicProfile {
+  user_id: string;
+  email: string;
+  display_name?: string | null;
+  avatar_url?: string | null;
+  first_name: string;
+  last_name: string;
+  middle_name?: string | null;
+  position_title?: string | null;
+  department_name?: string | null;
+  hire_date?: string | null;
+  profile_roles: ProfileRole[];
+  teams: DevelopmentTeam[];
+}
+
+export interface EmployeeEnrollmentItem {
+  id: string;
+  course_id: string;
+  course_title: string;
+  course_provider?: string | null;
+  course_level?: string | null;
+  status: string;
+  completion_percent: string;
+  is_mandatory: boolean;
+  enrolled_at: string;
+  started_at?: string | null;
+  completed_at?: string | null;
+  deadline_at?: string | null;
+}
+
+export interface EmployeeProfileResponse {
+  profile: EmployeePublicProfile;
+  enrollments: EmployeeEnrollmentItem[];
+}

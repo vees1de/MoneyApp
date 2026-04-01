@@ -286,6 +286,14 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'employees/:userId',
+        loadComponent: () =>
+          import('@pages/employees/profile/profile.page').then(
+            (m) => m.EmployeeProfilePageComponent,
+          ),
+      },
+
+      {
         path: 'profile',
         pathMatch: 'full',
         redirectTo: 'profile/overview',

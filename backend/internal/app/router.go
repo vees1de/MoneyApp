@@ -142,6 +142,8 @@ func NewRouter(container *Container) http.Handler {
 				r.Post("/development-teams/{id}/join", container.UsersHandler.JoinDevelopmentTeam)
 			})
 
+			r.Get("/employees/{userId}", container.UsersHandler.GetEmployeeProfile)
+
 			r.Route("/admin", func(r chi.Router) {
 				r.With(middleware.RBAC("users.read")).Get("/users", container.AdminHandler.ListUsers)
 				r.With(middleware.RBAC("users.write")).Post("/users", container.AdminHandler.CreateUser)
