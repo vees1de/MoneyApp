@@ -7,18 +7,18 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { firstValueFrom } from 'rxjs';
 
-import type { BoardSummary, BoardSummaryOverdueTask } from '@core/api/contracts';
 import { IntegrationsApiService } from '@core/api/integrations-api.service';
 import { WidgetShellComponent } from '@app/widgets/widget-shell/widget-shell.component';
 import type {
   YougileBoard,
-  YougileColumn,
   YougileCompanyOption,
   YougileConnection,
   YougileTask,
 } from '@entities/yougile';
 
-type YougileColumnCard = YougileColumn & {
+type YougileColumnCard = {
+  columnId: string;
+  title: string;
   boardTitle: string;
   tasksTotal: number;
 };
@@ -49,7 +49,6 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
   });
 
   protected readonly connectionLoading = signal(true);
-  protected readonly summaryLoading = signal(false);
   protected readonly tasksLoading = signal(false);
   protected readonly syncingConnection = signal(false);
   protected readonly deletingConnection = signal(false);
@@ -63,11 +62,9 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
   protected readonly selectedCompanyId = signal<string | null>(null);
   protected readonly currentConnection = signal<YougileConnection | null>(null);
   protected readonly boards = signal<YougileBoard[]>([]);
-  protected readonly columns = signal<YougileColumn[]>([]);
   protected readonly tasks = signal<YougileTask[]>([]);
   protected readonly selectedBoardId = signal<string | null>(null);
-  protected readonly summary = signal<BoardSummary | null>(null);
-  protected readonly summaryError = signal<string | null>(null);
+  protected readonly selectedColumnId = signal<string | null>(null);
   protected readonly tasksError = signal<string | null>(null);
   protected readonly actionError = signal<string | null>(null);
   protected readonly actionNotice = signal<string | null>(null);
@@ -83,26 +80,6 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
     () => this.availableCompanies().find((item) => item.id === this.selectedCompanyId()) ?? null,
   );
 
-  protected readonly activeBoard = computed(() => {
-    const boardId = this.selectedBoardId();
-    if (!boardId) {
-      return null;
-    }
-
-    return this.boards().find((item) => item.yougile_board_id === boardId) ?? null;
-  });
-
-  protected readonly summaryUnavailable = computed(() => {
-    if (!this.currentConnection()) {
-      return false;
-    }
-
-    const summary = this.summary();
-    return (
-      !this.summaryLoading() && !this.summaryError() && (!summary || summary.status !== 'ready')
-    );
-  });
-
   protected readonly activeTasks = computed(() =>
     this.tasks().filter((item) => !item.deleted && !item.archived && !item.completed),
   );
@@ -111,36 +88,50 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
     const selectedBoardId = this.selectedBoardId();
     const activeTasks = this.activeTasks();
 
-    return selectedBoardId
-      ? activeTasks.filter(
-          (item) =>
-            item.boardId === selectedBoardId ||
-            this.columnBelongsToBoard(item.columnId, selectedBoardId),
-        )
-      : activeTasks;
+    return selectedBoardId ? activeTasks.filter((item) => item.boardId === selectedBoardId) : activeTasks;
   });
 
   protected readonly visibleTasks = computed(() =>
-    [...this.filteredTasks()].sort((left, right) => this.taskSortValue(left) - this.taskSortValue(right)),
+    [
+      ...(this.selectedColumnId()
+        ? this.filteredTasks().filter((item) => item.columnId === this.selectedColumnId())
+        : this.filteredTasks()),
+    ].sort((left, right) => this.taskSortValue(left) - this.taskSortValue(right)),
   );
 
   protected readonly columnCards = computed((): YougileColumnCard[] => {
-    const selectedBoardId = this.selectedBoardId();
-    const columns = this.columns().filter((item) => !item.deleted);
-    const filteredColumns = selectedBoardId
-      ? columns.filter((item) => item.yougile_board_id === selectedBoardId)
-      : columns;
-    const taskCounts = new Map<string, number>();
+    const taskColumns = new Map<string, YougileColumnCard>();
 
     for (const task of this.filteredTasks()) {
-      taskCounts.set(task.columnId, (taskCounts.get(task.columnId) ?? 0) + 1);
+      const columnId = task.columnId?.trim();
+      if (!columnId) {
+        continue;
+      }
+
+      const existing = taskColumns.get(columnId);
+      if (existing) {
+        existing.tasksTotal += 1;
+        continue;
+      }
+
+      taskColumns.set(columnId, {
+        columnId,
+        title: task.columnTitle?.trim() || 'Без колонки',
+        boardTitle: this.resolveBoardLabel(task.boardId, task.boardTitle),
+        tasksTotal: 1,
+      });
     }
 
-    return filteredColumns.slice(0, 4).map((column) => ({
-      ...column,
-      boardTitle: this.resolveBoardByColumn(column.yougile_column_id)?.title?.trim() ?? 'Без доски',
-      tasksTotal: taskCounts.get(column.yougile_column_id) ?? 0,
-    }));
+    return [...taskColumns.values()].slice(0, 4);
+  });
+
+  protected readonly selectedColumn = computed(() => {
+    const columnId = this.selectedColumnId();
+    if (!columnId) {
+      return null;
+    }
+
+    return this.columnCards().find((item) => item.columnId === columnId) ?? null;
   });
 
   ngOnInit(): void {
@@ -191,12 +182,14 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
     this.resetModalState(true);
   }
 
-  protected openTasksModal(): void {
+  protected openTasksModal(columnId: string | null = null): void {
+    this.selectedColumnId.set(columnId);
     this.tasksModalOpen.set(true);
   }
 
   protected closeTasksModal(): void {
     this.tasksModalOpen.set(false);
+    this.selectedColumnId.set(null);
   }
 
   protected async discoverCompanies(): Promise<void> {
@@ -292,11 +285,8 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
       await firstValueFrom(this.integrationsApi.deleteYougileConnection(connection.id));
       this.closeConnectModal(true);
       this.currentConnection.set(null);
-      this.summary.set(null);
-      this.summaryError.set(null);
       this.tasksError.set(null);
       this.boards.set([]);
-      this.columns.set([]);
       this.tasks.set([]);
       this.selectedBoardId.set(null);
       this.actionNotice.set('Подключение отключено.');
@@ -324,31 +314,21 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
     }
   }
 
-  protected async selectBoard(boardId: string | null): Promise<void> {
+  protected selectBoard(boardId: string | null): void {
     if (this.selectedBoardId() === boardId) {
       return;
     }
 
-    const connection = this.currentConnection();
-    if (!connection) {
-      return;
-    }
-
     this.selectedBoardId.set(boardId);
-    await this.loadSummary(connection.id, boardId);
   }
 
-  protected async reloadSummary(): Promise<void> {
+  protected async reloadData(): Promise<void> {
     const connection = this.currentConnection();
     if (!connection) {
       return;
     }
 
-    await Promise.all([
-      this.loadSummary(connection.id, this.selectedBoardId()),
-      this.loadTasks(connection.id),
-      this.loadStructureMeta(connection.id),
-    ]);
+    await Promise.all([this.loadTasks(connection.id), this.loadBoards(connection.id)]);
   }
 
   protected connectionLabel(connection: YougileConnection): string {
@@ -396,26 +376,16 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
     return this.dateTimeFormatter.format(timestamp);
   }
 
-  protected boardLabel(item: BoardSummaryOverdueTask): string {
-    return item.board_title?.trim() || 'Без доски';
-  }
-
   protected taskBoardLabel(task: YougileTask): string {
     if (task.boardTitle?.trim()) {
       return task.boardTitle.trim();
     }
 
-    const board = this.resolveBoardByColumn(task.columnId);
-    return board?.title?.trim() || 'Без доски';
+    return this.resolveBoardLabel(task.boardId);
   }
 
   protected taskColumnLabel(task: YougileTask): string {
-    if (task.columnTitle?.trim()) {
-      return task.columnTitle.trim();
-    }
-
-    const column = this.columns().find((item) => item.yougile_column_id === task.columnId);
-    return column?.title?.trim() || 'Без колонки';
+    return this.resolveColumnLabel(task.columnId, task.columnTitle);
   }
 
   protected taskIdentifier(task: YougileTask): string {
@@ -445,7 +415,7 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
   }
 
   protected trackColumn(_: number, item: YougileColumnCard): string {
-    return item.yougile_column_id;
+    return item.columnId;
   }
 
   protected trackCompany(_: number, item: YougileCompanyOption): string {
@@ -454,7 +424,6 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
 
   private async loadCurrentConnection(_preferredConnectionId?: string): Promise<void> {
     this.connectionLoading.set(true);
-    this.summaryError.set(null);
     this.tasksError.set(null);
 
     try {
@@ -463,25 +432,17 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
       this.currentConnection.set(connection);
 
       if (!connection) {
-        this.summary.set(null);
         this.tasks.set([]);
         this.boards.set([]);
-        this.columns.set([]);
         this.selectedBoardId.set(null);
         return;
       }
 
-      await Promise.all([
-        this.loadSummary(connection.id, this.selectedBoardId()),
-        this.loadStructureMeta(connection.id),
-        this.loadTasks(connection.id),
-      ]);
+      await Promise.all([this.loadBoards(connection.id), this.loadTasks(connection.id)]);
     } catch (error) {
       this.currentConnection.set(null);
-      this.summary.set(null);
       this.tasks.set([]);
       this.boards.set([]);
-      this.columns.set([]);
       this.selectedBoardId.set(null);
       this.actionError.set(this.describeError(error));
     } finally {
@@ -489,43 +450,17 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
     }
   }
 
-  private async loadSummary(connectionId: string, boardId: string | null): Promise<void> {
-    this.summaryLoading.set(true);
-    this.summaryError.set(null);
-
+  private async loadBoards(connectionId: string): Promise<void> {
     try {
-      const summary = await firstValueFrom(
-        this.integrationsApi.getAgileBoardSummary({
-          connection_id: connectionId,
-          board_id: boardId ?? undefined,
-        }),
-      );
-
-      this.summary.set(summary);
-    } catch (error) {
-      this.summaryError.set(this.describeError(error));
-      this.summary.set(null);
-    } finally {
-      this.summaryLoading.set(false);
-    }
-  }
-
-  private async loadStructureMeta(connectionId: string): Promise<void> {
-    try {
-      const [boardsResponse, columnsResponse] = await Promise.all([
-        firstValueFrom(this.integrationsApi.listYougileBoards(connectionId)),
-        firstValueFrom(this.integrationsApi.listYougileColumns(connectionId)),
-      ]);
+      const boardsResponse = await firstValueFrom(this.integrationsApi.listYougileBoards(connectionId));
 
       this.boards.set(
         boardsResponse.items
           .filter((item) => !item.deleted)
           .sort((left, right) => left.title.localeCompare(right.title, 'ru')),
       );
-      this.columns.set(columnsResponse.items.filter((item) => !item.deleted));
     } catch {
       this.boards.set([]);
-      this.columns.set([]);
     }
   }
 
@@ -632,18 +567,30 @@ export class YougilePlaygroundWidgetComponent implements OnInit {
     return typeof message === 'string' && message.trim() ? message : null;
   }
 
-  private resolveBoardByColumn(columnId: string): YougileBoard | null {
-    const column = this.columns().find((item) => item.yougile_column_id === columnId);
-    if (!column) {
-      return null;
+  private resolveBoardLabel(boardId?: string | null, fallback?: string | null): string {
+    if (fallback?.trim()) {
+      return fallback.trim();
     }
 
-    return this.boards().find((item) => item.yougile_board_id === column.yougile_board_id) ?? null;
+    if (!boardId?.trim()) {
+      return 'Без доски';
+    }
+
+    return this.boards().find((item) => item.yougile_board_id === boardId)?.title?.trim() ?? 'Без доски';
   }
 
-  private columnBelongsToBoard(columnId: string, boardId: string): boolean {
-    const column = this.columns().find((item) => item.yougile_column_id === columnId);
-    return column?.yougile_board_id === boardId;
+  private resolveColumnLabel(columnId: string, fallback?: string | null): string {
+    if (fallback?.trim()) {
+      return fallback.trim();
+    }
+
+    const taskColumn = this.tasks().find((item) => item.columnId === columnId && item.columnTitle?.trim());
+    if (taskColumn?.columnTitle?.trim()) {
+      return taskColumn.columnTitle.trim();
+    }
+
+    const columnCard = this.columnCards().find((item) => item.columnId === columnId);
+    return columnCard?.title?.trim() || 'Без колонки';
   }
 
   private taskSortValue(task: YougileTask): number {

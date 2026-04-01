@@ -1,300 +1,269 @@
 <section class="calendar-page">
-  <header class="calendar-hero">
-    <div class="calendar-hero__copy">
-      <span class="calendar-hero__eyebrow">Calendar hub</span>
-      <h1>Microsoft Outlook в маршруте <code>{{ routePath }}</code></h1>
+  <header class="calendar-page__header">
+    <div class="calendar-page__copy">
+      <span class="calendar-page__eyebrow">Календарь</span>
+      <h1>Таймблоки Yougile, текущие наборы и риски</h1>
       <p>
-        Подключите Microsoft account или вставьте Graph access token, чтобы видеть почту,
-        календарь и включить системные письма в привязанную Outlook-почту.
+        На странице показаны Yougile задачи как timeblocks, текущие наборы сотрудника и пересечения
+        по времени.
       </p>
     </div>
 
-    <div class="calendar-hero__status">
-      <span class="calendar-pill" [class.calendar-pill--connected]="connected()">
-        <mat-icon>{{ connected() ? 'check_circle' : 'sync_problem' }}</mat-icon>
-        {{ connectionStatusLabel() }}
-      </span>
-
-      @if (account(); as currentAccount) {
-        <div class="calendar-hero__meta">
-          <strong>{{ currentAccount.email }}</strong>
-          <span>{{ authModeLabel(currentAccount.auth_mode) }}</span>
-        </div>
-      } @else {
-        <p>Пока нет связанного Outlook-ящика.</p>
-      }
+    <div class="calendar-page__actions">
+      <button
+        mat-flat-button
+        color="primary"
+        type="button"
+        (click)="refreshOverview()"
+        [disabled]="anyBusy()"
+      >
+        <mat-icon>refresh</mat-icon>
+        {{ anyBusy() ? 'Обновляем...' : 'Обновить' }}
+      </button>
     </div>
   </header>
+
+  @if (yougileLoading()) {
+    <section class="calendar-connection calendar-connection--loading">
+      <div class="calendar-connection__copy">
+        <span class="calendar-connection__label">Yougile</span>
+        <strong>Проверяю подключение...</strong>
+        <p>Загружаю задачи и статус связи.</p>
+      </div>
+    </section>
+  } @else if (yougileConnection(); as currentConnection) {
+    <section class="calendar-connection">
+      <div class="calendar-connection__copy">
+        <span class="calendar-connection__label">Yougile</span>
+        <strong>{{ currentConnection.title || currentConnection.yougile_company_id }}</strong>
+        <p>{{ yougileConnectionStatusLabel(currentConnection.status) }}</p>
+
+        <div class="calendar-connection__meta">
+          <span>{{ timeblockCount() }} таймблоков</span>
+          <span>Последний sync: {{ formatDateTime(currentConnection.last_sync_at) }}</span>
+        </div>
+      </div>
+
+      <div class="calendar-connection__actions">
+        <a mat-stroked-button routerLink="/playground">
+          <mat-icon>open_in_new</mat-icon>
+          Открыть подключение
+        </a>
+      </div>
+
+      @if (currentConnection.last_error) {
+        <div class="calendar-note calendar-note--warning">
+          <mat-icon>error_outline</mat-icon>
+          <span>{{ currentConnection.last_error }}</span>
+        </div>
+      }
+    </section>
+  } @else {
+    <section class="calendar-connection calendar-connection--empty">
+      <div class="calendar-connection__copy">
+        <span class="calendar-connection__label">Yougile</span>
+        <strong>Подключение не найдено</strong>
+        <p>Подключите Yougile, чтобы timeblocks и backlog из досок появились в календаре.</p>
+      </div>
+
+      <div class="calendar-connection__actions">
+        <a mat-flat-button color="primary" routerLink="/playground">
+          <mat-icon>link</mat-icon>
+          Подключить Yougile
+        </a>
+      </div>
+    </section>
+  }
 
   @if (anyBusy()) {
     <mat-progress-bar mode="indeterminate"></mat-progress-bar>
   }
 
-  @if (notice()) {
+  @if (overviewNotice()) {
     <section class="calendar-banner calendar-banner--success">
       <div>
         <strong>Готово.</strong>
-        <span>{{ notice() }}</span>
+        <span>{{ overviewNotice() }}</span>
       </div>
       <button mat-button type="button" (click)="clearNotice()">Скрыть</button>
     </section>
   }
 
-  @if (error()) {
+  @if (issueMessages().length > 0) {
     <section class="calendar-banner calendar-banner--error">
       <div>
         <strong>Ошибка.</strong>
-        <span>{{ error() }}</span>
+        <ul class="calendar-banner__list">
+          @for (message of issueMessages(); track message) {
+            <li>{{ message }}</li>
+          }
+        </ul>
       </div>
       <button mat-button type="button" (click)="clearError()">Закрыть</button>
     </section>
   }
 
-  <section class="calendar-grid">
-    <mat-card class="calendar-card calendar-card--connect">
-      <mat-card-header>
-        <mat-card-title>Подключение Outlook</mat-card-title>
-        <mat-card-subtitle>
-          OAuth для полноценной работы или ручной Graph access token для быстрого доступа.
-        </mat-card-subtitle>
-      </mat-card-header>
-
-      <mat-card-content class="calendar-card__content">
-        <div class="calendar-actions">
-          <button
-            mat-flat-button
-            color="primary"
-            type="button"
-            (click)="startMicrosoftConnect()"
-            [disabled]="connecting() || !graphConfigured()"
-          >
-            <mat-icon>login</mat-icon>
-            Войти через Microsoft
-          </button>
-
-          <button
-            mat-stroked-button
-            type="button"
-            (click)="runSync()"
-            [disabled]="!connected() || syncing()"
-          >
-            <mat-icon>sync</mat-icon>
-            {{ syncing() ? 'Синхронизация...' : 'Синхронизировать' }}
-          </button>
+  <section class="calendar-workspace">
+    <div class="calendar-stage">
+      <div class="calendar-stage__header">
+        <div>
+          <span class="calendar-stage__eyebrow">Календарь</span>
+          <h2>Таймблоки и окна</h2>
+          <p>
+            Yougile задачи строятся из <code>deadline.startDate</code> и
+            <code>deadline.deadline</code>. Наборы подсвечиваются отдельным цветом по дедлайну.
+          </p>
         </div>
 
-        @if (!graphConfigured()) {
-          <div class="calendar-note calendar-note--warning">
-            <mat-icon>warning</mat-icon>
-            <span>
-              OAuth Microsoft не настроен на backend. Можно использовать только ручной Graph
-              access token.
-            </span>
-          </div>
-        }
-
-        <div class="calendar-note">
-          <mat-icon>info</mat-icon>
-          <span>
-            Для Microsoft mail/calendar обычный API key не поддерживается. Ручной режим ниже
-            использует временный Graph access token.
+        <div class="calendar-stage__legend">
+          <span class="calendar-legend__item">
+            <i class="calendar-legend__swatch calendar-legend__swatch--yougile"></i>
+            Yougile
+          </span>
+          <span class="calendar-legend__item">
+            <i class="calendar-legend__swatch calendar-legend__swatch--learning"></i>
+            Наборы
+          </span>
+          <span class="calendar-legend__item">
+            <i class="calendar-legend__swatch calendar-legend__swatch--risk"></i>
+            Риски
           </span>
         </div>
+      </div>
 
-        <form class="manual-connect" [formGroup]="manualForm" (ngSubmit)="connectWithToken()">
-          <mat-form-field appearance="outline">
-            <mat-label>Graph access token</mat-label>
-            <textarea
-              matInput
-              rows="6"
-              formControlName="access_token"
-              placeholder="Вставьте access token с Mail.Read, Mail.Send и Calendars.Read"
-            ></textarea>
-          </mat-form-field>
-
-          <mat-form-field appearance="outline">
-            <mat-label>Refresh token (опционально)</mat-label>
-            <textarea
-              matInput
-              rows="3"
-              formControlName="refresh_token"
-              placeholder="Если есть, сохраните refresh token для автопродления"
-            ></textarea>
-          </mat-form-field>
-
-          <mat-slide-toggle formControlName="system_email_enabled">
-            Сразу включить системные письма в Outlook
-          </mat-slide-toggle>
-
-          <div class="calendar-actions">
-            <button mat-flat-button color="primary" type="submit" [disabled]="connecting()">
-              <mat-icon>vpn_key</mat-icon>
-              {{ connecting() ? 'Сохраняем...' : 'Подключить по токену' }}
-            </button>
-
-            <a mat-button routerLink="/calendar/conflicts">
-              <mat-icon>event_busy</mat-icon>
-              Конфликты
-            </a>
+      <div class="calendar-stage__calendar">
+        @if (!yougileLoading()) {
+          <full-calendar [options]="calendarOptions" [events]="calendarEvents()">
+            <ng-template #noEventsContent>
+              <div class="calendar-stage__empty-state">
+                <mat-icon>event_busy</mat-icon>
+                <span>Задачи и наборы без сроков не попадают на сетку календаря.</span>
+              </div>
+            </ng-template>
+          </full-calendar>
+        } @else {
+          <div class="calendar-stage__placeholder">
+            <mat-icon>hourglass_empty</mat-icon>
+            <span>Загружаем задачи...</span>
           </div>
-        </form>
-      </mat-card-content>
-    </mat-card>
+        }
+      </div>
 
-    <mat-card class="calendar-card">
-      <mat-card-header>
-        <mat-card-title>Состояние интеграции</mat-card-title>
-        <mat-card-subtitle>Текущая связка с Microsoft Graph и linked mailbox.</mat-card-subtitle>
-      </mat-card-header>
+      <div class="calendar-stage__note">
+        <mat-icon>info</mat-icon>
+        <p>
+          Все временные окна показаны в локальном часовом поясе. Задачи без срока попадают в
+          отдельный backlog ниже.
+        </p>
+      </div>
+    </div>
 
-      <mat-card-content class="calendar-card__content">
-        @if (account(); as currentAccount) {
-          <div class="kv-grid">
-            <div class="kv-grid__item">
-              <span>Почта</span>
-              <strong>{{ currentAccount.email }}</strong>
+    <aside class="calendar-sidebar">
+      <mat-card class="calendar-panel">
+        <mat-card-header>
+          <mat-card-title>Текущие наборы</mat-card-title>
+          <mat-card-subtitle>{{ currentSetsCount() }} активных и предстоящих</mat-card-subtitle>
+        </mat-card-header>
+
+        <mat-card-content class="calendar-panel__content">
+          @if (learningSets().length > 0) {
+            <div class="learning-list">
+              @for (item of learningSets(); track item.id) {
+                <article
+                  class="learning-item"
+                  [class.learning-item--upcoming]="item.bucket === 'upcoming'"
+                >
+                  <div class="learning-item__head">
+                    <strong>{{ item.title }}</strong>
+                    <span>{{ item.statusLabel }}</span>
+                  </div>
+
+                  <mat-progress-bar mode="determinate" [value]="item.progress"></mat-progress-bar>
+
+                  <div class="learning-item__footer">
+                    <span>{{ item.deadlineLabel }}</span>
+                    <span>{{ item.progress }}%</span>
+                  </div>
+                </article>
+              }
             </div>
-            <div class="kv-grid__item">
-              <span>Режим</span>
-              <strong>{{ authModeLabel(currentAccount.auth_mode) }}</strong>
-            </div>
-            <div class="kv-grid__item">
-              <span>Token expires</span>
-              <strong>{{ formatDateTime(currentAccount.token_expires_at) }}</strong>
-            </div>
-            <div class="kv-grid__item">
-              <span>Последний sync</span>
-              <strong>{{ formatDateTime(currentAccount.last_sync_at) }}</strong>
-            </div>
-          </div>
-
-          <mat-divider></mat-divider>
-
-          <div class="calendar-settings">
-            <mat-slide-toggle
-              [checked]="currentAccount.system_email_enabled"
-              [disabled]="updatingSettings()"
-              (change)="updateSystemEmailEnabled($event.checked)"
-            >
-              Системные письма в привязанную Outlook-почту
-            </mat-slide-toggle>
-
-            <div class="calendar-actions">
-              <button
-                mat-stroked-button
-                type="button"
-                (click)="sendTestEmail()"
-                [disabled]="sendingTestEmail()"
-              >
-                <mat-icon>mail</mat-icon>
-                {{ sendingTestEmail() ? 'Отправляем...' : 'Тестовое письмо' }}
-              </button>
-
-              <button
-                mat-button
-                type="button"
-                class="calendar-actions__danger"
-                (click)="disconnectOutlook()"
-                [disabled]="connecting()"
-              >
-                <mat-icon>link_off</mat-icon>
-                Отключить
-              </button>
-            </div>
-          </div>
-
-          @if (currentAccount.last_error) {
-            <div class="calendar-note calendar-note--warning">
-              <mat-icon>error_outline</mat-icon>
-              <span>{{ currentAccount.last_error }}</span>
+          } @else {
+            <div class="calendar-empty">
+              <mat-icon>school</mat-icon>
+              <p>Сейчас нет активных или предстоящих наборов.</p>
             </div>
           }
-        } @else {
-          <div class="calendar-empty">
-            <mat-icon>mark_email_unread</mat-icon>
-            <p>
-              После подключения здесь появятся linked mailbox, сроки жизни токена и настройки
-              системных писем.
-            </p>
-          </div>
-        }
-      </mat-card-content>
-    </mat-card>
-  </section>
+        </mat-card-content>
+      </mat-card>
 
-  <section class="calendar-data-grid">
-    <mat-card class="calendar-card">
-      <mat-card-header>
-        <mat-card-title>Почта Outlook</mat-card-title>
-        <mat-card-subtitle>Последние письма из Microsoft Graph.</mat-card-subtitle>
-      </mat-card-header>
+      <mat-card class="calendar-panel calendar-panel--risk">
+        <mat-card-header>
+          <mat-card-title>Пересечения</mat-card-title>
+          <mat-card-subtitle>{{ riskCount() }} блоков риска</mat-card-subtitle>
+        </mat-card-header>
 
-      <mat-card-content class="calendar-card__content">
-        @if (messages().length > 0) {
-          <div class="message-list">
-            @for (item of messages(); track item.id) {
-              <article class="message-item" [class.message-item--unread]="!item.is_read">
-                <div class="message-item__meta">
-                  <strong>{{ item.subject || 'Без темы' }}</strong>
-                  <span>{{ messageSenderLabel(item) }}</span>
-                </div>
+        <mat-card-content class="calendar-panel__content">
+          @if (riskBlocks().length > 0) {
+            <div class="risk-list">
+              @for (item of riskBlocks(); track item.id) {
+                <article class="risk-item" [class.risk-item--high]="item.severity === 'high'">
+                  <div class="risk-item__head">
+                    <strong>{{ item.title }}</strong>
+                    <span>{{ formatRiskSeverity(item.severity) }}</span>
+                  </div>
+                  <p>{{ item.reason }}</p>
+                  <span>{{ item.window }}</span>
+                </article>
+              }
+            </div>
+          } @else {
+            <div class="calendar-empty">
+              <mat-icon>verified</mat-icon>
+              <p>Пересечений не найдено.</p>
+            </div>
+          }
+        </mat-card-content>
+      </mat-card>
 
-                <p>{{ item.body_preview || 'Предпросмотр письма недоступен.' }}</p>
+      <mat-card class="calendar-panel">
+        <mat-card-header>
+          <mat-card-title>Yougile без времени</mat-card-title>
+          <mat-card-subtitle>{{ backlogCount() }} задач без окон</mat-card-subtitle>
+        </mat-card-header>
 
-                <div class="message-item__footer">
-                  <span>{{ formatDateTime(item.received_at) }}</span>
-                  @if (item.web_link) {
-                    <a [href]="item.web_link" target="_blank" rel="noreferrer">Открыть в Outlook</a>
-                  }
-                </div>
-              </article>
-            }
-          </div>
-        } @else {
-          <div class="calendar-empty">
-            <mat-icon>inbox</mat-icon>
-            <p>Синхронизируйте Outlook, чтобы увидеть последние письма.</p>
-          </div>
-        }
-      </mat-card-content>
-    </mat-card>
-
-    <mat-card class="calendar-card">
-      <mat-card-header>
-        <mat-card-title>Календарь Outlook</mat-card-title>
-        <mat-card-subtitle>События из linked mailbox через Microsoft Graph.</mat-card-subtitle>
-      </mat-card-header>
-
-      <mat-card-content class="calendar-card__content">
-        @if (events().length > 0) {
-          <div class="event-list">
-            @for (item of events(); track item.id) {
-              <article class="event-item">
-                <div class="event-item__time">
-                  <strong>{{ formatDateTime(item.start_at) }}</strong>
-                  <span>{{ formatDateTime(item.end_at) }}</span>
-                </div>
-
-                <div class="event-item__content">
-                  <strong>{{ item.title || 'Событие без названия' }}</strong>
-                  <span>{{ eventMetaLabel(item) || 'Организатор и локация не указаны.' }}</span>
-                </div>
-
-                @if (item.web_link) {
-                  <a class="event-item__link" [href]="item.web_link" target="_blank" rel="noreferrer">
-                    Outlook
-                  </a>
+        <mat-card-content class="calendar-panel__content">
+          @if (yougileConnection()) {
+            @if (unscheduledYougileTasksPreview().length > 0) {
+              <div class="task-list">
+                @for (task of unscheduledYougileTasksPreview(); track task.id) {
+                  <article class="task-item">
+                    <div class="task-item__head">
+                      <strong>{{ task.title }}</strong>
+                      <span>{{ task.windowLabel }}</span>
+                    </div>
+                    <p>{{ task.boardLabel }} · {{ task.columnLabel }}</p>
+                    <div class="task-item__footer">
+                      <span>{{ task.identifier }}</span>
+                      <span>{{ task.createdLabel }}</span>
+                    </div>
+                  </article>
                 }
-              </article>
+              </div>
+            } @else {
+              <div class="calendar-empty">
+                <mat-icon>task_alt</mat-icon>
+                <p>Все актуальные Yougile задачи уже имеют временные окна.</p>
+              </div>
             }
-          </div>
-        } @else {
-          <div class="calendar-empty">
-            <mat-icon>calendar_today</mat-icon>
-            <p>После синхронизации здесь появятся ближайшие события Outlook.</p>
-          </div>
-        }
-      </mat-card-content>
-    </mat-card>
+          } @else {
+            <div class="calendar-empty calendar-empty--connect">
+              <mat-icon>link</mat-icon>
+              <p>Подключите Yougile, чтобы увидеть задачи без времени.</p>
+              <a mat-stroked-button routerLink="/playground">Подключить Yougile</a>
+            </div>
+          }
+        </mat-card-content>
+      </mat-card>
+    </aside>
   </section>
 </section>

@@ -1,7 +1,8 @@
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCardModule } from '@angular/material/card';
@@ -11,13 +12,10 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
-import { MatStepperModule } from '@angular/material/stepper';
 import { catchError, forkJoin, of } from 'rxjs';
 
-import { CertificatesApiService } from '@core/api/certificates-api.service';
 import { CourseApplicationsApiService } from '@core/api/course-applications-api.service';
 import { CourseIntakesApiService } from '@core/api/course-intakes-api.service';
-import { CoursesApiService } from '@core/api/courses-api.service';
 import { EnrollmentsApiService } from '@core/api/enrollments-api.service';
 import { UsersApiService } from '@core/api/users-api.service';
 import type { CourseApplication, CourseIntake } from '@core/api/contracts';
@@ -34,7 +32,6 @@ import {
 } from '@core/domain/course-intake-form.util';
 import {
   canApplyToIntake,
-  canEnrollApplication,
   canHrReviewApplication,
   canWithdrawApplication,
   courseApplicationPaymentStatusLabel,
@@ -43,18 +40,14 @@ import {
   isIntakeManageRole,
 } from '@core/domain/course-intakes.workflow';
 import { identityUserDisplayName } from '@core/domain/identity.util';
-import type { Certificate } from '@entities/certificate';
-import type { Course } from '@entities/course';
 import type { Enrollment } from '@entities/enrollment';
 
 import {
   IntakeSettingsDialogComponent,
   type IntakeSettingsDialogResult,
 } from './intake-settings-dialog.component';
-import {
-  ApplicationFocusDialogComponent,
-  type ApplicationFocusDialogData,
-} from './application-focus-dialog.component';
+
+type HrApplicationFilter = 'all' | 'pending' | 'accepted' | 'rejected';
 
 @Component({
   selector: 'app-page-intake-detail',
@@ -71,7 +64,6 @@ import {
     MatIconModule,
     MatInputModule,
     MatSelectModule,
-    MatStepperModule,
   ],
   templateUrl: './detail.page.html',
   styleUrl: './detail.page.scss',
@@ -79,29 +71,25 @@ import {
 export class IntakeDetailPageComponent implements OnInit {
   private readonly intakesApi = inject(CourseIntakesApiService);
   private readonly applicationsApi = inject(CourseApplicationsApiService);
-  private readonly certificatesApi = inject(CertificatesApiService);
-  private readonly coursesApi = inject(CoursesApiService);
   private readonly enrollmentsApi = inject(EnrollmentsApiService);
   private readonly usersApi = inject(UsersApiService);
   private readonly authState = inject(AuthStateService);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
   private readonly dialog = inject(MatDialog);
 
   protected readonly loading = signal(true);
   protected readonly acting = signal(false);
-  protected readonly selfServiceOpen = signal(false);
+  protected readonly hrFilter = signal<HrApplicationFilter>('all');
   protected readonly error = signal<string | null>(null);
   protected readonly directoryUnavailable = signal(false);
   protected readonly intake = signal<CourseIntake | null>(null);
-  protected readonly course = signal<Course | null>(null);
   protected readonly applications = signal<CourseApplication[]>([]);
   protected readonly myApplication = signal<CourseApplication | null>(null);
   protected readonly myEnrollment = signal<Enrollment | null>(null);
   protected readonly users = signal<IdentityUserView[]>([]);
   protected readonly applicationComments = signal<Record<string, string>>({});
-  protected readonly certificateComments = signal<Record<string, string>>({});
-  protected readonly selectedApplicationId = signal<string | null>(null);
 
   protected readonly editForm = this.fb.group({
     title: ['', [Validators.required]],
@@ -139,23 +127,9 @@ export class IntakeDetailPageComponent implements OnInit {
     const item = this.intake();
     return !!item && canApplyToIntake(item.status, !!this.myApplication());
   });
-  protected readonly canVerifyCertificates = computed(() =>
-    this.authState.hasPermission(PERMISSIONS.certificatesVerify),
-  );
   protected readonly canWithdrawMyApplication = computed(() => {
     const application = this.myApplication();
     return !!application && canWithdrawApplication(application.status);
-  });
-  protected readonly focusedApplication = computed<CourseApplication | null>(() => {
-    const selectedId = this.selectedApplicationId();
-    if (selectedId) {
-      const selected = this.applications().find((application) => application.id === selectedId);
-      if (selected) {
-        return selected;
-      }
-    }
-
-    return this.myApplication() ?? this.applications()[0] ?? null;
   });
   protected readonly isWeeksMode = computed(
     () => this.editForm.controls.schedule_mode.value === 'weeks',
@@ -166,20 +140,60 @@ export class IntakeDetailPageComponent implements OnInit {
       toPositiveNumber(this.editForm.controls.duration_weeks.value) ?? null,
     ),
   );
+  protected readonly hrFilterOptions: ReadonlyArray<{
+    value: HrApplicationFilter;
+    label: string;
+  }> = [
+    { value: 'all', label: 'Все' },
+    { value: 'pending', label: 'Без решения' },
+    { value: 'accepted', label: 'Приняты' },
+    { value: 'rejected', label: 'Не приняты' },
+  ];
+  protected readonly hrFilterCounts = computed(() => {
+    const counts = {
+      pending: 0,
+      accepted: 0,
+      rejected: 0,
+    };
+
+    for (const application of this.applications()) {
+      counts[this.applicationDecisionGroup(application)] += 1;
+    }
+
+    return counts;
+  });
+  protected readonly filteredApplications = computed(() => {
+    const filter = this.hrFilter();
+
+    return [...this.applications()]
+      .filter(
+        (application) =>
+          filter === 'all' || this.applicationDecisionGroup(application) === filter,
+      )
+      .sort((left, right) => {
+        const groupDiff =
+          this.applicationGroupOrder(left) - this.applicationGroupOrder(right);
+        if (groupDiff !== 0) {
+          return groupDiff;
+        }
+
+        const nameDiff = this.userLabel(left.applicant_id).localeCompare(
+          this.userLabel(right.applicant_id),
+          'ru',
+        );
+        if (nameDiff !== 0) {
+          return nameDiff;
+        }
+
+        return new Date(right.updated_at).getTime() - new Date(left.updated_at).getTime();
+      });
+  });
 
   protected readonly statusOptions = [
     { value: 'open', label: 'Открыт' },
     { value: 'closed', label: 'Набор закрыт' },
     { value: 'canceled', label: 'Отменён' },
     { value: 'completed', label: 'Завершён' },
-  ];
-  protected readonly roadmapSteps = [
-    'Создано',
-    'На согласовании у руководителя',
-    'На согласовании у HR',
-    'Одобрено',
-    'Оплачено',
-    'Курс готов',
   ];
 
   ngOnInit(): void {
@@ -252,150 +266,124 @@ export class IntakeDetailPageComponent implements OnInit {
     }));
   }
 
-  protected certificateComment(id: string): string {
-    return this.certificateComments()[id] ?? '';
-  }
-
-  protected setCertificateComment(id: string, value: string): void {
-    this.certificateComments.update((state) => ({
-      ...state,
-      [id]: value,
-    }));
-  }
-
   protected canHrApprove(application: CourseApplication): boolean {
     return canHrReviewApplication(application.status);
-  }
-
-  protected canHrEnroll(application: CourseApplication): boolean {
-    return canEnrollApplication(application.status);
-  }
-
-  protected canReviewCertificate(application: CourseApplication): boolean {
-    return (
-      !!application.certificate_id &&
-      this.canVerifyCertificates() &&
-      application.certificate_status !== 'verified'
-    );
   }
 
   protected hasEnrolledApplications(): boolean {
     return this.applications().some((application) => application.status === 'enrolled');
   }
 
-  protected selectApplication(applicationId: string): void {
-    this.selectedApplicationId.set(applicationId);
+  protected setHrFilter(filter: HrApplicationFilter): void {
+    this.hrFilter.set(filter);
   }
 
-  protected isSelectedApplication(applicationId: string): boolean {
-    return this.focusedApplication()?.id === applicationId;
-  }
-
-  protected openApplicationFocusDialog(): void {
-    if (this.acting() || this.applications().length < 2) {
-      return;
+  protected hrFilterCount(filter: HrApplicationFilter): number {
+    if (filter === 'all') {
+      return this.applications().length;
     }
 
-    const data: ApplicationFocusDialogData = {
-      applications: this.applications().map((application) => ({
-        id: application.id,
-        applicantLabel: this.userLabel(application.applicant_id),
-        statusLabel: this.applicationStatusLabel(application.status),
-      })),
-      selectedApplicationId: this.focusedApplication()?.id ?? null,
-    };
-
-    this.dialog
-      .open<ApplicationFocusDialogComponent, ApplicationFocusDialogData, string | null>(
-        ApplicationFocusDialogComponent,
-        {
-          width: '560px',
-          maxWidth: '94vw',
-          data,
-        },
-      )
-      .afterClosed()
-      .subscribe((selectedApplicationId) => {
-        if (!selectedApplicationId) {
-          return;
-        }
-
-        this.selectApplication(selectedApplicationId);
-      });
+    return this.hrFilterCounts()[filter];
   }
 
-  protected roadmapIndex(application: CourseApplication): number {
+  protected applicationDecisionLabel(application: CourseApplication): string | null {
+    const group = this.applicationDecisionGroup(application);
+    if (group === 'accepted') {
+      return 'Принят';
+    }
+    if (group === 'rejected') {
+      return 'Не принят';
+    }
+
+    return null;
+  }
+
+  protected applicationDecisionClass(application: CourseApplication): string {
+    const group = this.applicationDecisionGroup(application);
+    if (group === 'accepted') {
+      return 'employee-card__decision--accepted';
+    }
+    if (group === 'rejected') {
+      return 'employee-card__decision--rejected';
+    }
+
+    return 'employee-card__decision--pending';
+  }
+
+  protected applicationWorkflowHint(application: CourseApplication): string {
     const status = application.status;
 
     if (status === 'pending_manager') {
-      return 1;
+      return 'Ждёт решения руководителя';
     }
     if (status === 'approved_by_manager' || status === 'pending') {
-      return 2;
+      return 'Ждёт решения HR';
     }
     if (status === 'approved') {
-      return 3;
+      return 'Принят HR';
     }
     if (status === 'enrolled') {
-      if (application.payment_status === 'paid') {
-        const completed =
-          application.enrollment_status === 'completed' || application.certificate_status === 'verified';
-        return completed ? 5 : 4;
-      }
-
-      return 3;
+      return 'Принят и добавлен в набор';
     }
     if (status === 'rejected_by_manager') {
-      return 1;
+      return 'Отклонён руководителем';
     }
-    if (status === 'rejected_by_hr' || status === 'withdrawn') {
-      return 2;
+    if (status === 'rejected_by_hr') {
+      return 'Не принят HR';
+    }
+    if (status === 'withdrawn') {
+      return 'Сотрудник отозвал заявку';
     }
 
-    return 0;
+    return this.applicationStatusLabel(status);
   }
 
-  protected isRoadmapStepCompleted(application: CourseApplication, stepIndex: number): boolean {
-    return stepIndex <= this.roadmapIndex(application);
+  protected userPosition(userId: string | null | undefined): string | null {
+    return normalizeText(this.lookupUser(userId)?.employee_profile?.position_title) ?? null;
   }
 
-  protected isRoadmapStepWarning(application: CourseApplication, stepIndex: number): boolean {
-    const status = application.status;
-    const isRejected = status === 'rejected_by_manager' || status === 'rejected_by_hr';
-    const isWithdrawn = status === 'withdrawn';
-    if (!isRejected && !isWithdrawn) {
-      return false;
-    }
-
-    return stepIndex === this.roadmapIndex(application);
+  protected userEmail(userId: string | null | undefined): string | null {
+    return this.lookupUser(userId)?.email ?? null;
   }
 
   protected hasStartableEnrollments(): boolean {
     return this.applications().some((application) => this.isEnrollmentStartable(application));
   }
 
-  protected shouldShowSelfServiceInline(): boolean {
-    return !this.canManage();
-  }
-
-  protected toggleSelfService(): void {
-    this.selfServiceOpen.update((state) => !state);
-  }
-
-  protected selfServiceToggleLabel(): string {
-    if (this.selfServiceOpen()) {
-      return 'Скрыть мою заявку';
+  protected deleteIntake(): void {
+    const item = this.intake();
+    if (!item || this.acting()) {
+      return;
     }
 
-    return this.myApplication() ? 'Показать мою заявку' : 'Показать участие в наборе';
+    const confirmed = window.confirm(
+      `Удалить набор "${item.title}"? Это действие нельзя отменить.`,
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    this.acting.set(true);
+    this.error.set(null);
+
+    this.intakesApi.delete(item.id).subscribe({
+      next: () => {
+        this.acting.set(false);
+        void this.router.navigateByUrl('/intakes');
+      },
+      error: (error) => {
+        this.error.set(this.extractDeleteErrorMessage(error));
+        this.acting.set(false);
+      },
+    });
   }
 
   protected startButtonHint(): string {
     if (this.applications().some((application) => application.status === 'enrolled')) {
-      return 'Кнопка активна, пока в наборе есть сотрудники со статусом «Сотрудник взят», у которых курс ещё не стартован.';
+      return 'Кнопка активна, пока в наборе есть принятые сотрудники, у которых курс ещё не стартован.';
     }
 
-    return 'Кнопка станет активной после действия «Взять сотрудника».';
+    return 'Кнопка станет активной после действия «Принять».';
   }
 
   protected openManageDialog(): void {
@@ -554,14 +542,6 @@ export class IntakeDetailPageComponent implements OnInit {
   }
 
   protected approveByHr(application: CourseApplication): void {
-    this.updateHrDecision(application.id, 'approve');
-  }
-
-  protected rejectByHr(application: CourseApplication): void {
-    this.updateHrDecision(application.id, 'reject');
-  }
-
-  protected enroll(application: CourseApplication): void {
     if (this.acting()) {
       return;
     }
@@ -569,16 +549,36 @@ export class IntakeDetailPageComponent implements OnInit {
     this.acting.set(true);
     this.error.set(null);
 
-    this.applicationsApi.enroll(application.id).subscribe({
-      next: (updated) => {
-        this.replaceApplication(updated);
-        this.acting.set(false);
-      },
-      error: () => {
-        this.error.set('Не удалось отметить сотрудника как взятого.');
-        this.acting.set(false);
-      },
-    });
+    this.applicationsApi
+      .approveHr(application.id, {
+        comment: normalizeText(this.applicationComment(application.id)),
+      })
+      .subscribe({
+        next: (approved) => {
+          this.replaceApplication(approved);
+
+          this.applicationsApi.enroll(approved.id).subscribe({
+            next: (enrolled) => {
+              this.replaceApplication(enrolled);
+              this.acting.set(false);
+            },
+            error: () => {
+              this.error.set(
+                'Заявка согласована HR, но сотрудника не удалось добавить в набор.',
+              );
+              this.acting.set(false);
+            },
+          });
+        },
+        error: () => {
+          this.error.set('Не удалось принять сотрудника в набор.');
+          this.acting.set(false);
+        },
+      });
+  }
+
+  protected rejectByHr(application: CourseApplication): void {
+    this.updateHrDecision(application.id, 'reject');
   }
 
   protected startEnrolledApplications(): void {
@@ -624,14 +624,6 @@ export class IntakeDetailPageComponent implements OnInit {
         this.acting.set(false);
       },
     });
-  }
-
-  protected verifyCertificate(application: CourseApplication): void {
-    this.updateCertificateDecision(application, 'verify');
-  }
-
-  protected rejectCertificate(application: CourseApplication): void {
-    this.updateCertificateDecision(application, 'reject');
   }
 
   protected updateAllPayments(status: 'paid' | 'unpaid'): void {
@@ -682,13 +674,12 @@ export class IntakeDetailPageComponent implements OnInit {
         this.applyIntakeState(intake);
 
         forkJoin({
-          course: intake.course_id
-            ? this.coursesApi.getById(intake.course_id).pipe(catchError(() => of(null)))
-            : of(null),
           applications: this.canManage()
             ? this.intakesApi.listApplications(intake.id).pipe(catchError(() => of([])))
             : of([]),
-          myApplications: this.applicationsApi.listMy().pipe(catchError(() => of([]))),
+          myApplications: this.canManage()
+            ? of([])
+            : this.applicationsApi.listMy().pipe(catchError(() => of([]))),
           users: this.hasDirectoryAccess()
             ? this.usersApi.listAdminUsers().pipe(
                 catchError(() => {
@@ -698,15 +689,13 @@ export class IntakeDetailPageComponent implements OnInit {
               )
             : of([]),
         }).subscribe({
-          next: ({ course, applications, myApplications, users }) => {
+          next: ({ applications, myApplications, users }) => {
             const currentMyApplication =
               (myApplications ?? []).find((application) => application.intake_id === intake.id) ??
               null;
-            this.course.set(course);
             this.applications.set(applications ?? []);
             this.myApplication.set(currentMyApplication);
             this.users.set(users ?? []);
-            this.selectedApplicationId.set((applications ?? [])[0]?.id ?? currentMyApplication?.id ?? null);
 
             if (!currentMyApplication?.enrollment_id) {
               this.myEnrollment.set(null);
@@ -761,6 +750,49 @@ export class IntakeDetailPageComponent implements OnInit {
       application_deadline: toDatetimeLocalValue(intake.application_deadline),
       status: intake.status,
     });
+  }
+
+  private applicationDecisionGroup(
+    application: CourseApplication,
+  ): Exclude<HrApplicationFilter, 'all'> {
+    if (application.status === 'approved' || application.status === 'enrolled') {
+      return 'accepted';
+    }
+
+    if (
+      application.status === 'rejected_by_hr' ||
+      application.status === 'rejected_by_manager' ||
+      application.status === 'withdrawn'
+    ) {
+      return 'rejected';
+    }
+
+    return 'pending';
+  }
+
+  private applicationGroupOrder(application: CourseApplication): number {
+    const group = this.applicationDecisionGroup(application);
+    if (group === 'pending') {
+      return 0;
+    }
+    if (group === 'accepted') {
+      return 1;
+    }
+
+    return 2;
+  }
+
+  private lookupUser(userId: string | null | undefined): IdentityUserView | null {
+    if (!userId) {
+      return null;
+    }
+
+    const currentUser = this.authState.currentUser();
+    if (currentUser?.id === userId) {
+      return currentUser;
+    }
+
+    return this.users().find((item) => item.id === userId) ?? null;
   }
 
   private updateHrDecision(applicationId: string, action: 'approve' | 'reject'): void {
@@ -825,62 +857,24 @@ export class IntakeDetailPageComponent implements OnInit {
     }
   }
 
-  private updateCertificateDecision(
-    application: CourseApplication,
-    action: 'verify' | 'reject',
-  ): void {
-    if (!application.certificate_id || this.acting()) {
-      return;
+  private extractDeleteErrorMessage(error: unknown): string {
+    if (error instanceof HttpErrorResponse) {
+      const apiError = error.error?.error;
+      const apiCode = typeof apiError?.code === 'string' ? apiError.code : null;
+      if (apiCode === 'intake_has_applications') {
+        return 'Нельзя удалить набор, пока по нему есть заявки.';
+      }
+      if (apiCode === 'intake_linked_to_suggestion') {
+        return 'Набор связан с предложением и не может быть удалён.';
+      }
+
+      const apiMessage = apiError?.message;
+      if (typeof apiMessage === 'string' && apiMessage.trim()) {
+        return apiMessage.trim();
+      }
     }
 
-    this.acting.set(true);
-    this.error.set(null);
-
-    const request$ =
-      action === 'verify'
-        ? this.certificatesApi.verify(application.certificate_id, {
-            comment: normalizeText(this.certificateComment(application.id)),
-          })
-        : this.certificatesApi.reject(application.certificate_id, {
-            comment: normalizeText(this.certificateComment(application.id)),
-          });
-
-    request$.subscribe({
-      next: (certificate: Certificate) => {
-        this.applications.update((items) =>
-          items.map((item) =>
-            item.id === application.id
-              ? {
-                  ...item,
-                  certificate_id: certificate.id,
-                  certificate_status: certificate.status,
-                  certificate_uploaded_at: certificate.uploaded_at,
-                }
-              : item,
-          ),
-        );
-
-        const current = this.myApplication();
-        if (current?.id === application.id) {
-          this.myApplication.set({
-            ...current,
-            certificate_id: certificate.id,
-            certificate_status: certificate.status,
-            certificate_uploaded_at: certificate.uploaded_at,
-          });
-        }
-
-        this.acting.set(false);
-      },
-      error: () => {
-        this.error.set(
-          action === 'verify'
-            ? 'Не удалось подтвердить сертификат.'
-            : 'Не удалось отклонить сертификат.',
-        );
-        this.acting.set(false);
-      },
-    });
+    return 'Не удалось удалить набор.';
   }
 
   private isEnrollmentStartable(application: CourseApplication): boolean {

@@ -1,0 +1,121 @@
+<div class="tg-cal">
+  <div class="tg-cal__toolbar">
+    <div class="tg-cal__nav">
+      <button class="tg-cal__btn tg-cal__btn--icon" (click)="prev()" type="button">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M15 18l-6-6 6-6" />
+        </svg>
+      </button>
+      <button class="tg-cal__btn" (click)="goToday()" type="button">Сегодня</button>
+      <button class="tg-cal__btn tg-cal__btn--icon" (click)="next()" type="button">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 18l6-6-6-6" />
+        </svg>
+      </button>
+    </div>
+
+    <span class="tg-cal__title">{{ title() }}</span>
+
+    <div class="tg-cal__views">
+      <button
+        class="tg-cal__btn"
+        [class.tg-cal__btn--active]="viewMode() === 'week'"
+        (click)="setView('week')"
+        type="button"
+      >
+        Неделя
+      </button>
+      <button
+        class="tg-cal__btn"
+        [class.tg-cal__btn--active]="viewMode() === 'day'"
+        (click)="setView('day')"
+        type="button"
+      >
+        День
+      </button>
+    </div>
+  </div>
+
+  <div class="tg-cal__header">
+    <div class="tg-cal__corner"></div>
+    @for (col of columns(); track trackByKey($index, col)) {
+      <div class="tg-cal__day-head" [class.tg-cal__day-head--today]="col.isToday">
+        <span class="tg-cal__day-name">{{ col.dayName }}</span>
+        <span class="tg-cal__day-num" [class.tg-cal__day-num--today]="col.isToday">{{ col.dayNumber }}</span>
+      </div>
+    }
+  </div>
+
+  @if (hasAllDay()) {
+    <div class="tg-cal__allday-row">
+      <div class="tg-cal__allday-label">Весь день</div>
+      @for (col of columns(); track trackByKey($index, col)) {
+        <div class="tg-cal__allday-cell">
+          @for (ev of col.allDayEvents; track trackById($index, ev)) {
+            <div
+              class="tg-cal__allday-chip"
+              [style.background]="ev.color"
+              [style.color]="ev.textColor"
+              [title]="ev.title"
+            >
+              @if (ev.badge) {
+                <span class="tg-cal__badge">{{ ev.badge }}</span>
+              }
+              <span>{{ ev.title }}</span>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+
+  <div class="tg-cal__body" #calBody>
+    <div class="tg-cal__grid">
+      <div class="tg-cal__axis">
+        @for (h of hours; track h) {
+          <div class="tg-cal__hour-label">
+            <span>{{ formatHour(h) }}</span>
+          </div>
+        }
+      </div>
+
+      <div class="tg-cal__columns">
+        @for (col of columns(); track trackByKey($index, col)) {
+          <div class="tg-cal__day-col" [class.tg-cal__day-col--today]="col.isToday">
+            @for (h of hours; track h) {
+              <div class="tg-cal__slot"></div>
+            }
+
+            @for (ev of col.timedEvents; track trackById($index, ev)) {
+              <div
+                class="tg-cal__event"
+                [style.top.%]="ev.topPct"
+                [style.height.%]="ev.heightPct"
+                [style.background]="ev.color"
+                [style.color]="ev.textColor"
+                [title]="ev.timeLabel + ' · ' + ev.title"
+              >
+                <div class="tg-cal__event-head">
+                  @if (ev.badge) {
+                    <span class="tg-cal__badge">{{ ev.badge }}</span>
+                  }
+                  <span class="tg-cal__event-time">{{ ev.timeLabel }}</span>
+                </div>
+                <strong class="tg-cal__event-title">{{ ev.title }}</strong>
+                @if (ev.meta) {
+                  <span class="tg-cal__event-meta">{{ ev.meta }}</span>
+                }
+              </div>
+            }
+
+            @if (col.isToday) {
+              <div class="tg-cal__now" [style.top.%]="nowPct()">
+                <span class="tg-cal__now-dot"></span>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+</div>

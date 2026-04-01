@@ -17,11 +17,16 @@
 
 .intake-detail-page__header p,
 .intake-detail-page__error,
+.intake-detail-page__manage-hint,
 .applications-section__hint,
 .applications-section__empty,
 .application-state__hint {
   color: var(--text-secondary);
   margin: 0;
+}
+
+.intake-detail-page__manage-hint {
+  max-width: 64rem;
 }
 
 .intake-detail-page__header-actions {
@@ -39,6 +44,127 @@
 .application-state {
   display: grid;
   gap: 10px;
+}
+
+.hr-roster {
+  display: grid;
+  gap: 16px;
+}
+
+.hr-roster__toolbar {
+  align-items: flex-start;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.hr-roster__intro h2 {
+  margin: 0 0 6px;
+}
+
+.hr-roster__intro p {
+  color: var(--text-secondary);
+  margin: 0;
+  max-width: 44rem;
+}
+
+.hr-roster__filters {
+  flex-wrap: wrap;
+}
+
+.hr-roster-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.employee-card__content {
+  display: grid;
+  gap: 10px;
+}
+
+.employee-card__top {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.employee-card__identity {
+  display: grid;
+  gap: 4px;
+}
+
+.employee-card__identity p {
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.employee-card__profile-link {
+  color: var(--app-primary);
+  font-size: 1rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.employee-card__profile-link:hover {
+  text-decoration: underline;
+}
+
+.employee-card__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.employee-card__decision,
+.employee-card__status {
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 6px 10px;
+  white-space: nowrap;
+}
+
+.employee-card__decision {
+  background: #edf2ff;
+  color: #2b4ab8;
+}
+
+.employee-card__decision--accepted {
+  background: #e7f8ee;
+  color: #20744a;
+}
+
+.employee-card__decision--rejected {
+  background: #fbe9e7;
+  color: #b04438;
+}
+
+.employee-card__decision--pending {
+  background: #edf2ff;
+  color: #2b4ab8;
+}
+
+.employee-card__status {
+  background: #f4f6fb;
+  color: var(--text-secondary);
+}
+
+.employee-card__comment {
+  width: 100%;
+}
+
+.employee-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.employee-card__note {
+  color: var(--text-secondary);
+  margin: 0;
 }
 
 .application-selector {
@@ -181,6 +307,19 @@
 
   .intake-detail-page__header-actions {
     justify-content: flex-start;
+  }
+
+  .hr-roster__toolbar,
+  .employee-card__top {
+    flex-direction: column;
+  }
+
+  .employee-card__badges {
+    justify-content: flex-start;
+  }
+
+  .hr-roster-grid {
+    grid-template-columns: 1fr;
   }
 
   .intake-application-layout {

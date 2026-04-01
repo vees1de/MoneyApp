@@ -1,176 +1,240 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Component, DestroyRef, OnInit, computed, inject } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
-import { MatDividerModule } from '@angular/material/divider';
-import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { FullCalendarModule } from '@fullcalendar/angular';
+import type { CalendarOptions, EventInput, EventMountArg } from '@fullcalendar/core';
+import ruLocale from '@fullcalendar/core/locales/ru';
+import dayGridPlugin from '@fullcalendar/daygrid';
+import interactionPlugin from '@fullcalendar/interaction';
+import timeGridPlugin from '@fullcalendar/timegrid';
+import { RouterLink } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
 
-import type { OutlookEventRecord, OutlookMessageRecord } from '@core/api/contracts';
-import { CalendarSyncFacade } from '@features/calendar-sync';
+import type { LearningPlanItem, MyLearningPlan } from '@core/api/contracts';
+import { IntegrationsApiService } from '@core/api/integrations-api.service';
+import { LearningPlanApiService } from '@core/api/learning-plan-api.service';
+import type { YougileConnection, YougileTask } from '@entities/yougile';
+
+type CalendarSource = 'yougile' | 'learning';
+
+interface TimelineRange {
+  id: string;
+  source: CalendarSource;
+  title: string;
+  badge: string;
+  meta: string;
+  start: Date;
+  end: Date;
+  allDay: boolean;
+  backgroundColor: string;
+  textColor: string;
+}
+
+interface LearningDeadlinePoint {
+  id: string;
+  title: string;
+  status: string;
+  statusLabel: string;
+  progress: number;
+  deadline: Date;
+  deadlineLabel: string;
+}
+
+interface CalendarRiskBlock {
+  id: string;
+  title: string;
+  reason: string;
+  window: string;
+  severity: 'high' | 'medium';
+}
+
+interface LearningSetCard {
+  id: string;
+  title: string;
+  status: string;
+  statusLabel: string;
+  bucket: 'in_progress' | 'upcoming';
+  progress: number;
+  deadlineLabel: string;
+  deadlineMs: number | null;
+}
+
+interface YougileTaskCard {
+  id: string;
+  title: string;
+  identifier: string;
+  boardLabel: string;
+  columnLabel: string;
+  createdLabel: string;
+  windowLabel: string;
+}
 
 @Component({
   selector: 'app-page-calendar-overview',
   standalone: true,
   imports: [
     CommonModule,
-    ReactiveFormsModule,
     RouterLink,
+    FullCalendarModule,
     MatButtonModule,
     MatCardModule,
-    MatDividerModule,
-    MatFormFieldModule,
     MatIconModule,
-    MatInputModule,
     MatProgressBarModule,
-    MatSlideToggleModule,
   ],
   templateUrl: './overview.page.html',
   styleUrl: './overview.page.scss',
 })
 export class CalendarOverviewPageComponent implements OnInit {
-  private readonly facade = inject(CalendarSyncFacade);
-  private readonly fb = inject(FormBuilder);
-  private readonly route = inject(ActivatedRoute);
-  private readonly router = inject(Router);
-  private readonly destroyRef = inject(DestroyRef);
+  private readonly integrationsApi = inject(IntegrationsApiService);
+  private readonly learningPlanApi = inject(LearningPlanApiService);
 
-  protected readonly routePath = '/calendar/overview';
-  protected readonly loading = this.facade.loading;
-  protected readonly connecting = this.facade.connecting;
-  protected readonly syncing = this.facade.syncing;
-  protected readonly updatingSettings = this.facade.updatingSettings;
-  protected readonly sendingTestEmail = this.facade.sendingTestEmail;
-  protected readonly error = this.facade.error;
-  protected readonly notice = this.facade.notice;
-  protected readonly status = this.facade.status;
-  protected readonly messages = this.facade.messages;
-  protected readonly events = this.facade.events;
-
-  protected readonly account = computed(() => this.status()?.account ?? null);
-  protected readonly connected = computed(() => this.status()?.connected ?? false);
-  protected readonly graphConfigured = computed(() => this.status()?.graph_configured ?? false);
-  protected readonly anyBusy = computed(
-    () =>
-      this.loading() ||
-      this.connecting() ||
-      this.syncing() ||
-      this.updatingSettings() ||
-      this.sendingTestEmail(),
-  );
-
-  protected readonly manualForm = this.fb.nonNullable.group({
-    access_token: ['', [Validators.required]],
-    refresh_token: [''],
-    system_email_enabled: [true],
+  private readonly dateFormatter = new Intl.DateTimeFormat('ru-RU', {
+    day: '2-digit',
+    month: 'short',
+  });
+  private readonly timeFormatter = new Intl.DateTimeFormat('ru-RU', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  private readonly dateTimeFormatter = new Intl.DateTimeFormat('ru-RU', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
   });
 
+  protected readonly calendarLoading = signal(true);
+  protected readonly yougileLoading = signal(true);
+  protected readonly learningLoading = signal(true);
+  protected readonly overviewNotice = signal<string | null>(null);
+  protected readonly yougileError = signal<string | null>(null);
+  protected readonly learningError = signal<string | null>(null);
+  protected readonly yougileConnection = signal<YougileConnection | null>(null);
+  protected readonly yougileTasks = signal<YougileTask[]>([]);
+  protected readonly learningPlan = signal<MyLearningPlan | null>(null);
+
+  protected readonly anyBusy = computed(
+    () => this.calendarLoading() || this.yougileLoading() || this.learningLoading(),
+  );
+  protected readonly issueMessages = computed(() => {
+    const messages = [this.yougileError(), this.learningError()].filter(
+      (value): value is string => !!value,
+    );
+    return Array.from(new Set(messages));
+  });
+  protected readonly timelineRanges = computed(() => this.mapYougileRanges(this.yougileTasks()));
+  protected readonly learningDeadlinePoints = computed(() => this.mapLearningDeadlinePoints());
+  protected readonly learningSets = computed(() => this.mapLearningSets());
+  protected readonly riskBlocks = computed(() => this.buildRiskBlocks());
+  protected readonly unscheduledYougileTasks = computed(() => this.mapUnscheduledYougileTasks());
+  protected readonly unscheduledYougileTasksPreview = computed(() =>
+    this.unscheduledYougileTasks().slice(0, 5),
+  );
+  protected readonly calendarEvents = computed<EventInput[]>(() => this.buildCalendarEvents());
+  protected readonly timeblockCount = computed(() => this.timelineRanges().length);
+  protected readonly currentSetsCount = computed(() => this.learningSets().length);
+  protected readonly riskCount = computed(() => this.riskBlocks().length);
+  protected readonly backlogCount = computed(() => this.unscheduledYougileTasks().length);
+  protected readonly calendarOptions: CalendarOptions = {
+    plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
+    locale: ruLocale,
+    initialView: 'timeGridWeek',
+    headerToolbar: {
+      left: 'prev,next today',
+      center: 'title',
+      right: 'timeGridWeek,timeGridDay,dayGridMonth',
+    },
+    buttonText: {
+      today: 'Сегодня',
+      week: 'Неделя',
+      day: 'День',
+      month: 'Месяц',
+    },
+    firstDay: 1,
+    weekends: true,
+    editable: false,
+    selectable: false,
+    dayMaxEventRows: 3,
+    allDaySlot: true,
+    nowIndicator: true,
+    expandRows: true,
+    stickyHeaderDates: true,
+    height: 'auto',
+    contentHeight: 'auto',
+    eventDisplay: 'block',
+    scrollTime: '08:00:00',
+    slotMinTime: '06:00:00',
+    slotMaxTime: '24:00:00',
+    eventTimeFormat: {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    },
+    eventDidMount: (arg) => this.decorateCalendarEvent(arg),
+  };
+
   ngOnInit(): void {
-    this.facade.load();
+    void this.refreshOverview();
+  }
 
-    this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
-      const outlookStatus = params.get('outlook');
-      const outlookMessage = params.get('outlook_message');
-      if (!outlookStatus && !outlookMessage) {
-        return;
+  protected async refreshOverview(): Promise<void> {
+    this.calendarLoading.set(true);
+    this.overviewNotice.set(null);
+    this.clearLocalIssues();
+
+    try {
+      await Promise.all([this.loadYougileOverview(), this.loadLearningPlan()]);
+      if (this.issueMessages().length === 0) {
+        this.overviewNotice.set('Календарь обновлён.');
       }
-
-      if (outlookMessage) {
-        this.facade.setNotice(outlookMessage);
-      }
-
-      if (outlookStatus === 'connected') {
-        void this.facade.sync();
-      }
-
-      void this.router.navigate([], {
-        relativeTo: this.route,
-        queryParams: {},
-        replaceUrl: true,
-      });
-    });
-  }
-
-  protected async startMicrosoftConnect(): Promise<void> {
-    const authUrl = await this.facade.getMicrosoftConnectUrl();
-    if (authUrl) {
-      globalThis.location.assign(authUrl);
-    }
-  }
-
-  protected async connectWithToken(): Promise<void> {
-    if (this.manualForm.invalid) {
-      this.manualForm.markAllAsTouched();
-      return;
-    }
-
-    const values = this.manualForm.getRawValue();
-    const connected = await this.facade.connectManual({
-      access_token: values.access_token.trim(),
-      refresh_token: values.refresh_token.trim() || null,
-      system_email_enabled: values.system_email_enabled,
-    });
-
-    if (connected) {
-      this.manualForm.patchValue({
-        access_token: '',
-        refresh_token: '',
-      });
-    }
-  }
-
-  protected async runSync(): Promise<void> {
-    await this.facade.sync();
-  }
-
-  protected async sendTestEmail(): Promise<void> {
-    await this.facade.sendTestEmail();
-  }
-
-  protected async disconnectOutlook(): Promise<void> {
-    await this.facade.disconnect();
-  }
-
-  protected async updateSystemEmailEnabled(enabled: boolean): Promise<void> {
-    const ok = await this.facade.updateSystemEmailEnabled(enabled);
-    if (!ok) {
-      await this.facade.refresh();
+    } finally {
+      this.calendarLoading.set(false);
     }
   }
 
   protected clearError(): void {
-    this.facade.clearError();
+    this.yougileError.set(null);
+    this.learningError.set(null);
   }
 
   protected clearNotice(): void {
-    this.facade.clearMessage();
+    this.overviewNotice.set(null);
   }
 
-  protected authModeLabel(mode: string | null | undefined): string {
-    switch ((mode ?? '').toLowerCase()) {
-      case 'oauth':
-        return 'Microsoft account';
-      case 'access_token':
-        return 'Graph access token';
+  protected yougileConnectionStatusLabel(status: string | null | undefined): string {
+    switch ((status ?? '').toLowerCase()) {
+      case 'active':
+        return 'Активно';
+      case 'sync_error':
+        return 'Ошибка sync';
+      case 'invalid':
+        return 'Ключ недействителен';
+      case 'revoked':
+        return 'Отключено';
+      case '':
+        return 'Не подключено';
       default:
-        return mode || '—';
+        return status || '—';
     }
   }
 
-  protected connectionStatusLabel(): string {
-    if (this.connected()) {
-      return 'Подключено';
+  protected learningStatusLabel(status: string): string {
+    switch ((status ?? '').toLowerCase()) {
+      case 'in_progress':
+        return 'В процессе';
+      case 'upcoming':
+        return 'Скоро старт';
+      case 'completed':
+        return 'Завершен';
+      case 'enrolled':
+        return 'Записан';
+      default:
+        return status || '—';
     }
-    if (this.account()) {
-      return 'Требует внимания';
-    }
-    return 'Не подключено';
   }
 
   protected formatDateTime(value: string | null | undefined): string {
@@ -191,13 +255,475 @@ export class CalendarOverviewPageComponent implements OnInit {
     });
   }
 
-  protected messageSenderLabel(item: OutlookMessageRecord): string {
-    return item.sender_name || item.sender_email || 'Без отправителя';
+  protected taskBoardLabel(task: YougileTask): string {
+    if (task.boardTitle?.trim()) {
+      return task.boardTitle.trim();
+    }
+
+    return 'Без доски';
   }
 
-  protected eventMetaLabel(item: OutlookEventRecord): string {
-    return [item.organizer_name || item.organizer_email, item.location]
-      .filter((value) => !!value)
-      .join(' · ');
+  protected taskColumnLabel(task: YougileTask): string {
+    if (task.columnTitle?.trim()) {
+      return task.columnTitle.trim();
+    }
+
+    return 'Без колонки';
+  }
+
+  protected taskIdentifier(task: YougileTask): string {
+    return task.idTaskProject?.trim() || task.idTaskCommon?.trim() || task.id;
+  }
+
+  protected progressValue(value: string | number | null | undefined): number {
+    const normalized = Number(value);
+    if (Number.isNaN(normalized)) {
+      return 0;
+    }
+
+    return Math.max(0, Math.min(100, normalized));
+  }
+
+  protected formatRiskSeverity(severity: 'high' | 'medium'): string {
+    return severity === 'high' ? 'Высокий' : 'Средний';
+  }
+
+  protected trackById(_: number, item: { id: string }): string {
+    return item.id;
+  }
+
+  private async loadYougileOverview(): Promise<void> {
+    this.yougileLoading.set(true);
+    this.yougileError.set(null);
+
+    try {
+      const response = await firstValueFrom(this.integrationsApi.listYougileConnections());
+      const connection = this.pickYougileConnection(response.items ?? []);
+      this.yougileConnection.set(connection);
+
+      if (!connection) {
+        this.yougileTasks.set([]);
+        return;
+      }
+
+      try {
+        const tasksResponse = await firstValueFrom(
+          this.integrationsApi.listYougileTasks(connection.id, {
+            includeDeleted: false,
+            limit: 200,
+          }),
+        );
+
+        this.yougileTasks.set(tasksResponse.content ?? []);
+      } catch (error) {
+        this.yougileTasks.set([]);
+        this.yougileError.set(this.describeError(error, 'Не удалось загрузить Yougile задачи.'));
+      }
+    } catch (error) {
+      this.yougileConnection.set(null);
+      this.yougileTasks.set([]);
+      this.yougileError.set(this.describeError(error, 'Не удалось загрузить Yougile задачи.'));
+    } finally {
+      this.yougileLoading.set(false);
+    }
+  }
+
+  private async loadLearningPlan(): Promise<void> {
+    this.learningLoading.set(true);
+    this.learningError.set(null);
+
+    try {
+      const plan = await firstValueFrom(this.learningPlanApi.getMyPlan());
+      this.learningPlan.set(plan ?? null);
+    } catch (error) {
+      this.learningPlan.set(null);
+      this.learningError.set(this.describeError(error, 'Не удалось загрузить текущие наборы.'));
+    } finally {
+      this.learningLoading.set(false);
+    }
+  }
+
+  private pickYougileConnection(connections: YougileConnection[]): YougileConnection | null {
+    const active = connections.find((item) => item.status === 'active');
+    if (active) {
+      return active;
+    }
+
+    return connections.find((item) => item.status !== 'revoked') ?? null;
+  }
+
+  private mapYougileRanges(tasks: YougileTask[]): TimelineRange[] {
+    return tasks.flatMap((task) => {
+      const window = this.resolveTaskWindow(task);
+      if (!window) {
+        return [];
+      }
+
+      return [
+        {
+          id: `yougile-${task.id}`,
+          source: 'yougile' as CalendarSource,
+          title: task.title?.trim() || 'Yougile task',
+          badge: 'Yougile',
+          meta: [this.taskBoardLabel(task), this.taskColumnLabel(task)]
+            .filter((value) => !!value)
+            .join(' · '),
+          start: window.start,
+          end: window.end,
+          allDay: window.allDay,
+          backgroundColor: window.allDay ? '#7c3aed' : '#0f766e',
+          textColor: '#ffffff',
+        },
+      ];
+    });
+  }
+
+  private mapLearningDeadlinePoints(): LearningDeadlinePoint[] {
+    const plan = this.learningPlan();
+    if (!plan) {
+      return [];
+    }
+
+    return [
+      ...plan.in_progress.map((item) => this.mapLearningDeadlinePoint(item, 'in_progress')),
+      ...plan.upcoming.map((item) => this.mapLearningDeadlinePoint(item, 'upcoming')),
+    ].filter((item): item is LearningDeadlinePoint => item !== null);
+  }
+
+  private mapLearningSets(): LearningSetCard[] {
+    const plan = this.learningPlan();
+    if (!plan) {
+      return [];
+    }
+
+    return [
+      ...plan.in_progress.map((item) => this.mapLearningSet(item, 'in_progress')),
+      ...plan.upcoming.map((item) => this.mapLearningSet(item, 'upcoming')),
+    ].sort((left, right) => {
+      const leftDeadline = left.deadlineMs ?? Number.POSITIVE_INFINITY;
+      const rightDeadline = right.deadlineMs ?? Number.POSITIVE_INFINITY;
+      return leftDeadline - rightDeadline;
+    });
+  }
+
+  private mapUnscheduledYougileTasks(): YougileTaskCard[] {
+    return this.yougileTasks()
+      .filter((task) => !this.resolveTaskWindow(task))
+      .slice()
+      .sort((left, right) => {
+        const leftTimestamp = this.parseDate(left.timestamp)?.getTime() ?? Number.POSITIVE_INFINITY;
+        const rightTimestamp =
+          this.parseDate(right.timestamp)?.getTime() ?? Number.POSITIVE_INFINITY;
+        return leftTimestamp - rightTimestamp;
+      })
+      .map((task) => ({
+        id: task.id,
+        title: task.title?.trim() || task.id,
+        identifier: this.taskIdentifier(task),
+        boardLabel: this.taskBoardLabel(task),
+        columnLabel: this.taskColumnLabel(task),
+        createdLabel: task.timestamp
+          ? this.formatDateTime(task.timestamp)
+          : 'Дата создания недоступна',
+        windowLabel: 'Без срока',
+      }));
+  }
+
+  private buildCalendarEvents(): EventInput[] {
+    const events: EventInput[] = [];
+
+    for (const range of this.timelineRanges()) {
+      events.push({
+        id: range.id,
+        title: range.title,
+        start: range.allDay ? this.formatLocalDate(range.start) : range.start.toISOString(),
+        end: range.allDay
+          ? this.formatLocalDate(this.addDays(this.startOfDay(range.end), 1))
+          : range.end.toISOString(),
+        allDay: range.allDay,
+        backgroundColor: range.backgroundColor,
+        borderColor: range.backgroundColor,
+        textColor: range.textColor,
+        extendedProps: {
+          badge: range.badge,
+          meta: range.meta,
+          source: range.source,
+        },
+      });
+    }
+
+    for (const point of this.learningDeadlinePoints()) {
+      events.push({
+        id: `learning-${point.id}`,
+        title: point.title,
+        start: this.formatLocalDate(point.deadline),
+        end: this.formatLocalDate(this.addDays(this.startOfDay(point.deadline), 1)),
+        allDay: true,
+        backgroundColor: '#7c3aed',
+        borderColor: '#7c3aed',
+        textColor: '#ffffff',
+        extendedProps: {
+          badge: 'Набор',
+          meta: `${point.statusLabel} · ${point.progress}%`,
+          source: 'learning',
+        },
+      });
+    }
+
+    return events;
+  }
+
+  private buildRiskBlocks(): CalendarRiskBlock[] {
+    const risks = new Map<string, CalendarRiskBlock>();
+    const ranges = this.timelineRanges();
+    const points = this.learningDeadlinePoints();
+
+    for (let leftIndex = 0; leftIndex < ranges.length; leftIndex += 1) {
+      const left = ranges[leftIndex];
+
+      for (let rightIndex = leftIndex + 1; rightIndex < ranges.length; rightIndex += 1) {
+        const right = ranges[rightIndex];
+        if (!this.rangesOverlap(left, right)) {
+          continue;
+        }
+
+        const key = [left.id, right.id].sort().join('::');
+        const overlapStart =
+          left.start.getTime() >= right.start.getTime() ? left.start : right.start;
+        const overlapEnd = left.end.getTime() <= right.end.getTime() ? left.end : right.end;
+        risks.set(key, {
+          id: key,
+          title: `${left.title} и ${right.title}`,
+          reason: `${left.badge} и ${right.badge} пересекаются по времени`,
+          window: this.formatWindow(overlapStart, overlapEnd, left.allDay && right.allDay),
+          severity: 'high',
+        });
+      }
+    }
+
+    for (const point of points) {
+      for (const range of ranges) {
+        if (
+          point.deadline.getTime() < range.start.getTime() ||
+          point.deadline.getTime() > range.end.getTime()
+        ) {
+          continue;
+        }
+
+        const key = `${point.id}::${range.id}`;
+        risks.set(key, {
+          id: key,
+          title: `${point.title} и ${range.title}`,
+          reason: `Дедлайн набора попадает в блок ${range.badge.toLowerCase()}`,
+          window: this.formatWindow(range.start, range.end, range.allDay),
+          severity: 'medium',
+        });
+      }
+    }
+
+    return Array.from(risks.values()).sort((left, right) => {
+      const leftRank = left.severity === 'high' ? 0 : 1;
+      const rightRank = right.severity === 'high' ? 0 : 1;
+      if (leftRank !== rightRank) {
+        return leftRank - rightRank;
+      }
+
+      return left.window.localeCompare(right.window, 'ru');
+    });
+  }
+
+  private mapLearningDeadlinePoint(
+    item: LearningPlanItem,
+    bucket: 'in_progress' | 'upcoming',
+  ): LearningDeadlinePoint | null {
+    if (!item.deadline_at) {
+      return null;
+    }
+
+    const deadline = this.parseDate(item.deadline_at);
+    if (!deadline) {
+      return null;
+    }
+
+    return {
+      id: `${bucket}-${item.enrollment_id}`,
+      title: item.title,
+      status: item.status,
+      statusLabel: this.learningStatusLabel(item.status),
+      progress: this.progressValue(item.completion_percent),
+      deadline,
+      deadlineLabel: this.formatLearningDate(deadline),
+    };
+  }
+
+  private mapLearningSet(
+    item: LearningPlanItem,
+    bucket: 'in_progress' | 'upcoming',
+  ): LearningSetCard {
+    const deadline = item.deadline_at ? this.parseDate(item.deadline_at) : null;
+
+    return {
+      id: `${bucket}-${item.enrollment_id}`,
+      title: item.title,
+      status: item.status,
+      statusLabel: this.learningStatusLabel(item.status),
+      bucket,
+      progress: this.progressValue(item.completion_percent),
+      deadlineLabel: deadline ? this.formatLearningDate(deadline) : 'Без дедлайна',
+      deadlineMs: deadline?.getTime() ?? null,
+    };
+  }
+
+  private resolveTaskWindow(task: YougileTask): { start: Date; end: Date; allDay: boolean } | null {
+    const deadlineValue = task.deadline?.deadline ?? task.deadlineAt ?? null;
+    if (!deadlineValue) {
+      return null;
+    }
+
+    const end = this.parseDate(deadlineValue);
+    if (!end) {
+      return null;
+    }
+
+    if (task.deadline?.withTime) {
+      const start = task.deadline.startDate ? this.parseDate(task.deadline.startDate) : null;
+      if (start) {
+        return { start, end, allDay: false };
+      }
+
+      return {
+        start: new Date(end.getTime() - 60 * 60 * 1000),
+        end,
+        allDay: false,
+      };
+    }
+
+    return {
+      start: this.startOfDay(end),
+      end: this.endOfDay(end),
+      allDay: true,
+    };
+  }
+
+  private formatLearningDate(value: string | Date): string {
+    const parsed = value instanceof Date ? value : this.parseDate(value);
+    if (!parsed) {
+      return typeof value === 'string' ? value : '—';
+    }
+
+    return this.dateTimeFormatter.format(parsed);
+  }
+
+  private formatWindow(start: Date, end: Date, allDay: boolean): string {
+    if (allDay) {
+      return this.dateFormatter.format(start);
+    }
+
+    if (this.isSameDay(start, end)) {
+      return `${this.dateFormatter.format(start)} · ${this.timeFormatter.format(start)}–${this.timeFormatter.format(end)}`;
+    }
+
+    return `${this.dateTimeFormatter.format(start)} → ${this.dateTimeFormatter.format(end)}`;
+  }
+
+  private rangesOverlap(left: TimelineRange, right: TimelineRange): boolean {
+    return (
+      left.start.getTime() <= right.end.getTime() && right.start.getTime() <= left.end.getTime()
+    );
+  }
+
+  private describeError(error: unknown, fallback: string): string {
+    if (error instanceof HttpErrorResponse) {
+      const apiMessage = this.extractApiMessage(error.error);
+      if (apiMessage) {
+        return apiMessage;
+      }
+
+      if (error.status === 0) {
+        return 'Backend недоступен.';
+      }
+    }
+
+    return fallback;
+  }
+
+  private extractApiMessage(payload: unknown): string | null {
+    if (typeof payload === 'string' && payload.trim()) {
+      return payload.trim();
+    }
+
+    if (!payload || typeof payload !== 'object') {
+      return null;
+    }
+
+    const errorPayload = (payload as { error?: unknown }).error;
+    if (!errorPayload || typeof errorPayload !== 'object') {
+      return null;
+    }
+
+    const message = (errorPayload as { message?: unknown }).message;
+    return typeof message === 'string' && message.trim() ? message.trim() : null;
+  }
+
+  private clearLocalIssues(): void {
+    this.yougileError.set(null);
+    this.learningError.set(null);
+    this.overviewNotice.set(null);
+  }
+
+  private parseDate(value: string | null | undefined): Date | null {
+    if (!value) {
+      return null;
+    }
+
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  private startOfDay(value: Date): Date {
+    const copy = new Date(value);
+    copy.setHours(0, 0, 0, 0);
+    return copy;
+  }
+
+  private endOfDay(value: Date): Date {
+    const copy = new Date(value);
+    copy.setHours(23, 59, 59, 999);
+    return copy;
+  }
+
+  private addDays(value: Date, days: number): Date {
+    const copy = new Date(value);
+    copy.setDate(copy.getDate() + days);
+    return copy;
+  }
+
+  private formatLocalDate(value: Date): string {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  private isSameDay(left: Date, right: Date): boolean {
+    return (
+      left.getFullYear() === right.getFullYear() &&
+      left.getMonth() === right.getMonth() &&
+      left.getDate() === right.getDate()
+    );
+  }
+
+  private decorateCalendarEvent(arg: EventMountArg): void {
+    const source = arg.event.extendedProps['source'];
+    const meta = arg.event.extendedProps['meta'];
+    if (source === 'yougile' || source === 'learning') {
+      arg.el.setAttribute('data-source', source);
+    }
+
+    const titleParts = [arg.event.title];
+    if (typeof meta === 'string' && meta.trim()) {
+      titleParts.push(meta.trim());
+    }
+    arg.el.setAttribute('title', titleParts.join(' · '));
   }
 }
