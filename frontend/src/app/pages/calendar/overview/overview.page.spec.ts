@@ -103,4 +103,30 @@ describe('CalendarOverviewPageComponent', () => {
     });
     expect(component.unscheduledYougileTasks()).toEqual([]);
   });
+
+  it('treats null learning plan buckets as empty arrays', () => {
+    const fixture = TestBed.createComponent(CalendarOverviewPageComponent);
+    const component = fixture.componentInstance as CalendarOverviewPageComponent & {
+      learningPlan: { set(value: unknown): void };
+      learningSets: () => unknown[];
+      calendarEvents: () => unknown[];
+    };
+
+    component.learningPlan.set({
+      summary: {
+        total: 0,
+        in_progress: 0,
+        upcoming: 0,
+        completed_recently: 0,
+        recommended: 0,
+      },
+      in_progress: null,
+      upcoming: null,
+      completed_recently: null,
+      recommended: null,
+    });
+
+    expect(component.learningSets()).toEqual([]);
+    expect(component.calendarEvents()).toEqual([]);
+  });
 });

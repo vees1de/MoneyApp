@@ -17,6 +17,7 @@ import { firstValueFrom } from 'rxjs';
 import type { LearningPlanItem, MyLearningPlan } from '@core/api/contracts';
 import { IntegrationsApiService } from '@core/api/integrations-api.service';
 import { LearningPlanApiService } from '@core/api/learning-plan-api.service';
+import { pickPreferredYougileConnection, resolveYougileTaskWindow } from '@entities/yougile';
 import type { YougileConnection, YougileTask } from '@entities/yougile';
 
 type CalendarSource = 'yougile' | 'learning';
@@ -298,7 +299,7 @@ export class CalendarOverviewPageComponent implements OnInit {
 
     try {
       const response = await firstValueFrom(this.integrationsApi.listYougileConnections());
-      const connection = this.pickYougileConnection(response.items ?? []);
+      const connection = pickPreferredYougileConnection(response.items ?? []);
       this.yougileConnection.set(connection);
 
       if (!connection) {
@@ -334,7 +335,7 @@ export class CalendarOverviewPageComponent implements OnInit {
 
     try {
       const plan = await firstValueFrom(this.learningPlanApi.getMyPlan());
-      this.learningPlan.set(plan ?? null);
+      this.learningPlan.set(this.normalizeLearningPlan(plan));
     } catch (error) {
       this.learningPlan.set(null);
       this.learningError.set(this.describeError(error, 'Не удалось загрузить текущие наборы.'));
@@ -343,18 +344,9 @@ export class CalendarOverviewPageComponent implements OnInit {
     }
   }
 
-  private pickYougileConnection(connections: YougileConnection[]): YougileConnection | null {
-    const active = connections.find((item) => item.status === 'active');
-    if (active) {
-      return active;
-    }
-
-    return connections.find((item) => item.status !== 'revoked') ?? null;
-  }
-
   private mapYougileRanges(tasks: YougileTask[]): TimelineRange[] {
     return tasks.flatMap((task) => {
-      const window = this.resolveTaskWindow(task);
+      const window = resolveYougileTaskWindow(task);
       if (!window) {
         return [];
       }
@@ -385,8 +377,12 @@ export class CalendarOverviewPageComponent implements OnInit {
     }
 
     return [
-      ...plan.in_progress.map((item) => this.mapLearningDeadlinePoint(item, 'in_progress')),
-      ...plan.upcoming.map((item) => this.mapLearningDeadlinePoint(item, 'upcoming')),
+      ...this.learningPlanItems(plan.in_progress).map((item) =>
+        this.mapLearningDeadlinePoint(item, 'in_progress'),
+      ),
+      ...this.learningPlanItems(plan.upcoming).map((item) =>
+        this.mapLearningDeadlinePoint(item, 'upcoming'),
+      ),
     ].filter((item): item is LearningDeadlinePoint => item !== null);
   }
 
@@ -397,8 +393,10 @@ export class CalendarOverviewPageComponent implements OnInit {
     }
 
     return [
-      ...plan.in_progress.map((item) => this.mapLearningSet(item, 'in_progress')),
-      ...plan.upcoming.map((item) => this.mapLearningSet(item, 'upcoming')),
+      ...this.learningPlanItems(plan.in_progress).map((item) =>
+        this.mapLearningSet(item, 'in_progress'),
+      ),
+      ...this.learningPlanItems(plan.upcoming).map((item) => this.mapLearningSet(item, 'upcoming')),
     ].sort((left, right) => {
       const leftDeadline = left.deadlineMs ?? Number.POSITIVE_INFINITY;
       const rightDeadline = right.deadlineMs ?? Number.POSITIVE_INFINITY;
@@ -408,7 +406,7 @@ export class CalendarOverviewPageComponent implements OnInit {
 
   private mapUnscheduledYougileTasks(): YougileTaskCard[] {
     return this.yougileTasks()
-      .filter((task) => !this.resolveTaskWindow(task))
+      .filter((task) => !resolveYougileTaskWindow(task))
       .slice()
       .sort((left, right) => {
         const leftTimestamp = this.parseDate(left.timestamp)?.getTime() ?? Number.POSITIVE_INFINITY;
@@ -574,37 +572,6 @@ export class CalendarOverviewPageComponent implements OnInit {
     };
   }
 
-  private resolveTaskWindow(task: YougileTask): { start: Date; end: Date; allDay: boolean } | null {
-    const deadlineValue = task.deadline?.deadline ?? task.deadlineAt ?? null;
-    if (!deadlineValue) {
-      return null;
-    }
-
-    const end = this.parseDate(deadlineValue);
-    if (!end) {
-      return null;
-    }
-
-    if (task.deadline?.withTime) {
-      const start = task.deadline.startDate ? this.parseDate(task.deadline.startDate) : null;
-      if (start) {
-        return { start, end, allDay: false };
-      }
-
-      return {
-        start: new Date(end.getTime() - 60 * 60 * 1000),
-        end,
-        allDay: false,
-      };
-    }
-
-    return {
-      start: this.startOfDay(end),
-      end: this.endOfDay(end),
-      allDay: true,
-    };
-  }
-
   private formatLearningDate(value: string | Date): string {
     const parsed = value instanceof Date ? value : this.parseDate(value);
     if (!parsed) {
@@ -663,6 +630,24 @@ export class CalendarOverviewPageComponent implements OnInit {
 
     const message = (errorPayload as { message?: unknown }).message;
     return typeof message === 'string' && message.trim() ? message.trim() : null;
+  }
+
+  private normalizeLearningPlan(plan: MyLearningPlan | null | undefined): MyLearningPlan | null {
+    if (!plan) {
+      return null;
+    }
+
+    return {
+      ...plan,
+      in_progress: Array.isArray(plan.in_progress) ? plan.in_progress : [],
+      upcoming: Array.isArray(plan.upcoming) ? plan.upcoming : [],
+      completed_recently: Array.isArray(plan.completed_recently) ? plan.completed_recently : [],
+      recommended: Array.isArray(plan.recommended) ? plan.recommended : [],
+    };
+  }
+
+  private learningPlanItems(items: LearningPlanItem[] | null | undefined): LearningPlanItem[] {
+    return Array.isArray(items) ? items : [];
   }
 
   private clearLocalIssues(): void {

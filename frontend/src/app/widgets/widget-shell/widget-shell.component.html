@@ -3,7 +3,11 @@
     @if (listRoute()) {
       <a class="widget-shell__title-link" [routerLink]="listRoute()">{{ title() }}</a>
     } @else {
-      <mat-card-title>{{ title() }}</mat-card-title>
+      <mat-card-title class="widget-shell__title">{{ title() }}</mat-card-title>
+    }
+
+    @if (actionLabel() && actionRoute()) {
+      <a class="widget-shell__action-link" [routerLink]="actionRoute()">{{ actionLabel() }}</a>
     }
   </mat-card-header>
 

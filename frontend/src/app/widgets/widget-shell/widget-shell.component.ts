@@ -13,6 +13,8 @@ import { MatCardModule } from '@angular/material/card';
 export class WidgetShellComponent {
   readonly title = input.required<string>();
   readonly listRoute = input<string | null>(null);
+  readonly actionLabel = input<string | null>(null);
+  readonly actionRoute = input<string | null>(null);
   readonly loading = input(false);
   readonly error = input<string | null>(null);
   readonly empty = input(false);

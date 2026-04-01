@@ -1,21 +1,110 @@
 <app-widget-shell
-  title="Ближайшие события"
-  listRoute="/calendar"
+  title="Календарь"
+  listRoute="/calendar/overview"
+  actionLabel="Посмотреть еще"
+  actionRoute="/calendar/overview"
   [loading]="loading()"
   [error]="error()"
-  [empty]="events().length === 0"
 >
-  <div widget-loading class="upcoming-skeleton">
-    <div class="upcoming-skeleton__item"></div>
-    <div class="upcoming-skeleton__item"></div>
-    <div class="upcoming-skeleton__item"></div>
+  <div widget-loading class="calendar-mini__skeleton">
+    <div class="calendar-mini__skeleton-strip"></div>
+    <div class="calendar-mini__skeleton-card"></div>
+    <div class="calendar-mini__skeleton-card"></div>
+    <div class="calendar-mini__skeleton-card calendar-mini__skeleton-card--compact"></div>
   </div>
 
-  <mat-list>
-    <!-- @for (event of events(); track event.id) {
-      <mat-list-item>
-        <a routerLink="/calendar"><strong>{{ event.title }}</strong> ({{ eventSubtitle(event) }})</a>
-      </mat-list-item>
-    } -->
-  </mat-list>
+  <section class="calendar-mini">
+    <section class="calendar-mini__week">
+      @for (day of visibleWeek(); track day.key) {
+        <button
+          class="calendar-mini__day"
+          type="button"
+          [class.calendar-mini__day--active]="day.isActive"
+          (click)="selectDay(day.key)"
+        >
+          <span class="calendar-mini__day-name">{{ day.name }}</span>
+          <span class="calendar-mini__day-number">{{ day.number }}</span>
+          @if (day.hasConflict) {
+            <i class="calendar-mini__day-dot calendar-mini__day-dot--conflict"></i>
+          } @else if (day.hasItems) {
+            <i class="calendar-mini__day-dot"></i>
+          }
+        </button>
+      }
+    </section>
+
+    @if (selectedDayEvents().length) {
+      <section class="calendar-mini__cards">
+        @for (event of selectedDayEvents(); track event.id) {
+          <article
+            class="calendar-mini__card"
+            [class.calendar-mini__card--all-day]="event.visualTone === 'all-day'"
+            [class.calendar-mini__card--completed]="event.visualTone === 'completed'"
+          >
+            <div class="calendar-mini__card-copy">
+              <div class="calendar-mini__card-head">
+                <div class="calendar-mini__card-title">
+                  <mat-icon>{{
+                    event.visualTone === 'all-day'
+                      ? 'today'
+                      : event.visualTone === 'completed'
+                        ? 'task_alt'
+                        : 'schedule'
+                  }}</mat-icon>
+                  <strong>{{ event.title }}</strong>
+                </div>
+              </div>
+
+              <p class="calendar-mini__card-time">{{ event.timeLabel }}</p>
+
+              <div class="calendar-mini__meta-grid">
+                <div class="calendar-mini__meta-item">
+                  <span>{{ event.primaryMetaLabel }}</span>
+                  <strong>{{ event.primaryMetaValue }}</strong>
+                </div>
+                <div class="calendar-mini__meta-item">
+                  <span>{{ event.secondaryMetaLabel }}</span>
+                  <strong>{{ event.secondaryMetaValue }}</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="calendar-mini__visual">
+              <span>{{ event.visualLabel }}</span>
+            </div>
+          </article>
+        }
+      </section>
+    } @else if (emptyDay()) {
+      <section class="calendar-mini__empty">
+        <strong>На выбранный день таймблоков нет.</strong>
+        <p>
+          @if (unscheduledCount() > 0) {
+            Без срока в Yougile: {{ unscheduledCount() }}.
+          }
+          Выберите другой день выше или откройте полный календарь.
+        </p>
+      </section>
+    }
+
+    @if (selectedDayConflict(); as conflict) {
+      <section class="calendar-mini__conflict">
+        <div class="calendar-mini__conflict-copy">
+          <div class="calendar-mini__conflict-head">
+            <mat-icon>error_outline</mat-icon>
+            <strong>{{ conflict.title }}</strong>
+          </div>
+          <p>{{ conflict.reason }}</p>
+          <span>{{ conflict.timeLabel }}</span>
+        </div>
+
+        <div class="calendar-mini__conflict-actions">
+          <button mat-flat-button type="button" (click)="selectNextConflictDay()">
+            Следующий конфликт
+          </button>
+          <a mat-flat-button routerLink="/calendar/overview">Открыть календарь</a>
+        </div>
+      </section>
+    }
+  </section>
 </app-widget-shell>
