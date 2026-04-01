@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -21,8 +22,10 @@ import (
 )
 
 const (
-	aiRecommendationJobQueueName = "ai"
-	aiRecommendationJobTypeRun   = "ai_recommendations_run"
+	aiRecommendationJobQueueName           = "ai"
+	aiRecommendationJobTypeRun             = "ai_recommendations_run"
+	aiRecommendationJobHistoryDefaultLimit = 10
+	aiRecommendationJobHistoryMaxLimit     = 20
 )
 
 type AIRecommendationJob struct {
@@ -144,6 +147,59 @@ func (s *Service) GetRecommendationJob(ctx context.Context, principal platformau
 	}
 
 	return item, nil
+}
+
+func (s *Service) ListRecommendationJobs(ctx context.Context, principal platformauth.Principal, limit int) ([]AIRecommendationJob, error) {
+	if limit <= 0 {
+		limit = aiRecommendationJobHistoryDefaultLimit
+	}
+	if limit > aiRecommendationJobHistoryMaxLimit {
+		limit = aiRecommendationJobHistoryMaxLimit
+	}
+
+	rows, err := s.db.QueryContext(ctx, `
+		select id, user_id, status, attempt, last_error, started_at, finished_at, created_at, updated_at
+		from ai_recommendation_jobs
+		where user_id = $1
+		order by created_at desc, updated_at desc
+		limit $2
+	`, principal.UserID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := make([]AIRecommendationJob, 0, limit)
+	for rows.Next() {
+		var item AIRecommendationJob
+		var lastError sql.NullString
+
+		if err := rows.Scan(
+			&item.ID,
+			&item.UserID,
+			&item.Status,
+			&item.Attempt,
+			&lastError,
+			&item.StartedAt,
+			&item.FinishedAt,
+			&item.CreatedAt,
+			&item.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+
+		if lastError.Valid {
+			value := lastError.String
+			item.LastError = &value
+		}
+
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return items, nil
 }
 
 func (s *Service) ProcessRecommendationJob(ctx context.Context, job platformworker.Job) error {
@@ -355,4 +411,30 @@ func (h *Handler) GetJob(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httpx.WriteJSON(w, http.StatusOK, job)
+}
+
+func (h *Handler) ListJobs(w http.ResponseWriter, r *http.Request) {
+	principal, ok := platformauth.PrincipalFromContext(r.Context())
+	if !ok {
+		httpx.WriteError(w, httpx.Unauthorized("unauthorized", "authentication required"))
+		return
+	}
+
+	limit := aiRecommendationJobHistoryDefaultLimit
+	if rawLimit := strings.TrimSpace(r.URL.Query().Get("limit")); rawLimit != "" {
+		parsedLimit, err := strconv.Atoi(rawLimit)
+		if err != nil || parsedLimit <= 0 {
+			httpx.WriteError(w, httpx.BadRequest("invalid_limit", "invalid limit"))
+			return
+		}
+		limit = parsedLimit
+	}
+
+	items, err := h.service.ListRecommendationJobs(r.Context(), principal, limit)
+	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+
+	httpx.WriteJSON(w, http.StatusOK, items)
 }

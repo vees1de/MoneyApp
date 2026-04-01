@@ -49,16 +49,17 @@ type AIIntakeRecommendation struct {
 }
 
 type DebugLog struct {
-	PromptSentToAI string `json:"prompt_sent_to_ai"`
-	AIRawResponse  string `json:"ai_raw_response"`
-	AIModelURI     string `json:"ai_model_uri"`
-	TasksSummary   string `json:"tasks_summary"`
-	CoursesSummary string `json:"courses_summary"`
-	IntakesSummary string `json:"intakes_summary"`
-	CoursesSource  string `json:"courses_source,omitempty"`
-	IntakesSource  string `json:"intakes_source,omitempty"`
-	CoursesError   string `json:"courses_error,omitempty"`
-	IntakesError   string `json:"intakes_error,omitempty"`
+	PromptSentToAI      string `json:"prompt_sent_to_ai"`
+	AIRawResponse       string `json:"ai_raw_response"`
+	AIModelURI          string `json:"ai_model_uri"`
+	AIRequestDurationMs int64  `json:"ai_request_duration_ms,omitempty"`
+	TasksSummary        string `json:"tasks_summary"`
+	CoursesSummary      string `json:"courses_summary"`
+	IntakesSummary      string `json:"intakes_summary"`
+	CoursesSource       string `json:"courses_source,omitempty"`
+	IntakesSource       string `json:"intakes_source,omitempty"`
+	CoursesError        string `json:"courses_error,omitempty"`
+	IntakesError        string `json:"intakes_error,omitempty"`
 }
 
 type RecommendResponse struct {
@@ -605,6 +606,7 @@ func (s *Service) callYandexAI(ctx context.Context, tasks []yougilemodule.TaskIt
 		return aiResult{}, httpx.BadRequest("yandex_ai_key_missing_or_invalid", yandexAIKeyIssueMessage)
 	}
 
+	requestStartedAt := time.Now()
 	tasksSummary := buildTasksSummary(tasks)
 	coursesSummary := buildCoursesSummary(courses)
 	intakesSummary := buildIntakesSummary(intakes)
@@ -663,20 +665,22 @@ func (s *Service) callYandexAI(ctx context.Context, tasks []yougilemodule.TaskIt
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return aiResult{}, fmt.Errorf("read yandex ai response: %w", err)
-	}
-
-	rawResponse := string(body)
 	debug := DebugLog{
 		PromptSentToAI: fullPrompt,
-		AIRawResponse:  rawResponse,
 		AIModelURI:     modelURI,
 		TasksSummary:   tasksSummary,
 		CoursesSummary: coursesSummary,
 		IntakesSummary: intakesSummary,
 	}
+
+	body, err := io.ReadAll(resp.Body)
+	debug.AIRequestDurationMs = time.Since(requestStartedAt).Milliseconds()
+	if err != nil {
+		return aiResult{debug: debug}, fmt.Errorf("read yandex ai response: %w", err)
+	}
+
+	rawResponse := string(body)
+	debug.AIRawResponse = rawResponse
 
 	if resp.StatusCode != http.StatusOK {
 		if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {

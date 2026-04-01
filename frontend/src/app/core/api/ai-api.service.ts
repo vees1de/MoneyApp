@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable, retry, switchMap, takeWhile, throwError, timer } from 'rxjs';
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { EMPTY, Observable, expand, retry, switchMap, throwError, timer } from 'rxjs';
 
 import { API_BASE_URL } from '@core/config/api.config';
 
@@ -25,6 +25,7 @@ export interface AIDebugLog {
   prompt_sent_to_ai: string;
   ai_raw_response: string;
   ai_model_uri: string;
+  ai_request_duration_ms?: number | null;
   tasks_summary: string;
   courses_summary: string;
   intakes_summary: string;
@@ -72,6 +73,11 @@ export class AIApiService {
     return this.http.post<AIRecommendationJob>(`${this.base}/recommendations`, {});
   }
 
+  listRecommendationJobs(limit = 10): Observable<AIRecommendationJob[]> {
+    const params = new HttpParams().set('limit', String(limit));
+    return this.http.get<AIRecommendationJob[]>(`${this.base}/recommendations/jobs`, { params });
+  }
+
   getRecommendationJob(jobId: string): Observable<AIRecommendationJob> {
     return this.http.get<AIRecommendationJob>(`${this.base}/recommendations/${jobId}`).pipe(
       retry({
@@ -89,9 +95,18 @@ export class AIApiService {
   }
 
   watchRecommendationJob(jobId: string): Observable<AIRecommendationJob> {
-    return timer(0, 1500).pipe(
-      switchMap(() => this.getRecommendationJob(jobId)),
-      takeWhile((job) => !this.isTerminalJob(job.status), true),
+    const startedAt = Date.now();
+
+    return this.getRecommendationJob(jobId).pipe(
+      expand((job) => {
+        if (this.isTerminalJob(job.status)) {
+          return EMPTY;
+        }
+
+        return timer(this.getRecommendationDelayMs(Date.now() - startedAt)).pipe(
+          switchMap(() => this.getRecommendationJob(jobId)),
+        );
+      }),
     );
   }
 
@@ -106,5 +121,17 @@ export class AIApiService {
   private isRetriableGatewayError(error: unknown): boolean {
     const status = (error as { status?: number } | null | undefined)?.status ?? 0;
     return status === 0 || status === 502 || status === 503 || status === 504;
+  }
+
+  private getRecommendationDelayMs(elapsedMs: number): number {
+    if (elapsedMs < 10_000) {
+      return 2000;
+    }
+
+    if (elapsedMs < 30_000) {
+      return 4000;
+    }
+
+    return 8000;
   }
 }
