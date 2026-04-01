@@ -27,6 +27,10 @@
   background: var(--app-surface-soft);
   justify-content: flex-start;
   min-height: 44px;
+  display: flex;
+  justify-content: center;
+  line-height: 1.1;
+  font-size: 12px;
 }
 
 .quick-skeleton {
@@ -61,6 +65,7 @@
   0% {
     background-position: 100% 0;
   }
+
   100% {
     background-position: -100% 0;
   }
