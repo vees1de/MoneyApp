@@ -7,14 +7,17 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { firstValueFrom } from 'rxjs';
 
 import { AuthApiService } from '@core/auth/auth-api.service';
 import { AuthSessionService } from '@core/auth/auth-session.service';
 import { AuthStateService } from '@core/auth/auth-state.service';
-import type { LoginResponse } from '@core/auth/auth.types';
+import type { LoginRequest, LoginResponse } from '@core/auth/auth.types';
 
 type AuthMode = 'login' | 'register';
+type DemoAccount = 'employee' | 'hr';
+type AuthAction = 'form' | DemoAccount;
 
 interface AuthApiErrorPayload {
   error?: {
@@ -23,6 +26,17 @@ interface AuthApiErrorPayload {
   };
   message?: string;
 }
+
+const DEMO_CREDENTIALS: Record<DemoAccount, LoginRequest> = {
+  employee: {
+    email: 'employee.demo@moneyapp.local',
+    password: 'DemoEmployee123!',
+  },
+  hr: {
+    email: 'hr.demo@moneyapp.local',
+    password: 'DemoHR123!',
+  },
+};
 
 @Component({
   selector: 'app-page-public-login',
@@ -34,6 +48,7 @@ interface AuthApiErrorPayload {
     MatCardModule,
     MatFormFieldModule,
     MatInputModule,
+    MatProgressSpinnerModule,
   ],
   templateUrl: './login.page.html',
   styleUrl: './login.page.scss',
@@ -61,6 +76,7 @@ export class PublicLoginPageComponent {
   protected readonly mode = signal<AuthMode>('login');
   protected readonly isRegisterMode = computed(() => this.mode() === 'register');
   protected readonly submitting = signal(false);
+  protected readonly activeAction = signal<AuthAction | null>(null);
   protected readonly authError = signal<string | null>(null);
 
   protected readonly form = this.fb.group(
@@ -181,40 +197,56 @@ export class PublicLoginPageComponent {
   protected async submit(): Promise<void> {
     this.syncModeValidators();
 
-    if (this.form.invalid || this.submitting()) {
+    if (this.submitting()) {
+      return;
+    }
+
+    if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
 
-    this.submitting.set(true);
-    this.authError.set(null);
+    const payload = this.form.getRawValue();
+    const authMode = this.mode();
 
-    try {
-      const payload = this.form.getRawValue();
-      const response = this.isRegisterMode()
-        ? await firstValueFrom(
-            this.authApi.register({
-              email: payload.email ?? '',
-              password: payload.password ?? '',
-              first_name: payload.firstName?.trim() ?? '',
-              last_name: payload.lastName?.trim() ?? '',
-              middle_name: this.optionalValue(payload.middleName),
-              position_title: this.optionalValue(payload.positionTitle),
-            }),
-          )
-        : await firstValueFrom(
-            this.authApi.login({
-              email: payload.email ?? '',
-              password: payload.password ?? '',
-            }),
-          );
+    await this.runAuthAction(
+      'form',
+      () =>
+        authMode === 'register'
+          ? firstValueFrom(
+              this.authApi.register({
+                email: payload.email ?? '',
+                password: payload.password ?? '',
+                first_name: payload.firstName?.trim() ?? '',
+                last_name: payload.lastName?.trim() ?? '',
+                middle_name: this.optionalValue(payload.middleName),
+                position_title: this.optionalValue(payload.positionTitle),
+              }),
+            )
+          : firstValueFrom(
+              this.authApi.login({
+                email: payload.email ?? '',
+                password: payload.password ?? '',
+              }),
+            ),
+      authMode,
+    );
+  }
 
-      await this.completeAuthentication(response);
-    } catch (error) {
-      this.authError.set(this.resolveAuthError(error));
-    } finally {
-      this.submitting.set(false);
+  protected async loginAsDemo(account: DemoAccount): Promise<void> {
+    if (this.submitting()) {
+      return;
     }
+
+    await this.runAuthAction(
+      account,
+      () => firstValueFrom(this.authApi.login(DEMO_CREDENTIALS[account])),
+      'login',
+    );
+  }
+
+  protected isActionPending(action: AuthAction): boolean {
+    return this.activeAction() === action;
   }
 
   private syncModeValidators(): void {
@@ -239,6 +271,26 @@ export class PublicLoginPageComponent {
     return trimmed ? trimmed : null;
   }
 
+  private async runAuthAction(
+    action: AuthAction,
+    request: () => Promise<LoginResponse>,
+    authMode: AuthMode,
+  ): Promise<void> {
+    this.submitting.set(true);
+    this.activeAction.set(action);
+    this.authError.set(null);
+
+    try {
+      const response = await request();
+      await this.completeAuthentication(response);
+    } catch (error) {
+      this.authError.set(this.resolveAuthError(error, authMode));
+    } finally {
+      this.submitting.set(false);
+      this.activeAction.set(null);
+    }
+  }
+
   private async completeAuthentication(response: LoginResponse): Promise<void> {
     this.authSession.setTokens(response.tokens);
     this.authState.setCurrentUser(response.user);
@@ -247,8 +299,8 @@ export class PublicLoginPageComponent {
     await this.router.navigateByUrl('/dashboard');
   }
 
-  private resolveAuthError(error: unknown): string {
-    const fallback = this.isRegisterMode()
+  private resolveAuthError(error: unknown, authMode: AuthMode): string {
+    const fallback = authMode === 'register'
       ? 'Не удалось зарегистрироваться. Проверьте поля формы и попробуйте снова.'
       : 'Не удалось войти. Проверьте логин и пароль.';
 
@@ -257,7 +309,7 @@ export class PublicLoginPageComponent {
     }
 
     const apiError = this.extractApiError(error);
-    if (this.isRegisterMode()) {
+    if (authMode === 'register') {
       if (error.status === 409 || apiError?.code === 'email_taken') {
         return 'Пользователь с таким email уже существует.';
       }
@@ -266,7 +318,7 @@ export class PublicLoginPageComponent {
       }
     }
 
-    if (!this.isRegisterMode() && (error.status === 401 || apiError?.code === 'invalid_credentials')) {
+    if (authMode === 'login' && (error.status === 401 || apiError?.code === 'invalid_credentials')) {
       return 'Не удалось войти. Проверьте логин и пароль.';
     }
 

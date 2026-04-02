@@ -52,10 +52,49 @@
   gap: var(--space-4);
 }
 
+.login-submit-button,
+.login-demo__button {
+  --mdc-circular-progress-active-indicator-color: currentColor;
+}
+
+.login-submit-button {
+  width: 100%;
+}
+
 .login-form__row {
   display: grid;
   gap: var(--space-4);
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.login-demo {
+  border-top: 1px solid color-mix(in srgb, var(--mat-sys-outline-variant) 72%, transparent);
+  display: grid;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+}
+
+.login-demo__title {
+  color: var(--mat-sys-on-surface-variant);
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.login-demo__actions {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.login-demo__button {
+  width: 100%;
+}
+
+.login-submit-button,
+.login-demo__button {
+  align-items: center;
+  display: inline-flex;
+  gap: var(--space-2);
+  justify-content: center;
 }
 
 .login-error {
