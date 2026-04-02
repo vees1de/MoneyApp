@@ -122,6 +122,7 @@ section.agile__modal,
 .agile__badge--success {
   background: rgb(46 125 50 / 10%);
   color: var(--status-success);
+  font-size: 14px;
 }
 
 .agile__badge--warning {
@@ -330,6 +331,7 @@ section.agile__modal--tasks {
 }
 
 @media (max-width: 1180px) {
+
   .agile__columns-grid,
   .agile__settings-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -337,6 +339,7 @@ section.agile__modal--tasks {
 }
 
 @media (max-width: 760px) {
+
   .agile__form-grid,
   .agile__columns-grid,
   .agile__settings-grid,

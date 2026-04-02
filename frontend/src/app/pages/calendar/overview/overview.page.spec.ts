@@ -60,7 +60,7 @@ describe('CalendarOverviewPageComponent', () => {
       title: 'Тестовый таймблок',
       timestamp: '2026-04-01T09:49:47.426Z',
       columnId: 'col-1',
-      columnTitle: 'В РАБОТЕ',
+      columnTitle: 'В работе',
       boardId: 'board-1',
       boardTitle: 'Новая доска',
       archived: false,

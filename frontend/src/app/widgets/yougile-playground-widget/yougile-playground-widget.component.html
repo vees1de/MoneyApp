@@ -88,7 +88,7 @@
                 (click)="openTasksModal(column.columnId)"
               >
                 <div class="agile__column-card-top">
-                  <strong>{{ column.title }}</strong>
+                  <div>{{ column.title.toLocaleLowerCase() }}</div>
                   <span>{{ column.tasksTotal }}</span>
                 </div>
 
@@ -159,7 +159,10 @@
   }
 
   @if (modalOpen()) {
-    <div class="agile__modal-backdrop agile__modal-backdrop--fullscreen" (click)="closeConnectModal()">
+    <div
+      class="agile__modal-backdrop agile__modal-backdrop--fullscreen"
+      (click)="closeConnectModal()"
+    >
       <section class="agile__modal agile__modal--connect" (click)="$event.stopPropagation()">
         <div class="agile__modal-head">
           <h3>
