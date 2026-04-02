@@ -32,6 +32,8 @@ export class ReportsApiService {
         'position',
         'intake_title',
         'course_title',
+        'max_price',
+        'current_price',
         'status',
         'payment_status',
         'enrollment_status',
