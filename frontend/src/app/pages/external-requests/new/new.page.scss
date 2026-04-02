@@ -15,12 +15,38 @@
 .request-new-page__header p {
   color: var(--app-muted);
   margin-top: var(--space-2);
+  max-width: 920px;
+}
+
+.request-new-page__budget {
+  max-width: 1120px;
 }
 
 .request-new-form {
   display: grid;
   gap: var(--space-3);
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.request-new-form__wide,
+.request-new-form__actions,
+.request-new-form__approval,
+.request-new-page__error {
+  grid-column: 1 / -1;
+}
+
+.request-new-form__approval {
+  background: #f6f8fc;
+  border: 1px solid #dde5f0;
+  border-radius: 18px;
+  display: grid;
+  gap: 10px;
+  padding: 16px 18px;
+}
+
+.request-new-form__approval p {
+  color: var(--app-muted);
+  margin: 0;
 }
 
 .request-new-form__actions {
@@ -31,7 +57,6 @@
 .request-new-page__error {
   color: #b42318;
   font-weight: 600;
-  grid-column: 1 / -1;
 }
 
 @media (max-width: 1100px) {

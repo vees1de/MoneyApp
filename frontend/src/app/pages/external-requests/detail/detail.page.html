@@ -9,9 +9,19 @@
 
   @if (loading()) {
     <div class="request-detail-skeleton"></div>
-  } @else if (error()) {
-    <p class="request-detail-page__error">{{ error() }}</p>
   } @else if (request(); as item) {
+    @if (budgetView(); as budget) {
+      <app-training-budget-preview
+        title="Бюджет по заявке"
+        subtitle="При отправке в согласование сумма резервируется. При отклонении, возврате на доработку или отмене курса резерв снимается."
+        [department]="budget.department"
+        [employee]="budget.employee"
+        [validation]="budget.validation"
+        [latestExpense]="budget.latestExpense"
+        [history]="budget.history"
+      />
+    }
+
     <mat-card class="request-detail-card">
       <mat-card-header>
         <mat-card-title>{{ item.title }}</mat-card-title>
@@ -28,10 +38,39 @@
         <p><span class="kv__key">Обновлено:</span> <span class="kv__value">{{ item.updated_at | date: 'dd.MM.yyyy HH:mm' }}</span></p>
         <p><span class="kv__key">Комментарий сотрудника:</span> <span class="kv__value">{{ item.employee_comment || '—' }}</span></p>
 
+        @if (canSubmit()) {
+          <section class="request-detail-page__approval-block">
+            <mat-checkbox [formControl]="form.controls.requires_additional_approval">
+              Запросить дополнительное согласование, если бюджета не хватает
+            </mat-checkbox>
+            <p>
+              @if (submitBlockedByBudget()) {
+                Сейчас отправка заблокирована бюджетной проверкой.
+              } @else {
+                Лимитов достаточно или дополнительное согласование уже запрошено.
+              }
+            </p>
+          </section>
+
+          @if (budgetView()?.validation?.requiresAdditionalApproval || form.controls.requires_additional_approval.value) {
+            <mat-form-field appearance="outline" class="request-detail-page__comment">
+              <mat-label>Комментарий для дополнительного согласования</mat-label>
+              <textarea matInput rows="3" [formControl]="form.controls.additional_approval_comment"></textarea>
+            </mat-form-field>
+          }
+        }
+
         <mat-form-field appearance="outline" class="request-detail-page__comment">
           <mat-label>Комментарий к решению</mat-label>
           <textarea matInput rows="3" [formControl]="form.controls.comment"></textarea>
         </mat-form-field>
+
+        @if (info()) {
+          <p class="request-detail-page__info">{{ info() }}</p>
+        }
+        @if (error()) {
+          <p class="request-detail-page__error">{{ error() }}</p>
+        }
 
         <div class="request-detail-page__actions">
           @if (canSubmit()) {
@@ -58,8 +97,16 @@
               Отклонить
             </button>
           }
+          @if (canMarkCancelled()) {
+            <button mat-stroked-button type="button" (click)="markCancelled()">
+              <mat-icon>event_busy</mat-icon>
+              Отменить курс и вернуть бюджет
+            </button>
+          }
         </div>
       </mat-card-content>
     </mat-card>
+  } @else if (error()) {
+    <p class="request-detail-page__error">{{ error() }}</p>
   }
 </section>

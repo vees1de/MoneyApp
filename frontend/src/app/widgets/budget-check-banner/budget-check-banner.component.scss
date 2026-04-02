@@ -1,0 +1,125 @@
+:host {
+  display: block;
+}
+
+.budget-banner {
+  border-radius: var(--radius-sm);
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+
+.budget-banner--ok {
+  background: rgb(48 204 0 / 8%);
+  border: 1px solid rgb(48 204 0 / 24%);
+}
+
+.budget-banner--blocked {
+  background: rgb(228 51 44 / 6%);
+  border: 1px solid rgb(228 51 44 / 20%);
+}
+
+.budget-banner--loading {
+  background: var(--app-surface-soft);
+  border: 1px solid var(--app-border);
+}
+
+.budget-banner__shimmer {
+  animation: banner-shimmer 1.3s ease-in-out infinite;
+  background: linear-gradient(90deg, #edf1f8 25%, #f9fbff 50%, #edf1f8 75%);
+  background-size: 300% 100%;
+  border-radius: 6px;
+  height: 48px;
+  width: 100%;
+}
+
+.budget-banner__icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.budget-banner--ok .budget-banner__icon mat-icon {
+  color: var(--status-success);
+}
+
+.budget-banner--blocked .budget-banner__icon mat-icon {
+  color: var(--status-error);
+}
+
+.budget-banner__content {
+  display: grid;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.budget-banner__title {
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.budget-banner--ok .budget-banner__title {
+  color: #1a8a00;
+}
+
+.budget-banner--blocked .budget-banner__title {
+  color: var(--status-error);
+}
+
+.budget-banner__details {
+  display: grid;
+  gap: 2px;
+}
+
+.budget-banner__row {
+  display: flex;
+  font-size: 0.8rem;
+  justify-content: space-between;
+}
+
+.budget-banner__label {
+  color: var(--app-muted);
+}
+
+.budget-banner__value {
+  color: var(--app-text);
+  font-weight: 600;
+}
+
+.budget-banner__value--danger {
+  color: var(--status-error);
+}
+
+.budget-banner__warnings {
+  border-top: 1px solid rgb(228 51 44 / 16%);
+  display: grid;
+  gap: var(--space-1);
+  padding-top: var(--space-2);
+}
+
+.budget-banner__warning {
+  align-items: center;
+  color: var(--status-error);
+  display: flex;
+  font-size: 0.78rem;
+  font-weight: 500;
+  gap: var(--space-1);
+  margin: 0;
+}
+
+.budget-banner__warning mat-icon {
+  font-size: 16px;
+  height: 16px;
+  width: 16px;
+}
+
+.budget-banner__note {
+  color: var(--app-muted);
+  font-size: 0.75rem;
+  font-style: italic;
+  margin: 0;
+}
+
+@keyframes banner-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}

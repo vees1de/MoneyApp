@@ -5,7 +5,7 @@
 .request-detail-page {
   display: grid;
   gap: var(--space-6);
-  max-width: 980px;
+  max-width: 1120px;
 }
 
 .request-detail-page__header {
@@ -30,6 +30,20 @@
 }
 
 .request-detail-card__content p {
+  margin: 0;
+}
+
+.request-detail-page__approval-block {
+  background: #f6f8fc;
+  border: 1px solid #dde5f0;
+  border-radius: 18px;
+  display: grid;
+  gap: 10px;
+  padding: 16px 18px;
+}
+
+.request-detail-page__approval-block p {
+  color: var(--app-muted);
   margin: 0;
 }
 
@@ -59,6 +73,11 @@
 
 .request-detail-page__error {
   color: #b42318;
+  font-weight: 600;
+}
+
+.request-detail-page__info {
+  color: #126a43;
   font-weight: 600;
 }
 

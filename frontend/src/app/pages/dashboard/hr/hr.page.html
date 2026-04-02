@@ -1,6 +1,7 @@
 <section class="hr-dashboard">
   <div class="hr-dashboard__main">
     <app-quick-actions-widget />
+    <app-department-budget-widget />
     <app-risks-widget />
     <app-intake-hr-approvals-widget />
     <app-hr-suggestions-widget />
@@ -10,5 +11,6 @@
 
   <aside class="hr-dashboard__side">
     <app-upcoming-events-widget />
+    <app-spending-history-widget [limit]="6" />
   </aside>
 </section>

@@ -1,11 +1,16 @@
-﻿:host {
+:host {
   display: block;
 }
 
 .approvals-decision-page {
   display: grid;
   gap: var(--space-4);
-  max-width: 920px;
+  max-width: 1120px;
+}
+
+.approvals-decision-page__content {
+  display: grid;
+  gap: var(--space-3);
 }
 
 .approvals-decision-page__comment {
@@ -18,6 +23,28 @@
   gap: var(--space-2);
 }
 
+.approvals-decision-page__warning {
+  align-items: start;
+  background: #fff6e8;
+  border: 1px solid #ffd9a8;
+  border-radius: 18px;
+  color: #8b4e00;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: auto 1fr;
+  padding: 14px 16px;
+}
+
+.approvals-decision-page__warning p,
+.approvals-decision-page__content p {
+  margin: 0;
+}
+
 .approvals-decision-page__error {
   color: #b42318;
+}
+
+.approvals-decision-page__info {
+  color: #126a43;
+  font-weight: 600;
 }

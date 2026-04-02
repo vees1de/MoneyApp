@@ -1,7 +1,19 @@
 <section class="request-new-page">
   <header class="request-new-page__header">
     <h1>Новая заявка на внешний курс</h1>
+    <p>Бюджет и квота проверяются сразу на фронтенде. Резерв денег произойдёт при отправке черновика на согласование.</p>
   </header>
+
+  <app-training-budget-preview
+    class="request-new-page__budget"
+    title="Проверка бюджета перед созданием"
+    subtitle="Отдел и личная квота берутся из текущего профиля. Если лимитов не хватает, запрос помечается как требующий дополнительного согласования."
+    [department]="budgetPreview().department"
+    [employee]="budgetPreview().employee"
+    [validation]="budgetPreview().validation"
+    [history]="budgetPreview().department?.expenses ?? []"
+    [showLatest]="false"
+  />
 
   <mat-card>
     <mat-card-content>
@@ -21,7 +33,7 @@
           <input matInput formControlName="course_url" />
         </mat-form-field>
 
-        <mat-form-field appearance="outline">
+        <mat-form-field appearance="outline" class="request-new-form__wide">
           <mat-label>Описание программы</mat-label>
           <textarea matInput rows="3" formControlName="program_description"></textarea>
         </mat-form-field>
@@ -51,15 +63,35 @@
           <input matInput formControlName="currency" />
         </mat-form-field>
 
-        <mat-form-field appearance="outline">
+        <mat-form-field appearance="outline" class="request-new-form__wide">
           <mat-label>Бизнес-цель</mat-label>
           <textarea matInput rows="2" formControlName="business_goal"></textarea>
         </mat-form-field>
 
-        <mat-form-field appearance="outline">
+        <mat-form-field appearance="outline" class="request-new-form__wide">
           <mat-label>Комментарий сотрудника</mat-label>
           <textarea matInput rows="2" formControlName="employee_comment"></textarea>
         </mat-form-field>
+
+        <section class="request-new-form__approval">
+          <mat-checkbox formControlName="requires_additional_approval">
+            Запросить дополнительное согласование, если квоты или бюджета не хватает
+          </mat-checkbox>
+          <p>
+            @if (requiresAdditionalApproval()) {
+              Без этой отметки заявку не получится отправить дальше по процессу согласования.
+            } @else {
+              Лимитов хватает. Дополнительное согласование не требуется.
+            }
+          </p>
+        </section>
+
+        @if (requiresAdditionalApproval() || form.controls.requires_additional_approval.value) {
+          <mat-form-field appearance="outline" class="request-new-form__wide">
+            <mat-label>Обоснование дополнительного согласования</mat-label>
+            <textarea matInput rows="3" formControlName="additional_approval_comment"></textarea>
+          </mat-form-field>
+        }
 
         @if (error()) {
           <p class="request-new-page__error">{{ error() }}</p>
@@ -67,8 +99,8 @@
 
         <div class="request-new-form__actions">
           <button mat-flat-button color="primary" type="submit" [disabled]="submitting()">
-            <mat-icon>send</mat-icon>
-            {{ submitting() ? 'Создание...' : 'Создать заявку' }}
+            <mat-icon>description</mat-icon>
+            {{ submitting() ? 'Создание...' : 'Сохранить черновик' }}
           </button>
           <a mat-stroked-button routerLink="/external-requests">
             <mat-icon>arrow_back</mat-icon>

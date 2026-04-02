@@ -45,6 +45,14 @@ export class QuickActionsWidgetComponent implements OnInit {
     () => COURSE_INTAKE_MANAGER_APPROVAL_ENABLED && this.authState.hasAnyRole(['manager', 'admin']),
   );
 
+  protected readonly canCreateExternalRequest = computed(() =>
+    this.authState.hasPermission(PERMISSIONS.externalRequestsCreate),
+  );
+
+  protected readonly canOpenBudgetReport = computed(() =>
+    this.authState.hasAnyPermission([PERMISSIONS.analyticsReadHr, PERMISSIONS.analyticsReadManager]),
+  );
+
   ngOnInit(): void {
     forkJoin({
       plan: this.learningPlanApi.getMyPlan().pipe(catchError(() => of(null))),

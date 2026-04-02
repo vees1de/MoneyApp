@@ -87,6 +87,14 @@ export class AppShellComponent {
           PERMISSIONS.analyticsReadManager,
         ]),
       },
+      {
+        label: 'Бюджет',
+        route: '/reports/budget',
+        visible: this.authState.hasAnyPermission([
+          PERMISSIONS.analyticsReadHr,
+          PERMISSIONS.analyticsReadManager,
+        ]),
+      },
     ];
 
     return items.filter((item) => item.visible);

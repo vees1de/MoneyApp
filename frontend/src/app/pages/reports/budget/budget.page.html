@@ -1,11 +1,207 @@
-﻿<section class="page-shell">
-  <header class="page-header">
-    <h1>ReportsBudgetPageComponent</h1>
-    <p>Route: <code>/reports/budget</code></p>
+<section class="budget-report-page">
+  <header class="budget-report-page__header">
+    <div>
+      <h1>Отчёт по бюджетам обучения</h1>
+      <p>
+        Витрина для HR и руководителя: расходы по отделам и сотрудникам, остатки бюджета и самые
+        затратные курсы.
+      </p>
+    </div>
+
+    <div class="budget-report-page__actions">
+      <a mat-stroked-button routerLink="/external-requests">
+        <mat-icon>fact_check</mat-icon>
+        К заявкам
+      </a>
+      <a mat-flat-button color="primary" routerLink="/reports/overview">
+        <mat-icon>insights</mat-icon>
+        К другим отчётам
+      </a>
+    </div>
   </header>
 
-  <main class="page-content">
-    <p>Page scaffold created. Connect real widgets and data flows next.</p>
-    <a routerLink="/">Go to root</a>
-  </main>
+  <section class="budget-report-page__totals">
+    <mat-card class="total-card">
+      <span>Общий бюджет</span>
+      <strong>{{ totals().totalBudget | number: '1.0-0' }} RUB</strong>
+    </mat-card>
+    <mat-card class="total-card">
+      <span>Использовано</span>
+      <strong>{{ totals().usedAmount | number: '1.0-0' }} RUB</strong>
+      <small
+        >Потрачено {{ totals().spentAmount | number: '1.0-0' }} · в резерве
+        {{ totals().reservedAmount | number: '1.0-0' }}</small
+      >
+    </mat-card>
+    <mat-card class="total-card">
+      <span>Остаток</span>
+      <strong>{{ totals().remainingAmount | number: '1.0-0' }} RUB</strong>
+    </mat-card>
+    <mat-card class="total-card">
+      <span>Активные заявки</span>
+      <strong>{{ totals().activeRequests }}</strong>
+    </mat-card>
+  </section>
+
+  <section class="budget-report-page__section">
+    <div class="section-heading">
+      <div>
+        <h2>Расходы по отделам</h2>
+        <p>
+          Каждый отдел показывает общий лимит, фактическое использование и сигнал по риску бюджета.
+        </p>
+      </div>
+    </div>
+
+    <div class="department-grid">
+      @for (department of departmentRows(); track department.departmentId) {
+        <mat-card class="department-card">
+          <div class="department-card__head">
+            <div>
+              <h3>{{ department.departmentName }}</h3>
+              <p>
+                {{ department.headcount }} сотрудников · {{ department.activeRequests }} активных
+                заявок
+              </p>
+            </div>
+            <span class="status-pill status-pill--{{ tone(department.status) }}">{{
+              usageStatusLabel(department.status)
+            }}</span>
+          </div>
+
+          <div class="department-card__stats">
+            <div>
+              <span>Бюджет</span>
+              <strong>{{ department.totalBudget | number: '1.0-0' }} RUB</strong>
+            </div>
+            <div>
+              <span>Использовано</span>
+              <strong>{{ department.usedAmount | number: '1.0-0' }} RUB</strong>
+            </div>
+            <div>
+              <span>Потрачено</span>
+              <strong>{{ department.spentAmount | number: '1.0-0' }} RUB</strong>
+            </div>
+            <div>
+              <span>Остаток</span>
+              <strong>{{ department.remainingAmount | number: '1.0-0' }} RUB</strong>
+            </div>
+          </div>
+
+          <div class="department-card__meter">
+            <div class="department-card__track">
+              <span
+                class="department-card__fill"
+                [style.width.%]="progress(department.usagePercent)"
+              ></span>
+            </div>
+            <small>{{ department.usagePercent }}% бюджета занято</small>
+          </div>
+        </mat-card>
+      }
+    </div>
+  </section>
+
+  <section class="budget-report-page__split">
+    <mat-card class="panel-card">
+      <div class="section-heading">
+        <div>
+          <h2>Расходы по сотрудникам</h2>
+          <p>Персональные квоты и остатки для лидов и HR.</p>
+        </div>
+      </div>
+
+      <div class="table-shell">
+        <table class="budget-table">
+          <thead>
+            <tr>
+              <th>Сотрудник</th>
+              <th>Отдел</th>
+              <th>Квота</th>
+              <th>Использовано</th>
+              <th>Остаток</th>
+              <th>Статус</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (employee of employeeRows().slice(0, 10); track employee.employeeId) {
+              <tr>
+                <td>{{ employee.employeeName }}</td>
+                <td>{{ employee.departmentName }}</td>
+                <td>{{ employee.quotaAmount | number: '1.0-0' }} RUB</td>
+                <td>{{ employee.usedAmount | number: '1.0-0' }} RUB</td>
+                <td>{{ employee.remainingAmount | number: '1.0-0' }} RUB</td>
+                <td>
+                  <span class="status-pill status-pill--{{ tone(employee.status) }}">{{
+                    usageStatusLabel(employee.status)
+                  }}</span>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </mat-card>
+
+    <mat-card class="panel-card">
+      <div class="section-heading">
+        <div>
+          <h2>Самые затратные курсы</h2>
+          <p>Курсы, которые сейчас забирают больше всего бюджета.</p>
+        </div>
+      </div>
+
+      <div class="courses-list">
+        @for (course of topCourses(); track course.courseTitle) {
+          <article class="course-row">
+            <div>
+              <strong>{{ course.courseTitle }}</strong>
+              <p>{{ course.requestCount }} заявок · {{ course.uniqueEmployees }} сотрудников</p>
+            </div>
+            <strong>{{ course.totalAmount | number: '1.0-0' }} {{ course.currency }}</strong>
+          </article>
+        } @empty {
+          <p class="empty-state">Данных по курсам пока нет.</p>
+        }
+      </div>
+    </mat-card>
+  </section>
+
+  <section class="budget-report-page__section">
+    <div class="section-heading">
+      <div>
+        <h2>История расходов на обучение</h2>
+        <p>Списания, резервы и возвраты с текущими статусами.</p>
+      </div>
+    </div>
+
+    <mat-card class="panel-card">
+      <div class="table-shell">
+        <table class="budget-table budget-table--history">
+          <thead>
+            <tr>
+              <th>Курс</th>
+              <th>Сотрудник</th>
+              <th>Отдел</th>
+              <th>Сумма</th>
+              <th>Статус</th>
+              <th>Обновлено</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (expense of history(); track expense.id) {
+              <tr>
+                <td>{{ expense.courseTitle }}</td>
+                <td>{{ expense.employeeName }}</td>
+                <td>{{ expense.departmentName }}</td>
+                <td>{{ expense.amount | number: '1.0-0' }} {{ expense.currency }}</td>
+                <td>{{ expenseStatusLabel(expense.status) }}</td>
+                <td>{{ expense.updatedAt | date: 'dd.MM.yyyy HH:mm' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </mat-card>
+  </section>
 </section>

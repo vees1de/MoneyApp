@@ -1,7 +1,28 @@
 <section class="requests-list-page">
   <header class="requests-list-page__header">
-    <h1>Заявления</h1>
+    <div>
+      <h1>Заявления</h1>
+      <p>Список заявок теперь показывает бюджетный контекст: резерв, остаток отдела и остаток персональной квоты.</p>
+    </div>
+    @if (role() === 'employee') {
+      <a mat-flat-button color="primary" routerLink="/external-requests/new">
+        <mat-icon>add</mat-icon>
+        Новая заявка
+      </a>
+    }
   </header>
+
+  <app-training-budget-preview
+    class="requests-list-page__budget"
+    title="Мой бюджет на обучение"
+    subtitle="Краткий обзор по отделу и персональной квоте перед работой со списком заявок."
+    [department]="currentBudget().department"
+    [employee]="currentBudget().employee"
+    [validation]="currentBudget().validation"
+    [history]="currentBudget().department?.expenses ?? []"
+    [compact]="true"
+    [showLatest]="false"
+  />
 
   <mat-card>
     <mat-card-content>
@@ -75,6 +96,24 @@
               </span>
             </p>
             <p><span class="kv__key">Обновлено:</span> <span class="kv__value">{{ item.updated_at | date: 'dd.MM.yyyy HH:mm' }}</span></p>
+
+            <section class="request-card__budget" [class.request-card__budget--warning]="requestBudgetTone(item.id) === 'warning'">
+              <div class="request-card__budget-head">
+                <span class="request-card__budget-badge" [class.request-card__budget-badge--warning]="requestBudgetTone(item.id) === 'warning'">
+                  {{ requestBudgetLabel(item.id) }}
+                </span>
+              </div>
+              @if (requestBudgetMeta(item.id); as meta) {
+                <p>
+                  <span class="kv__key">Остаток отдела:</span>
+                  <span class="kv__value">{{ meta.department | number: '1.0-0' }} RUB</span>
+                </p>
+                <p>
+                  <span class="kv__key">Остаток сотрудника:</span>
+                  <span class="kv__value">{{ meta.employee | number: '1.0-0' }} RUB</span>
+                </p>
+              }
+            </section>
           </mat-card-content>
         </mat-card>
       }

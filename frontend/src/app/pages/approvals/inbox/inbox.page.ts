@@ -5,6 +5,7 @@ import { MatCardModule } from '@angular/material/card';
 
 import { ExternalRequestsApiService } from '@core/api/external-requests-api.service';
 import type { PendingApprovalItem } from '@core/api/contracts';
+import { TrainingBudgetMockService } from '@core/domain/training-budget-mock.service';
 import { externalRequestStatusLabel } from '@core/domain/external-request.workflow';
 
 @Component({
@@ -16,6 +17,7 @@ import { externalRequestStatusLabel } from '@core/domain/external-request.workfl
 })
 export class ApprovalsInboxPageComponent implements OnInit {
   private readonly api = inject(ExternalRequestsApiService);
+  private readonly budgetMock = inject(TrainingBudgetMockService);
 
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
@@ -24,6 +26,7 @@ export class ApprovalsInboxPageComponent implements OnInit {
   ngOnInit(): void {
     this.api.listPendingApprovals().subscribe({
       next: (items) => {
+        (items ?? []).forEach((item) => this.budgetMock.syncRequest(item.request));
         this.items.set(items ?? []);
         this.loading.set(false);
       },
@@ -36,5 +39,12 @@ export class ApprovalsInboxPageComponent implements OnInit {
 
   protected statusLabel(status: string): string {
     return externalRequestStatusLabel(status);
+  }
+
+  protected budgetLabel(requestId: string): string {
+    const view = this.budgetMock.getRequestView(requestId);
+    return view && (view.trackedRequest.requiresAdditionalApproval || view.validation.requiresAdditionalApproval)
+      ? 'Нужно доп. согласование'
+      : 'В пределах бюджета';
   }
 }

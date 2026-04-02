@@ -1,0 +1,159 @@
+<section
+  class="budget-preview"
+  [class.budget-preview--compact]="compact()"
+  [class.budget-preview--warning]="isWarning()"
+  [class.budget-preview--ok]="!isWarning()"
+>
+  <header class="budget-preview__header">
+    <div>
+      <div class="budget-preview__eyebrow">
+        @if (showMockBadge()) {
+          <span class="budget-preview__badge">Mock</span>
+        }
+        <span class="budget-preview__status">{{ validationStatusLabel(validation()?.status ?? 'within_budget') }}</span>
+      </div>
+      <h2>{{ title() }}</h2>
+      @if (subtitle()) {
+        <p>{{ subtitle() }}</p>
+      }
+    </div>
+
+    @if (validation(); as budgetValidation) {
+      <div class="budget-preview__amount">
+        <span>Сумма заявки</span>
+        <strong>{{ budgetValidation.requestAmount | number: '1.0-0' }} {{ budgetValidation.currency }}</strong>
+      </div>
+    }
+  </header>
+
+  @if (validation()?.warnings?.length) {
+    <section class="budget-preview__warning">
+      <mat-icon>{{ validation()?.requiresAdditionalApproval ? 'warning' : 'info' }}</mat-icon>
+      <div>
+        @for (warning of validation()?.warnings ?? []; track warning) {
+          <p>{{ warning }}</p>
+        }
+      </div>
+    </section>
+  }
+
+  <div class="budget-preview__grid">
+    @if (department(); as departmentBudget) {
+      <article class="budget-preview__card">
+        <div class="budget-preview__card-head">
+          <div>
+            <span class="budget-preview__label">Бюджет отдела</span>
+            <h3>{{ departmentBudget.departmentName }}</h3>
+          </div>
+          <span class="budget-preview__pill budget-preview__pill--{{ departmentBudget.status }}">
+            {{ usageStatusLabel(departmentBudget.status) }}
+          </span>
+        </div>
+
+        <div class="budget-preview__stats">
+          <div>
+            <span>Бюджет</span>
+            <strong>{{ departmentBudget.totalBudget | number: '1.0-0' }} {{ departmentBudget.currency }}</strong>
+          </div>
+          <div>
+            <span>Потрачено</span>
+            <strong>{{ departmentBudget.spentAmount | number: '1.0-0' }} {{ departmentBudget.currency }}</strong>
+          </div>
+          <div>
+            <span>В резерве</span>
+            <strong>{{ departmentBudget.reservedAmount | number: '1.0-0' }} {{ departmentBudget.currency }}</strong>
+          </div>
+          <div>
+            <span>Осталось</span>
+            <strong>{{ departmentBudget.remainingAmount | number: '1.0-0' }} {{ departmentBudget.currency }}</strong>
+          </div>
+        </div>
+
+        <div class="budget-preview__meter">
+          <div class="budget-preview__meter-track">
+            <span class="budget-preview__meter-fill" [style.width.%]="width(departmentBudget.usagePercent)"></span>
+          </div>
+          <small>{{ departmentBudget.usagePercent }}% бюджета занято</small>
+        </div>
+      </article>
+    }
+
+    @if (employee(); as employeeQuota) {
+      <article class="budget-preview__card">
+        <div class="budget-preview__card-head">
+          <div>
+            <span class="budget-preview__label">Персональная квота</span>
+            <h3>{{ employeeQuota.employeeName }}</h3>
+          </div>
+          <span class="budget-preview__pill budget-preview__pill--{{ employeeQuota.status }}">
+            {{ usageStatusLabel(employeeQuota.status) }}
+          </span>
+        </div>
+
+        <div class="budget-preview__stats">
+          <div>
+            <span>Квота</span>
+            <strong>{{ employeeQuota.quotaAmount | number: '1.0-0' }} {{ department()?.currency || 'RUB' }}</strong>
+          </div>
+          <div>
+            <span>Потрачено</span>
+            <strong>{{ employeeQuota.spentAmount | number: '1.0-0' }} {{ department()?.currency || 'RUB' }}</strong>
+          </div>
+          <div>
+            <span>В резерве</span>
+            <strong>{{ employeeQuota.reservedAmount | number: '1.0-0' }} {{ department()?.currency || 'RUB' }}</strong>
+          </div>
+          <div>
+            <span>Осталось</span>
+            <strong>{{ employeeQuota.remainingAmount | number: '1.0-0' }} {{ department()?.currency || 'RUB' }}</strong>
+          </div>
+        </div>
+
+        <div class="budget-preview__meter">
+          <div class="budget-preview__meter-track">
+            <span class="budget-preview__meter-fill" [style.width.%]="width(employeeQuota.usagePercent)"></span>
+          </div>
+          <small>{{ employeeQuota.usagePercent }}% квоты занято</small>
+        </div>
+      </article>
+    }
+  </div>
+
+  @if (showLatest() && latestExpense(); as expense) {
+    <article class="budget-preview__latest">
+      <div>
+        <span class="budget-preview__label">Последний расход</span>
+        <h3>{{ expense.courseTitle }}</h3>
+        <p>{{ expense.providerName || 'Провайдер не указан' }}</p>
+      </div>
+      <div class="budget-preview__latest-meta">
+        <strong>{{ expense.amount | number: '1.0-0' }} {{ expense.currency }}</strong>
+        <span>{{ expenseStatusLabel(expense.status) }}</span>
+      </div>
+    </article>
+  }
+
+  @if (showHistory() && limitedHistory().length > 0) {
+    <section class="budget-preview__history">
+      <div class="budget-preview__history-head">
+        <h3>История расходов</h3>
+        <span>{{ limitedHistory().length }} записей</span>
+      </div>
+
+      <div class="budget-preview__history-list">
+        @for (expense of limitedHistory(); track expense.id) {
+          <article class="budget-preview__history-item">
+            <div>
+              <strong>{{ expense.courseTitle }}</strong>
+              <p>{{ expense.employeeName }} · {{ expense.departmentName }}</p>
+            </div>
+            <div class="budget-preview__history-meta">
+              <strong>{{ expense.amount | number: '1.0-0' }} {{ expense.currency }}</strong>
+              <span>{{ expenseStatusLabel(expense.status) }}</span>
+            </div>
+          </article>
+        }
+      </div>
+    </section>
+  }
+</section>

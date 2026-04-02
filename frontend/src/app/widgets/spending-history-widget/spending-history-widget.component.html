@@ -1,0 +1,25 @@
+<app-widget-shell
+  title="История расходов"
+  listRoute="/reports/budget"
+  [loading]="loading()"
+  [error]="error()"
+  [empty]="!loading() && displayedExpenses().length === 0"
+>
+  <div class="expenses-list">
+    @for (expense of displayedExpenses(); track expense.id) {
+      <div class="expense-row">
+        <div class="expense-row__main">
+          <span class="expense-row__course">{{ expense.courseTitle }}</span>
+          <span class="expense-row__employee">{{ expense.employeeName }}</span>
+        </div>
+        <div class="expense-row__details">
+          <span class="expense-row__amount">{{ formatCurrency(expense.amount) }}</span>
+          <span class="expense-row__status" [class]="statusClass(expense.status)">
+            {{ statusLabel(expense.status) }}
+          </span>
+          <span class="expense-row__date">{{ expense.createdAt | date:'dd.MM.yyyy' }}</span>
+        </div>
+      </div>
+    }
+  </div>
+</app-widget-shell>

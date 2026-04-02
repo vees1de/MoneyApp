@@ -1,0 +1,58 @@
+@if (loading()) {
+  <div class="budget-banner budget-banner--loading">
+    <div class="budget-banner__shimmer"></div>
+  </div>
+} @else if (validation(); as v) {
+  <div class="budget-banner" [class.budget-banner--ok]="!v.requiresAdditionalApproval" [class.budget-banner--blocked]="v.requiresAdditionalApproval">
+    <div class="budget-banner__icon">
+      @if (v.requiresAdditionalApproval) {
+        <mat-icon>warning</mat-icon>
+      } @else {
+        <mat-icon>check_circle</mat-icon>
+      }
+    </div>
+
+    <div class="budget-banner__content">
+      <span class="budget-banner__title">
+        @if (v.requiresAdditionalApproval) {
+          Недостаточно бюджета
+        } @else {
+          Бюджет доступен
+        }
+      </span>
+
+      <div class="budget-banner__details">
+        <div class="budget-banner__row">
+          <span class="budget-banner__label">Стоимость курса</span>
+          <span class="budget-banner__value">{{ formatCurrency(v.requestAmount) }}</span>
+        </div>
+        <div class="budget-banner__row">
+          <span class="budget-banner__label">Ваш остаток квоты</span>
+          <span class="budget-banner__value" [class.budget-banner__value--danger]="!v.employeeEnough">
+            {{ formatCurrency(v.employeeRemainingAmount) }}
+          </span>
+        </div>
+        <div class="budget-banner__row">
+          <span class="budget-banner__label">Бюджет отдела</span>
+          <span class="budget-banner__value" [class.budget-banner__value--danger]="!v.departmentEnough">
+            {{ formatCurrency(v.departmentRemainingAmount) }}
+          </span>
+        </div>
+      </div>
+
+      @if (v.warnings.length > 0) {
+        <div class="budget-banner__warnings">
+          @for (warning of v.warnings; track warning) {
+            <p class="budget-banner__warning">
+              <mat-icon>info</mat-icon>
+              {{ warning }}
+            </p>
+          }
+          <p class="budget-banner__note">
+            Заявка потребует дополнительного согласования с руководством.
+          </p>
+        </div>
+      }
+    </div>
+  </div>
+}

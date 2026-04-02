@@ -346,7 +346,9 @@ export const routes: Routes = [
       },
       {
         path: 'reports/budget',
-        canActivate: [permissionGuard([PERMISSIONS.analyticsReadHr])],
+        canActivate: [
+          permissionGuard([PERMISSIONS.analyticsReadHr, PERMISSIONS.analyticsReadManager]),
+        ],
         loadComponent: () =>
           import('@pages/reports/budget/budget.page').then((m) => m.ReportsBudgetPageComponent),
       },

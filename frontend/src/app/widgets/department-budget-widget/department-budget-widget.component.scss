@@ -1,0 +1,105 @@
+:host {
+  display: block;
+}
+
+.budget-summary {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.budget-summary__card {
+  background: var(--app-surface-soft);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+}
+
+.budget-summary__label {
+  color: var(--app-muted);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.budget-summary__value {
+  color: var(--app-text);
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.budget-summary__value--spent {
+  color: var(--status-warning);
+}
+
+.budget-summary__value--remaining {
+  color: var(--status-success);
+}
+
+.budget-overall-bar {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.budget-overall-bar__header {
+  display: flex;
+  font-size: 0.85rem;
+  font-weight: 500;
+  justify-content: space-between;
+}
+
+.budget-overall-bar__percent {
+  color: var(--app-muted);
+  font-weight: 600;
+}
+
+.budget-departments {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.budget-dept {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.budget-dept__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.budget-dept__name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+.budget-dept__amount {
+  color: var(--app-muted);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.budget-dept__footer {
+  display: flex;
+  justify-content: space-between;
+}
+
+.budget-dept__stat {
+  color: var(--app-muted);
+  font-size: 0.75rem;
+}
+
+.budget-dept__percent {
+  color: var(--app-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+@media (max-width: 600px) {
+  .budget-summary {
+    grid-template-columns: 1fr;
+  }
+}

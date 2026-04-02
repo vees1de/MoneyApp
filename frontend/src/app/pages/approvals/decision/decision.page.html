@@ -1,47 +1,79 @@
-﻿<section class="approvals-decision-page">
+<section class="approvals-decision-page">
   <header>
     <h1>Решение по заявке</h1>
   </header>
 
   @if (loading()) {
     <p>Загрузка...</p>
-  } @else if (error()) {
-    <p class="approvals-decision-page__error">{{ error() }}</p>
   } @else if (request(); as item) {
+    @if (budgetView(); as budget) {
+      <app-training-budget-preview
+        title="Бюджет перед решением"
+        subtitle="Согласующий видит бюджет отдела, личную квоту и последние списания по тому же отделу."
+        [department]="budget.department"
+        [employee]="budget.employee"
+        [validation]="budget.validation"
+        [latestExpense]="budget.latestExpense"
+        [history]="budget.history"
+      />
+    }
+
     <mat-card>
       <mat-card-header>
         <mat-card-title>{{ item.title }}</mat-card-title>
         <mat-card-subtitle>{{ statusLabel(item.status) }}</mat-card-subtitle>
       </mat-card-header>
 
-      <mat-card-content>
+      <mat-card-content class="approvals-decision-page__content">
         <p>Провайдер: {{ item.provider_name ?? '—' }}</p>
         <p>Стоимость: {{ item.cost_amount }} {{ item.currency }}</p>
-        <p>Бюджет: ручная проверка HR (MVP)</p>
+        <p>Сотрудник: {{ item.employee_full_name || item.employee_email || '—' }}</p>
+        <p>Отдел: {{ item.department_name || '—' }}</p>
+        @if (budgetView()?.trackedRequest?.requiresAdditionalApproval) {
+          <div class="approvals-decision-page__warning">
+            <mat-icon>warning</mat-icon>
+            <div>
+              <strong>Запрошено дополнительное согласование</strong>
+              <p>{{ budgetView()?.trackedRequest?.additionalApprovalComment || 'Комментарий не указан.' }}</p>
+            </div>
+          </div>
+        }
 
         <mat-form-field appearance="outline" class="approvals-decision-page__comment">
           <mat-label>Комментарий</mat-label>
           <textarea matInput rows="3" [formControl]="form.controls.comment"></textarea>
         </mat-form-field>
 
+        @if (info()) {
+          <p class="approvals-decision-page__info">{{ info() }}</p>
+        }
+        @if (error()) {
+          <p class="approvals-decision-page__error">{{ error() }}</p>
+        }
+
         <div class="approvals-decision-page__actions">
           @if (canApprove()) {
             <button mat-flat-button color="primary" type="button" (click)="approve()" [disabled]="acting()">
-              Approve
+              <mat-icon>check_circle</mat-icon>
+              Согласовать
             </button>
           }
           @if (canRevision()) {
             <button mat-stroked-button type="button" (click)="requestRevision()" [disabled]="acting()">
-              Request revision
+              <mat-icon>edit_note</mat-icon>
+              Вернуть на доработку
             </button>
           }
           @if (canReject()) {
             <button mat-stroked-button type="button" (click)="reject()" [disabled]="acting()">
-              Reject
+              <mat-icon>cancel</mat-icon>
+              Отклонить
             </button>
           }
         </div>
       </mat-card-content>
     </mat-card>
+  } @else if (error()) {
+    <p class="approvals-decision-page__error">{{ error() }}</p>
   }
 </section>

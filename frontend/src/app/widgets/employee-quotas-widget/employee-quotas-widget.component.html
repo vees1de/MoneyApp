@@ -1,0 +1,47 @@
+<app-widget-shell
+  title="Квоты сотрудников"
+  listRoute="/reports/budget"
+  [loading]="loading()"
+  [error]="error()"
+  [empty]="!loading() && displayedQuotas().length === 0"
+>
+  <div class="quotas-list">
+    @for (quota of displayedQuotas(); track quota.employeeId) {
+      <div class="quota-card">
+        <div class="quota-card__header">
+          <div class="quota-card__info">
+            <a class="quota-card__name" [routerLink]="'/employees/' + quota.employeeId">
+              {{ quota.employeeName }}
+            </a>
+            <span class="quota-card__dept">{{ quota.departmentName }}</span>
+          </div>
+          <span class="quota-card__status" [class]="statusClass(quota.status)">
+            {{ statusLabel(quota.status) }}
+          </span>
+        </div>
+
+        <mat-progress-bar
+          mode="determinate"
+          [value]="quota.usagePercent"
+          [color]="barColor(quota.status)"
+        />
+
+        <div class="quota-card__footer">
+          <span class="quota-card__used">
+            Использовано: {{ formatCurrency(quota.usedAmount) }}
+          </span>
+          <span class="quota-card__remaining">
+            Остаток: {{ formatCurrency(quota.remainingAmount) }}
+          </span>
+        </div>
+
+        <div class="quota-card__meta">
+          <span>Квота: {{ formatCurrency(quota.quotaAmount) }}</span>
+          @if (quota.reservedAmount > 0) {
+            <span>Зарезервировано: {{ formatCurrency(quota.reservedAmount) }}</span>
+          }
+        </div>
+      </div>
+    }
+  </div>
+</app-widget-shell>

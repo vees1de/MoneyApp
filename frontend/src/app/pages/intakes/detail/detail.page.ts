@@ -46,6 +46,8 @@ import {
 import { identityUserDisplayName } from '@core/domain/identity.util';
 import type { Enrollment } from '@entities/enrollment';
 
+import { BudgetCheckBannerComponent } from '@app/widgets/budget-check-banner/budget-check-banner.component';
+
 import {
   IntakeSettingsDialogComponent,
   type IntakeSettingsDialogResult,
@@ -72,6 +74,7 @@ type HrApplicationFilter = 'all' | 'pending' | 'accepted' | 'rejected';
     MatIconModule,
     MatInputModule,
     MatSelectModule,
+    BudgetCheckBannerComponent,
   ],
   templateUrl: './detail.page.html',
   styleUrl: './detail.page.scss',
@@ -101,6 +104,20 @@ export class IntakeDetailPageComponent implements OnInit {
   protected readonly myEnrollment = signal<Enrollment | null>(null);
   protected readonly users = signal<IdentityUserView[]>([]);
   protected readonly applicationComments = signal<Record<string, string>>({});
+  protected readonly budgetBlocked = signal(false);
+
+  protected readonly intakePriceNumeric = computed(() => {
+    const item = this.intake();
+    if (!item) return 0;
+    const normalized = item.price?.trim().replace(/\s+/g, '').replace(',', '.');
+    if (!normalized) return 0;
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  });
+
+  protected onBudgetBlocked(blocked: boolean): void {
+    this.budgetBlocked.set(blocked);
+  }
 
   protected readonly editForm = this.fb.group({
     title: ['', [Validators.required]],

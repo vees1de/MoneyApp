@@ -23,6 +23,7 @@
           <mat-card-content>
             <p>Шаг: {{ item.current_step.role_code }}</p>
             <p>Заявка: {{ item.request.request_no }}</p>
+            <p>Бюджет: {{ budgetLabel(item.request.id) }}</p>
             @if (item.current_step.due_at) {
               <p>Срок шага: {{ item.current_step.due_at }}</p>
             }

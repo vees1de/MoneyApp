@@ -39,6 +39,13 @@
       Мои заявки
     </button>
 
+    @if (canCreateExternalRequest()) {
+      <button mat-stroked-button routerLink="/external-requests/new">
+        <mat-icon>school</mat-icon>
+        Внешний курс
+      </button>
+    }
+
     <button mat-stroked-button routerLink="/my-learning">
       <mat-icon>school</mat-icon>
       Перейти к назначениям
@@ -48,6 +55,13 @@
       <button mat-stroked-button routerLink="/applications/pending-manager">
         <mat-icon>approval</mat-icon>
         Апрув руководителя
+      </button>
+    }
+
+    @if (canOpenBudgetReport()) {
+      <button mat-stroked-button routerLink="/reports/budget">
+        <mat-icon>account_balance_wallet</mat-icon>
+        Бюджеты
       </button>
     }
   </div>

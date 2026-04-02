@@ -600,6 +600,14 @@
       } @else if (canApply()) {
         <section class="application-state">
           <h3>Податься в назначение</h3>
+
+          @if (intakePriceNumeric() > 0) {
+            <app-budget-check-banner
+              [courseCost]="intakePriceNumeric()"
+              (budgetBlocked)="onBudgetBlocked($event)"
+            />
+          }
+
           <mat-form-field appearance="outline" class="application-state__motivation">
             <mat-label>Мотивация</mat-label>
             <textarea matInput rows="4" [formControl]="applyForm.controls.motivation"></textarea>
@@ -611,6 +619,13 @@
             </mat-checkbox>
           }
 
+          @if (budgetBlocked()) {
+            <p class="application-state__budget-warning">
+              <mat-icon>warning</mat-icon>
+              Бюджет недостаточен. Заявка потребует дополнительного согласования.
+            </p>
+          }
+
           <button
             mat-flat-button
             color="primary"
@@ -619,7 +634,7 @@
             [disabled]="acting()"
           >
             <mat-icon>send</mat-icon>
-            Подать заявку
+            {{ budgetBlocked() ? 'Подать на согласование' : 'Подать заявку' }}
           </button>
         </section>
       } @else {

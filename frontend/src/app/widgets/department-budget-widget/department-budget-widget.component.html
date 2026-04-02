@@ -1,0 +1,46 @@
+<app-widget-shell
+  title="Бюджет отделов"
+  listRoute="/reports/budget"
+  [loading]="loading()"
+  [error]="error()"
+  [empty]="!loading() && budgets().length === 0"
+>
+  <div class="budget-summary">
+    <div class="budget-summary__card">
+      <span class="budget-summary__label">Общий бюджет</span>
+      <span class="budget-summary__value">{{ formatCurrency(totalBudget()) }}</span>
+    </div>
+    <div class="budget-summary__card">
+      <span class="budget-summary__label">Использовано</span>
+      <span class="budget-summary__value budget-summary__value--spent">{{ formatCurrency(totalUsed()) }}</span>
+    </div>
+    <div class="budget-summary__card">
+      <span class="budget-summary__label">Остаток</span>
+      <span class="budget-summary__value budget-summary__value--remaining">{{ formatCurrency(totalRemaining()) }}</span>
+    </div>
+  </div>
+
+  <div class="budget-overall-bar">
+    <div class="budget-overall-bar__header">
+      <span>Занято бюджетом</span>
+      <span class="budget-overall-bar__percent">{{ overallPercent() }}%</span>
+    </div>
+    <mat-progress-bar mode="determinate" [value]="overallPercent()" [color]="overallBarColor()" />
+  </div>
+
+  <div class="budget-departments">
+    @for (dept of budgets(); track dept.departmentId) {
+      <div class="budget-dept">
+        <div class="budget-dept__header">
+          <span class="budget-dept__name">{{ dept.departmentName }}</span>
+          <span class="budget-dept__amount">{{ usageLabel(dept) }}</span>
+        </div>
+        <mat-progress-bar mode="determinate" [value]="dept.usagePercent" [color]="barColor(dept.status)" />
+        <div class="budget-dept__footer">
+          <span class="budget-dept__stat">{{ dept.employees.length }} сотрудников</span>
+          <span class="budget-dept__percent">{{ dept.remainingAmount | number: '1.0-0' }} RUB осталось</span>
+        </div>
+      </div>
+    }
+  </div>
+</app-widget-shell>
