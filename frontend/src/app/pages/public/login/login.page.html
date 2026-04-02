@@ -100,13 +100,64 @@
           <p class="login-error">{{ authError() }}</p>
         }
 
-        <button mat-flat-button type="submit" [disabled]="submitting()">
-          @if (submitting()) {
-            {{ isRegisterMode() ? 'Регистрируем...' : 'Входим...' }}
-          } @else {
-            {{ isRegisterMode() ? 'Зарегистрироваться' : 'Войти' }}
+        <button mat-flat-button type="submit" class="login-submit-button" [disabled]="submitting()">
+          @if (isActionPending('form')) {
+            <mat-spinner diameter="18"></mat-spinner>
           }
+          <span>
+            @if (isActionPending('form')) {
+              {{ isRegisterMode() ? 'Регистрируем...' : 'Входим...' }}
+            } @else {
+              {{ isRegisterMode() ? 'Зарегистрироваться' : 'Войти' }}
+            }
+          </span>
         </button>
+
+        @if (!isRegisterMode()) {
+          <div class="login-demo">
+            <p class="login-demo__title">Быстрый вход</p>
+
+            <div class="login-demo__actions">
+              <button
+                mat-stroked-button
+                type="button"
+                class="login-demo__button"
+                [disabled]="submitting()"
+                (click)="loginAsDemo('employee')"
+              >
+                @if (isActionPending('employee')) {
+                  <mat-spinner diameter="18"></mat-spinner>
+                }
+                <span>
+                  @if (isActionPending('employee')) {
+                    Входим как сотрудник...
+                  } @else {
+                    Войти как сотрудник
+                  }
+                </span>
+              </button>
+
+              <button
+                mat-stroked-button
+                type="button"
+                class="login-demo__button"
+                [disabled]="submitting()"
+                (click)="loginAsDemo('hr')"
+              >
+                @if (isActionPending('hr')) {
+                  <mat-spinner diameter="18"></mat-spinner>
+                }
+                <span>
+                  @if (isActionPending('hr')) {
+                    Входим как HR...
+                  } @else {
+                    Войти как HR
+                  }
+                </span>
+              </button>
+            </div>
+          </div>
+        }
       </form>
     </mat-card-content>
   </mat-card>
