@@ -101,6 +101,18 @@
                   <span class="workflow-stat__value">{{ hrFilterCount('pending') }}</span>
                   <span class="workflow-stat__label">Без решения</span>
                 </div>
+                <div class="workflow-stat">
+                  <span class="workflow-stat__value workflow-stat__value--budget">
+                    {{ intakeMaxPriceLabel() }}
+                  </span>
+                  <span class="workflow-stat__label">Max price</span>
+                </div>
+                <div class="workflow-stat">
+                  <span class="workflow-stat__value workflow-stat__value--budget">
+                    {{ intakeCurrentPriceLabel() }}
+                  </span>
+                  <span class="workflow-stat__label">Current price</span>
+                </div>
               </div>
 
               <div class="workflow-card__actions">

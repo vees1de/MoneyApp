@@ -208,6 +208,44 @@ export class IntakeDetailPageComponent implements OnInit {
 
     return counts;
   });
+  protected readonly intakeMaxPriceLabel = computed(() => {
+    const item = this.intake();
+    if (!item) {
+      return '—';
+    }
+
+    const maxParticipants = item.max_participants;
+    const pricePerParticipant = this.parsePrice(item.price);
+    if (
+      maxParticipants === null ||
+      maxParticipants === undefined ||
+      maxParticipants <= 0 ||
+      pricePerParticipant === null ||
+      pricePerParticipant < 0
+    ) {
+      return '—';
+    }
+
+    const total = maxParticipants * pricePerParticipant;
+    const currency = item.price_currency?.trim() || 'RUB';
+    return this.formatCurrencyAmount(total, currency);
+  });
+  protected readonly intakeCurrentPriceLabel = computed(() => {
+    const item = this.intake();
+    if (!item) {
+      return '—';
+    }
+
+    const pricePerParticipant = this.parsePrice(item.price);
+    if (pricePerParticipant === null || pricePerParticipant < 0) {
+      return '—';
+    }
+
+    const acceptedParticipants = this.hrFilterCounts().accepted;
+    const total = acceptedParticipants * pricePerParticipant;
+    const currency = item.price_currency?.trim() || 'RUB';
+    return this.formatCurrencyAmount(total, currency);
+  });
   protected readonly filteredApplications = computed(() => {
     const filter = this.hrFilter();
 
@@ -1110,5 +1148,30 @@ export class IntakeDetailPageComponent implements OnInit {
     }
 
     return application.enrollment_status === 'enrolled' || application.enrollment_status == null;
+  }
+
+  private parsePrice(value: string | null | undefined): number | null {
+    const normalized = value?.trim().replace(/\s+/g, '').replace(',', '.');
+    if (!normalized) {
+      return null;
+    }
+
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  private formatCurrencyAmount(amount: number, currency: string): string {
+    try {
+      return new Intl.NumberFormat('ru-RU', {
+        style: 'currency',
+        currency,
+        maximumFractionDigits: 2,
+      }).format(amount);
+    } catch {
+      const formatted = new Intl.NumberFormat('ru-RU', {
+        maximumFractionDigits: 2,
+      }).format(amount);
+      return `${formatted} ${currency}`;
+    }
   }
 }
